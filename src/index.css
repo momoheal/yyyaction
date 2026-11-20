@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+@custom-variant short (@media (max-height: 520px));
+
+@theme {
+  --font-num: "Rajdhani", "Bahnschrift", "DIN Alternate", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #0d0f12;
+  overscroll-behavior: none;
+}
+
+body {
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", system-ui, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  -webkit-font-smoothing: antialiased;
+}
+
+canvas {
+  touch-action: none;
+}
+
+.scroll-y {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
+
+.scroll-y::-webkit-scrollbar {
+  width: 6px;
+}
+.scroll-y::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+.title-font {
+  font-family: "ZCOOL QingKe HuangYou", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-shadow: 0 3px 0 rgba(90, 64, 0, 0.9), 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.deploy-btn {
+  background: linear-gradient(135deg, #ffe377 0%, #ffd23f 45%, #ffad1c 100%);
+  box-shadow: 0 12px 32px -12px rgba(255, 190, 40, 0.75), inset 0 -3px 0 rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+.deploy-btn:hover {
+  filter: brightness(1.07);
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.88); opacity: 0; }
+  60% { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.anim-pop {
+  animation: popIn 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+@keyframes riseIn {
+  from { transform: translateY(18px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.anim-rise {
+  animation: riseIn 0.55s ease-out both;
+}
+
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 210, 63, 0); }
+  50% { box-shadow: 0 0 22px 2px rgba(255, 210, 63, 0.55); }
+}
+.anim-glow {
+  animation: glowPulse 1.6s ease-in-out infinite;
+}
