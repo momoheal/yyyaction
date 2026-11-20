@@ -223,8 +223,8 @@ export function PauseMenu({ training, stats, onResume, onRestart, onQuit, muted,
         </div>
         <div className="mt-5 space-y-2 short:mt-3">
           <button onClick={onResume} className="deploy-btn flex w-full items-center justify-between rounded-xl px-4 py-3 font-black text-[#1d1500] active:scale-[0.98]">继续行动 <Key>Esc</Key></button>
-          <button onClick={onRestart} className="flex w-full items-center justify-between rounded-xl border border-white/15 bg-white/5 px-4 py-3 font-bold text-white transition hover:bg-white/10 active:scale-[0.98]">{training ? '重开训练' : '重新部署'} <Key>R</Key></button>
-          <button onClick={onQuit} className="flex w-full items-center justify-between rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 font-bold text-red-200 transition hover:bg-red-500/20 active:scale-[0.98]">放弃行动 · 返回大厅 <Key>Q</Key></button>
+          <button onClick={onRestart} className="flex w-full items-center justify-between rounded-xl border border-white/15 bg-white/5 px-4 py-3 font-bold text-white transition hover:bg-white/10 active:scale-[0.98]">{training ? '重开训练' : '重新部署'}</button>
+          <button onClick={onQuit} className="flex w-full items-center justify-between rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 font-bold text-red-200 transition hover:bg-red-500/20 active:scale-[0.98]">放弃行动 · 返回大厅</button>
         </div>
         <p className="mt-3 text-center text-[11px] text-white/40 short:hidden">{training ? '新手行动免费，可以随时重开' : '放弃或重新部署将损失本局背包物资与出击装备'}</p>
       </div>

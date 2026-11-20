@@ -38,7 +38,7 @@ export interface Enemy {
   special: string | null; specialT: number; cdx: number; cdy: number; honkCd: number; chargeCd: number; wanderT: number;
   dead: boolean; kick: number; hurtT: number;
 }
-export interface Bullet { x: number; y: number; ox: number; oy: number; vx: number; vy: number; dmg: number; life: number; from: 0 | 1; pierce: number; hit: number; src: Enemy | null; w: number; crit: boolean }
+export interface Bullet { x: number; y: number; ox: number; oy: number; vx: number; vy: number; dmg: number; life: number; from: 0 | 1; pierce: number; hitIds?: number[]; src: Enemy | null; w: number; crit: boolean }
 export interface Particle { x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; max: number; size: number; color: string; type: number; rot: number; vr: number; drag: number; grow: number }
 export interface FText { x: number; y: number; text: string; color: string; life: number; max: number; size: number; vy: number }
 export interface Grenade { x: number; y: number; z: number; vx: number; vy: number; vz: number; fuse: number; spin: number }
@@ -695,23 +695,20 @@ export class Game {
     if (d.pellets === 1) p.bloom = Math.min(p.bloom + d.spread * 0.22, d.spread * 1.6);
     const ca = Math.cos(p.aim), sa = Math.sin(p.aim);
     const F = p.r * 0.6 + d.len + 4, S = p.r * 0.3 + 2.5;
-    let mx = p.x + ca * F - sa * S, my = p.y + sa * F + ca * S;
-    let blocked = this.grid.raycast(p.x, p.y, mx, my, F_BULLET, this.hit);
-    if (blocked) {
-      // barrel clipped into a wall at an angle: fire along the centre line if that is clear
-      const fx = p.x + ca * F, fy = p.y + sa * F;
-      if (!this.grid.raycast(p.x, p.y, fx, fy, F_BULLET, this.hit)) { mx = fx; my = fy; blocked = false; }
-    }
-    if (blocked) {
-      const h = this.hit;
-      this.impact(p.x + (mx - p.x) * h.t, p.y + (my - p.y) * h.t, h.nx, h.ny);
-    } else {
-      for (let i = 0; i < d.pellets; i++) {
-        const a = p.aim + (Math.random() + Math.random() - 1) * spread;
-        const sp = d.speed * (d.pellets > 1 ? 0.85 + Math.random() * 0.3 : 1);
-        const crit = Math.random() < 0.1;
-        this.bullets.push({ x: mx, y: my, ox: mx, oy: my, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dmg: d.dmg * (crit ? 1.8 : 1), life: d.range / sp, from: 0, pierce: d.pierce, hit: -1, src: null, w: d.pellets > 1 ? 1.7 : d.id === 'sniper' ? 3.4 : 2.3, crit });
-      }
+    const muzzleDx = ca * F - sa * S, muzzleDy = sa * F + ca * S;
+    const muzzleT = this.grid.raycast(p.x, p.y, p.x + muzzleDx, p.y + muzzleDy, F_BULLET, this.hit)
+      ? this.hit.t : 1;
+    const mx = p.x + muzzleDx * muzzleT, my = p.y + muzzleDy * muzzleT;
+    // Sweep from the player to catch anything between the player and the visual muzzle.
+    for (let i = 0; i < d.pellets; i++) {
+      const a = p.aim + (Math.random() + Math.random() - 1) * spread;
+      const sp = d.speed * (d.pellets > 1 ? 0.85 + Math.random() * 0.3 : 1);
+      const crit = Math.random() < 0.1;
+      this.bullets.push({
+        x: p.x, y: p.y, ox: p.x, oy: p.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        dmg: d.dmg * (crit ? 1.8 : 1), life: d.range / sp, from: 0, pierce: d.pierce,
+        src: null, w: d.pellets > 1 ? 1.7 : d.id === 'sniper' ? 3.4 : 2.3, crit,
+      });
     }
     this.stats.shots++;
     p.kick = d.kick;
@@ -1349,7 +1346,7 @@ export class Game {
     const sp = e.def.bulletSpeed * (w.id === 'sniper' ? 1.6 : 1);
     for (let i = 0; i < w.pellets; i++) {
       const a = e.aim + gauss() * acc + (w.pellets > 1 ? (Math.random() - 0.5) * w.spread * 2 : 0);
-      this.bullets.push({ x: mx, y: my, ox: mx, oy: my, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dmg: w.dmg * e.def.dmgMul, life: (w.range * 0.95) / sp, from: 1, pierce: 0, hit: -1, src: e, w: 2.4, crit: false });
+      this.bullets.push({ x: mx, y: my, ox: mx, oy: my, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dmg: w.dmg * e.def.dmgMul, life: (w.range * 0.95) / sp, from: 1, pierce: 0, src: e, w: 2.4, crit: false });
     }
     e.kick = w.kick * 0.8;
     if (e.visA > 0.05 || dist < 900) {
@@ -1374,7 +1371,7 @@ export class Game {
       let hp = false;
       if (b.from === 0) {
         for (const e of this.enemies) {
-          if (e.dead || e.id === b.hit) continue;
+          if (e.dead || b.hitIds?.includes(e.id)) continue;
           const t = segCircle(b.x, b.y, dx, dy, e.x, e.y, e.r + 2);
           if (t >= 0 && t < tE) { tE = t; te = e; }
         }
@@ -1389,7 +1386,13 @@ export class Game {
         if (te) {
           this.damageEnemy(te, b.dmg, nx, ny, b.crit, hx, hy);
           this.stats.hits++;
-          if (b.pierce > 0) { b.pierce--; b.hit = te.id; b.x = hx + nx * 2; b.y = hy + ny * 2; b.dmg *= 0.75; continue; }
+          if (b.pierce > 0) {
+            b.pierce--;
+            (b.hitIds ??= []).push(te.id);
+            b.x = hx + nx * 2; b.y = hy + ny * 2;
+            b.dmg *= 0.75;
+            continue;
+          }
         } else {
           if (p.rollT > 0) {
             this.damagePlayer(b.dmg, b.x, b.y);

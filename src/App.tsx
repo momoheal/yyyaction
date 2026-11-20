@@ -6,26 +6,27 @@ import { LOADOUTS } from './game/data';
 import type { RaidResult } from './game/game';
 import { insertScore, loadSave, writeSave, type SaveData, type ScoreEntry } from './game/storage';
 
+function affordableLoadout(id: string, stash: number) {
+  return LOADOUTS.find((loadout) => loadout.id === id && loadout.cost <= stash) ?? LOADOUTS[0];
+}
+
 export default function App() {
   const sfx = useMemo(() => new Sfx(), []);
   const [save, setSave] = useState<SaveData>(() => loadSave());
   const saveRef = useRef(save);
   const [screen, setScreen] = useState<Screen>('menu');
   const screenRef = useRef<Screen>('menu');
-  const [kit, setKit] = useState(() => {
-    const s = saveRef.current;
-    const k = LOADOUTS.find((l) => l.id === s.kit);
-    return k && s.stash >= k.cost ? k.id : 'knife';
-  });
+  const [kit, setKit] = useState(() => affordableLoadout(save.kit, save.stash).id);
   const [over, setOver] = useState<GameOverData | null>(null);
   const [pauseStats, setPauseStats] = useState({ time: 0, value: 0, kills: 0, items: 0 });
   const gameRef = useRef<GameHandle>(null);
   const overAt = useRef(0);
   const trainingRef = useRef(false);
 
-  useEffect(() => {
-    screenRef.current = screen;
-  }, [screen]);
+  const transition = useCallback((next: Screen) => {
+    screenRef.current = next;
+    setScreen(next);
+  }, []);
 
   const commit = useCallback((s: SaveData) => {
     saveRef.current = s;
@@ -55,8 +56,7 @@ export default function App() {
       if (nav.wakeLock) void nav.wakeLock.request('screen').catch(() => {});
     } catch { /* wake lock unsupported */ }
     const s = saveRef.current;
-    let k = LOADOUTS.find((l) => l.id === kitId) ?? LOADOUTS[0];
-    if (s.stash < k.cost) k = LOADOUTS[0];
+    const k = affordableLoadout(kitId, s.stash);
     trainingRef.current = training;
     if (!training) {
       commit({ ...s, stash: s.stash - k.cost, kit: k.id, raids: s.raids + 1, firstRun: false });
@@ -64,31 +64,31 @@ export default function App() {
     }
     setOver(null);
     game.startRaid(k.id, training);
-    screenRef.current = 'playing';
-    setScreen('playing');
-  }, [commit, sfx]);
+    transition('playing');
+  }, [commit, sfx, transition]);
 
   const pause = useCallback(() => {
     if (screenRef.current !== 'playing') return;
     const st = gameRef.current?.stats();
     if (st) setPauseStats(st);
     sfx.play('ui');
-    setScreen('paused');
-  }, [sfx]);
+    transition('paused');
+  }, [sfx, transition]);
 
   const resume = useCallback(() => {
     sfx.unlock();
     sfx.play('ui');
-    setScreen('playing');
-  }, [sfx]);
+    transition('playing');
+  }, [sfx, transition]);
 
   const toMenu = useCallback(() => {
     gameRef.current?.toMenu();
     setOver(null);
-    setScreen('menu');
-  }, []);
+    transition('menu');
+  }, [transition]);
 
   const onGameOver = useCallback((r: RaidResult) => {
+    transition('gameover');
     const s = saveRef.current;
     const ok = r.outcome === 'extract';
     if (r.training) {
@@ -96,7 +96,6 @@ export default function App() {
       if (reward) commit({ ...s, stash: s.stash + reward, trainingCompleted: true, firstRun: false });
       setOver({ r, rank: -1, stashBefore: s.stash, stashAfter: s.stash + reward });
       overAt.current = performance.now();
-      setScreen('gameover');
       return;
     }
     const stash = s.stash + (ok ? r.value + r.kitCost : 0);
@@ -114,22 +113,21 @@ export default function App() {
     commit({ ...s, stash, scores: list, extracts: s.extracts + (ok ? 1 : 0), bestValue: Math.max(s.bestValue, ok ? r.value : 0) });
     setOver({ r, rank, stashBefore: s.stash, stashAfter: stash });
     overAt.current = performance.now();
-    setScreen('gameover');
-  }, [commit]);
+  }, [commit, transition]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.repeat) return;
+      if (e.repeat || e.defaultPrevented) return;
       const c = e.code;
-      if (screen === 'playing') {
+      if ((c === 'Enter' || c === 'Space') && e.target instanceof HTMLElement && e.target.closest('button')) return;
+      const current = screenRef.current;
+      if (current === 'playing') {
         if (c === 'Escape' || c === 'KeyP') { e.preventDefault(); pause(); }
-      } else if (screen === 'paused') {
+      } else if (current === 'paused') {
         if (c === 'Escape' || c === 'KeyP' || c === 'Enter') { e.preventDefault(); resume(); }
-        else if (c === 'KeyR') deploy(kit, trainingRef.current);
-        else if (c === 'KeyQ') toMenu();
-      } else if (screen === 'menu') {
+      } else if (current === 'menu') {
         if (c === 'Enter') { e.preventDefault(); deploy(kit, !saveRef.current.trainingCompleted); }
-      } else if (screen === 'gameover') {
+      } else if (current === 'gameover') {
         if (performance.now() - overAt.current < 700) return;
         if (c === 'Enter' || c === 'Space' || c === 'KeyR') { e.preventDefault(); deploy(kit, !!over?.r.training && over.r.outcome !== 'extract'); }
         else if (c === 'Escape') toMenu();
@@ -137,7 +135,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [screen, kit, deploy, pause, resume, toMenu, over]);
+  }, [kit, deploy, pause, resume, toMenu, over]);
 
   const kitObj = LOADOUTS.find((l) => l.id === kit) ?? LOADOUTS[0];
 
@@ -147,7 +145,7 @@ export default function App() {
       {screen === 'menu' && (
         <StartScreen
           save={save}
-          kit={kit}
+          kit={affordableLoadout(kit, save.stash).id}
           onKit={(k) => { sfx.unlock(); sfx.play('ui'); setKit(k); }}
           onDeploy={() => deploy(kit)}
           onTraining={() => deploy(kit, true)}
@@ -156,7 +154,21 @@ export default function App() {
         />
       )}
       {screen === 'paused' && (
-        <PauseMenu stats={pauseStats} onResume={resume} training={trainingRef.current} onRestart={() => deploy(kit, trainingRef.current)} onQuit={toMenu} muted={save.muted} onMute={toggleMute} />
+        <PauseMenu
+          stats={pauseStats}
+          onResume={resume}
+          training={trainingRef.current}
+          onRestart={() => {
+            if (trainingRef.current || window.confirm('重新部署会放弃本局，并扣除下一局的装备费（如有）。确定重开？')) {
+              deploy(kit, trainingRef.current);
+            }
+          }}
+          onQuit={() => {
+            if (trainingRef.current || window.confirm('返回大厅会放弃本局物资和出击装备。确定放弃？')) toMenu();
+          }}
+          muted={save.muted}
+          onMute={toggleMute}
+        />
       )}
       {screen === 'gameover' && over && (
         <GameOverScreen data={over} scores={save.scores} onRetry={() => deploy(kit, over.r.training && over.r.outcome !== 'extract')} onMenu={toMenu} canRetryKit={save.stash >= kitObj.cost} />
