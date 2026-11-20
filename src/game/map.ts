@@ -50,6 +50,28 @@ export interface GameMap {
   tracks: number[];
 }
 
+export type RaidMapId = 'island' | 'harbor' | 'foundry';
+
+export interface RaidMapDef {
+  id: RaidMapId;
+  name: string;
+  requiredExtracts: number;
+  theme: string;
+  loot: string;
+  boss: EnemyType;
+  build: () => GameMap;
+}
+
+export const RAID_MAPS: readonly RaidMapDef[] = [
+  { id: 'island', name: '鸭鸭岛', requiredExtracts: 0, theme: '农场与军事基地', loot: '通用补给、军械和保险箱', boss: 'goose', build: buildMap },
+  { id: 'harbor', name: '盐雾货港', requiredExtracts: 1, theme: '水道、装卸场与集装箱', loot: '码头补给、武器箱和船长航海日志', boss: 'harborBoss', build: buildHarbor },
+  { id: 'foundry', name: '赤炉工厂', requiredExtracts: 3, theme: '铸造线、炉前广场与控制室', loot: '控制室机箱、保险箱和封存炉芯', boss: 'foundryBoss', build: buildFoundry },
+];
+
+export function getRaidMap(id: RaidMapId): RaidMapDef {
+  return RAID_MAPS.find((map) => map.id === id) ?? RAID_MAPS[0];
+}
+
 function mulberry32(seed: number) {
   let a = seed >>> 0;
   return () => {
@@ -117,6 +139,115 @@ export function buildTrainingMap(): GameMap {
     spawns: [{ x: 145, y: 360, chick: [540, 360] }],
     enemySpots: [{ type: 'chicken', x: 540, y: 360, n: 1 }],
     reinforce: [], zones: [], tracks: [],
+  };
+}
+
+type Cover = [kind: 'wall' | 'cargo' | 'rack', x: number, y: number, w: number, h: number];
+
+function raidSolids(w: number, h: number, cover: Cover[], water: GameMap['water'], barrels: [number, number][]): Solid[] {
+  const wall = F_MOVE | F_BULLET | F_SIGHT;
+  const solids: Solid[] = [
+    ...cover.map(([kind, x, y, width, height], id): Solid => ({
+      id, t: 0, x, y, w: width, h: height, r: 0, f: wall, kind, v: id % 4, stamp: 0, dead: false, hp: 0,
+    })),
+  ];
+  for (const [x, y, width, height] of [[-32, -32, w + 64, 32], [-32, h, w + 64, 32], [-32, 0, 32, h], [w, 0, 32, h]]) {
+    solids.push({ id: solids.length, t: 0, x, y, w: width, h: height, r: 0, f: wall, kind: 'bound', v: 0, stamp: 0, dead: false, hp: 0 });
+  }
+  for (const { x, y, r } of water) {
+    solids.push({ id: solids.length, t: 1, x, y, w: 0, h: 0, r: r - 6, f: F_MOVE, kind: 'water', v: 0, stamp: 0, dead: false, hp: 0 });
+  }
+  for (const [x, y] of barrels) {
+    solids.push({ id: solids.length, t: 1, x, y, w: 0, h: 0, r: 14, f: F_MOVE | F_BULLET, kind: 'barrel', v: 0, stamp: 0, dead: false, hp: 20 });
+  }
+  return solids;
+}
+
+function buildHarbor(): GameMap {
+  const w = 2400, h = 1664;
+  const water = [{ x: 578, y: 402, r: 199 }, { x: 814, y: 402, r: 222 }, { x: 1048, y: 378, r: 169 }];
+  return {
+    w, h, water,
+    solids: raidSolids(w, h, [
+      ['cargo', 540, 740, 220, 68], ['cargo', 875, 680, 208, 68], ['cargo', 898, 996, 218, 68],
+      ['cargo', 1270, 622, 208, 68], ['cargo', 1300, 1060, 220, 68], ['cargo', 1660, 650, 210, 68],
+      ['cargo', 1700, 1070, 210, 68], ['cargo', 1860, 835, 70, 154], ['cargo', 1980, 440, 200, 68],
+      ['wall', 682, 1298, 245, 16], ['wall', 912, 1314, 15, 132], ['wall', 1930, 1250, 16, 142],
+    ], water, [[570, 828], [1117, 822], [1480, 714], [1770, 987], [2010, 710]]),
+    floors: [
+      { name: '北岸补给站', type: 'wood', x: 210, y: 570, w: 274, h: 180 },
+      { name: '南侧货棚', type: 'wood', x: 682, y: 1300, w: 245, h: 146 },
+    ],
+    decor: [], trees: [], tracks: [],
+    roads: [[90, 470, 280, 650, 450, 830, 1300, 830, 1900, 830, 2190, 300], [100, 1260, 610, 1180, 1200, 1200, 1850, 1260, 2200, 1370]],
+    pads: [
+      { type: 'dock', x: 407, y: 610, w: 780, h: 34 },
+      { type: 'base', x: 1180, y: 574, w: 770, h: 600 },
+      { type: 'platform', x: 2050, y: 1280, w: 288, h: 181 },
+    ],
+    containers: [
+      { type: 'crate', x: 304, y: 624 }, { type: 'duffel', x: 352, y: 704 }, { type: 'medbox', x: 420, y: 1190 },
+      { type: 'toolbox', x: 755, y: 1359 }, { type: 'weaponcase', x: 850, y: 1370 }, { type: 'crate', x: 806, y: 867 },
+      { type: 'medbox', x: 1246, y: 1103 }, { type: 'weaponcase', x: 1570, y: 754 }, { type: 'safe', x: 1640, y: 924 },
+      { type: 'crate', x: 2090, y: 547 }, { type: 'duffel', x: 2050, y: 1330 },
+    ],
+    spawns: [{ x: 144, y: 470, chick: [676, 910] }, { x: 144, y: 1248, chick: [676, 1160] }],
+    extractions: [{ id: 'A', name: '北岸登船梯', x: 2190, y: 300, r: 78 }, { id: 'B', name: '南门货运道', x: 2200, y: 1370, r: 78 }],
+    enemySpots: [
+      { type: 'chicken', x: 676, y: 910, n: 3 }, { type: 'chicken', x: 676, y: 1160, n: 2 },
+      { type: 'bandit', x: 950, y: 852, n: 1 }, { type: 'bandit', x: 1100, y: 1240, n: 1 },
+      { type: 'harborBoss', x: 1536, y: 880, n: 1 }, { type: 'armored', x: 1810, y: 786, n: 1 },
+      { type: 'bandit', x: 1950, y: 1130, n: 1 }, { type: 'lookout', x: 1960, y: 360, n: 1 },
+    ],
+    reinforce: [{ x: 1080, y: 1510 }, { x: 1264, y: 432 }, { x: 1900, y: 540 }, { x: 2050, y: 1130 }],
+    zones: [
+      { name: '货港入口', x: 0, y: 0, w: 520, h }, { name: '装卸通道', x: 520, y: 0, w: 660, h },
+      { name: '中央装卸场', x: 1180, y: 0, w: 770, h }, { name: '外港闸口', x: 1950, y: 0, w: 450, h },
+    ],
+  };
+}
+
+function buildFoundry(): GameMap {
+  const w = 2560, h = 1728;
+  return {
+    w, h,
+    solids: raidSolids(w, h, [
+      ['wall', 470, 540, 20, 320], ['wall', 470, 1010, 20, 280],
+      ['rack', 730, 480, 214, 36], ['rack', 730, 674, 214, 36], ['rack', 730, 1100, 214, 36],
+      ['wall', 1140, 570, 28, 180], ['wall', 1140, 985, 28, 180], ['wall', 1400, 613, 270, 24],
+      ['wall', 1400, 1130, 270, 24], ['wall', 1710, 708, 28, 126], ['wall', 1710, 960, 28, 120],
+      ['wall', 1944, 665, 24, 230], ['wall', 1944, 1020, 24, 220], ['rack', 2010, 560, 228, 32],
+      ['wall', 2030, 1060, 218, 24], ['wall', 2248, 1084, 24, 160],
+    ], [], [[830, 795], [1030, 985], [1245, 840], [1600, 1035], [1820, 845], [2150, 980]]),
+    floors: [
+      { name: '分拣车间', type: 'concrete', x: 560, y: 390, w: 490, h: 900 },
+      { name: '炉前广场', type: 'concrete', x: 1110, y: 530, w: 650, h: 660 },
+      { name: '控制室', type: 'tile', x: 1980, y: 1050, w: 290, h: 214 },
+    ],
+    decor: [], trees: [], water: [],
+    roads: [[95, 480, 350, 452, 585, 370, 1060, 370, 1840, 367, 2330, 310], [100, 1260, 390, 1390, 800, 1475, 1700, 1475, 2330, 1420]],
+    pads: [{ type: 'base', x: 375, y: 300, w: 1940, h: 1080 }, { type: 'platform', x: 2180, y: 1365, w: 290, h: 145 }],
+    tracks: [1398, 1450],
+    containers: [
+      { type: 'medbox', x: 312, y: 515 }, { type: 'crate', x: 379, y: 1197 }, { type: 'toolbox', x: 740, y: 574 },
+      { type: 'weaponcase', x: 958, y: 1000 }, { type: 'medbox', x: 1250, y: 710 }, { type: 'safe', x: 1550, y: 1080 },
+      { type: 'pc', x: 2056, y: 1140 }, { type: 'pc', x: 2126, y: 1194 }, { type: 'safe', x: 2210, y: 1166 },
+      { type: 'weaponcase', x: 2128, y: 525 }, { type: 'crate', x: 2060, y: 1440 },
+    ],
+    spawns: [{ x: 144, y: 490, chick: [630, 840] }, { x: 144, y: 1260, chick: [650, 1235] }],
+    extractions: [{ id: 'A', name: '冷却塔侧门', x: 2330, y: 310, r: 82 }, { id: 'B', name: '铁路装运口', x: 2330, y: 1420, r: 82 }],
+    enemySpots: [
+      { type: 'chicken', x: 630, y: 840, n: 2 }, { type: 'bandit', x: 650, y: 1235, n: 1 },
+      { type: 'armored', x: 942, y: 560, n: 1 }, { type: 'bandit', x: 1005, y: 1280, n: 1 },
+      { type: 'foundryBoss', x: 1490, y: 875, n: 1 }, { type: 'elite', x: 1520, y: 458, n: 1 },
+      { type: 'elite', x: 1845, y: 995, n: 1 }, { type: 'armored', x: 2075, y: 1275, n: 1 },
+      { type: 'lookout', x: 2140, y: 383, n: 1 }, { type: 'lookout', x: 2120, y: 1450, n: 1 },
+    ],
+    reinforce: [{ x: 820, y: 240 }, { x: 995, y: 1560 }, { x: 1760, y: 550 }, { x: 2020, y: 1350 }],
+    zones: [
+      { name: '工厂外门', x: 0, y: 0, w: 530, h }, { name: '分拣车间', x: 530, y: 0, w: 590, h },
+      { name: '炉前广场', x: 1120, y: 0, w: 660, h }, { name: '控制室与装运区', x: 1780, y: 0, w: 780, h },
+    ],
   };
 }
 
@@ -267,11 +398,11 @@ export function buildMap(): GameMap {
   const enemySpots: EnemySpot[] = [
     { type: 'bandit', x: 480, y: 1262, n: 1 }, { type: 'bandit', x: 330, y: 1255, n: 1 }, { type: 'bandit', x: 700, y: 1460, n: 1 },
     { type: 'bandit', x: 930, y: 420, n: 1 }, { type: 'bandit', x: 300, y: 560, n: 1 },
-    { type: 'chicken', x: 1500, y: 610, n: 5 }, { type: 'bandit', x: 1440, y: 300, n: 1 }, { type: 'bandit', x: 1840, y: 470, n: 1 },
+    { type: 'chicken', x: 1500, y: 610, n: 5 }, { type: 'lookout', x: 1440, y: 300, n: 1 }, { type: 'bandit', x: 1840, y: 470, n: 1 },
     { type: 'bandit', x: 2610, y: 470, n: 1 }, { type: 'bandit', x: 2650, y: 330, n: 1 }, { type: 'elite', x: 2900, y: 380, n: 1 },
-    { type: 'goose', x: 1660, y: 1360, n: 1 }, { type: 'elite', x: 1420, y: 1300, n: 1 }, { type: 'elite', x: 1890, y: 1150, n: 1 }, { type: 'bandit', x: 1650, y: 960, n: 1 },
+    { type: 'goose', x: 1660, y: 1360, n: 1 }, { type: 'armored', x: 1420, y: 1300, n: 1 }, { type: 'elite', x: 1890, y: 1150, n: 1 }, { type: 'bandit', x: 1650, y: 960, n: 1 },
     { type: 'bandit', x: 2480, y: 1071, n: 1 }, { type: 'bandit', x: 2830, y: 1500, n: 1 }, { type: 'elite', x: 2810, y: 1290, n: 1 },
-    { type: 'bandit', x: 1200, y: 1950, n: 1 }, { type: 'bandit', x: 2050, y: 2010, n: 1 }, { type: 'chicken', x: 620, y: 2250, n: 4 },
+    { type: 'bandit', x: 1200, y: 1950, n: 1 }, { type: 'lookout', x: 2050, y: 2010, n: 1 }, { type: 'chicken', x: 620, y: 2250, n: 4 },
     { type: 'bandit', x: 1600, y: 1910, n: 1 }, { type: 'chicken', x: 2600, y: 1850, n: 4 },
   ];
 

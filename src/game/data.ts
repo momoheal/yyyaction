@@ -114,7 +114,24 @@ export function weaponItem(id: string): ItemDef {
   return { id: 'w_' + id, name: w.name, icon: 'GUN', rarity: w.rarity, value: w.value, kind: 'weapon', weapon: id };
 }
 
-export type EnemyType = 'chicken' | 'bandit' | 'elite' | 'goose';
+export type EnemyType = 'chicken' | 'bandit' | 'elite' | 'armored' | 'lookout' | 'goose' | 'harborBoss' | 'foundryBoss';
+
+export interface BossPhase {
+  windup: number;
+  cooldown: number;
+  damage: number;
+  range: number;
+}
+
+export interface BossEncounter {
+  skill: 'charge' | 'pulse';
+  warning: string;
+  phaseWarning: string;
+  phaseAt: number;
+  phases: [BossPhase, BossPhase];
+  trophy: ItemDef;
+  extraLootWeights: number[];
+}
 
 export interface EnemyDef {
   id: EnemyType;
@@ -135,13 +152,46 @@ export interface EnemyDef {
   burst: [number, number];
   melee: number;
   boss: boolean;
+  encounter?: BossEncounter;
 }
 
 export const ENEMIES: Record<EnemyType, EnemyDef> = {
   chicken: { id: 'chicken', name: '暴走鸡', hp: 26, armor: 0, r: 11, speed: 250, vision: 430, reaction: 0.12, accuracy: 0, score: 200, weapons: [], dmgMul: 0, bulletSpeed: 0, prefMin: 0, prefMax: 0, burst: [0, 0], melee: 8, boss: false },
   bandit: { id: 'bandit', name: '鸭匪', hp: 85, armor: 0, r: 15, speed: 150, vision: 540, reaction: 0.55, accuracy: 0.11, score: 600, weapons: ['pistol', 'smg', 'smg', 'shotgun'], dmgMul: 0.36, bulletSpeed: 680, prefMin: 190, prefMax: 370, burst: [3, 5], melee: 0, boss: false },
   elite: { id: 'elite', name: '精英鸭匪', hp: 120, armor: 60, r: 16, speed: 165, vision: 600, reaction: 0.32, accuracy: 0.075, score: 1500, weapons: ['rifle', 'smg', 'shotgun', 'rifle'], dmgMul: 0.4, bulletSpeed: 760, prefMin: 220, prefMax: 420, burst: [4, 7], melee: 0, boss: false },
+  armored: { id: 'armored', name: '护甲鸭', hp: 100, armor: 95, r: 17, speed: 122, vision: 475, reaction: 0.52, accuracy: 0.13, score: 1300, weapons: ['shotgun'], dmgMul: 0.34, bulletSpeed: 630, prefMin: 90, prefMax: 200, burst: [1, 1], melee: 0, boss: false },
+  lookout: { id: 'lookout', name: '哨戒鸭', hp: 70, armor: 0, r: 14, speed: 175, vision: 700, reaction: 0.48, accuracy: 0.1, score: 1000, weapons: ['rifle'], dmgMul: 0.3, bulletSpeed: 820, prefMin: 370, prefMax: 570, burst: [2, 3], melee: 0, boss: false },
   goose: { id: 'goose', name: '鹅老大', hp: 1000, armor: 150, r: 26, speed: 130, vision: 650, reaction: 0.25, accuracy: 0.1, score: 15000, weapons: ['lmg'], dmgMul: 0.3, bulletSpeed: 700, prefMin: 150, prefMax: 380, burst: [10, 16], melee: 0, boss: true },
+  harborBoss: {
+    id: 'harborBoss', name: '铁钩船长', hp: 760, armor: 90, r: 24, speed: 140, vision: 620, reaction: 0.35,
+    accuracy: 0.15, score: 11000, weapons: ['shotgun'], dmgMul: 0.32, bulletSpeed: 620,
+    prefMin: 90, prefMax: 240, burst: [1, 1], melee: 0, boss: true,
+    encounter: {
+      skill: 'charge', warning: '看到红色冲撞路线后横向闪避，引它撞上货柜',
+      phaseWarning: '冲撞预警缩短，冲得更远', phaseAt: 0.5,
+      phases: [
+        { windup: 0.95, cooldown: 8, damage: 24, range: 360 },
+        { windup: 0.65, cooldown: 5.5, damage: 32, range: 470 },
+      ],
+      trophy: L('captain_log', '船长航海日志', '📕', 4, 96000),
+      extraLootWeights: [0, 0, 0, 1, 0, 0],
+    },
+  },
+  foundryBoss: {
+    id: 'foundryBoss', name: '炉心监工', hp: 1250, armor: 220, r: 27, speed: 112, vision: 690, reaction: 0.28,
+    accuracy: 0.1, score: 22000, weapons: ['rifle'], dmgMul: 0.38, bulletSpeed: 760,
+    prefMin: 180, prefMax: 300, burst: [5, 8], melee: 0, boss: true,
+    encounter: {
+      skill: 'pulse', warning: '橙圈内会受到热浪冲击，退圈或躲到实墙后',
+      phaseWarning: '热浪范围扩大，间隔缩短', phaseAt: 0.45,
+      phases: [
+        { windup: 1.15, cooldown: 8.5, damage: 24, range: 250 },
+        { windup: 0.9, cooldown: 5.5, damage: 34, range: 340 },
+      ],
+      trophy: L('furnace_core', '封存炉芯', '🧿', 5, 260000),
+      extraLootWeights: [0, 0, 0, 0, 1, 0],
+    },
+  },
 };
 
 export interface ContainerDef {
@@ -163,6 +213,33 @@ export const CONTAINER_DEFS: Record<string, ContainerDef> = {
   safe: { name: '保险箱', min: 2, max: 3, w: 32, h: 32, weights: [0, 8, 28, 36, 22, 6] },
   duffel: { name: '旅行包', min: 2, max: 4, w: 36, h: 24, weights: [34, 34, 20, 9, 2.5, 0.35] },
 };
+
+export type CharacterId = 'duck' | 'tank' | 'scout';
+
+export interface CharacterDef {
+  id: CharacterId;
+  name: string;
+  role: string;
+  speed: number;
+  armorScale: number;
+  armorBonus: number;
+  minArmor: number;
+  feathers: string[];
+}
+
+export const CHARACTERS: readonly CharacterDef[] = [
+  { id: 'duck', name: '黄鸭', role: '均衡', speed: 240, armorScale: 1, armorBonus: 0, minArmor: 0, feathers: ['#ffd43b', '#fff1a8', '#ffffff', '#f2c12e'] },
+  { id: 'tank', name: '铁头', role: '重甲', speed: 192, armorScale: 1, armorBonus: 45, minArmor: 0, feathers: ['#b0bca1', '#728573', '#d8dbb9'] },
+  { id: 'scout', name: '快羽', role: '侦察', speed: 288, armorScale: 0.55, armorBonus: 0, minArmor: 15, feathers: ['#a2e1ea', '#63aec1', '#d8f3f3'] },
+];
+
+export function getCharacter(id?: string): CharacterDef {
+  return CHARACTERS.find((character) => character.id === id) ?? CHARACTERS[0];
+}
+
+export function characterArmor(character: CharacterDef, armor: number) {
+  return Math.max(character.minArmor, Math.round(armor * character.armorScale) + character.armorBonus);
+}
 
 export interface Loadout {
   id: string;

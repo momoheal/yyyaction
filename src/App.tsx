@@ -4,6 +4,7 @@ import { GameOverScreen, PauseMenu, StartScreen, type GameOverData } from './com
 import { Sfx } from './game/audio';
 import { LOADOUTS } from './game/data';
 import type { RaidResult } from './game/game';
+import { getRaidMap, type RaidMapId } from './game/map';
 import { insertScore, loadSave, writeSave, type SaveData, type ScoreEntry } from './game/storage';
 
 function affordableLoadout(id: string, stash: number) {
@@ -17,6 +18,7 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('menu');
   const screenRef = useRef<Screen>('menu');
   const [kit, setKit] = useState(() => affordableLoadout(save.kit, save.stash).id);
+  const [mapId, setMapId] = useState<RaidMapId>('island');
   const [over, setOver] = useState<GameOverData | null>(null);
   const [pauseStats, setPauseStats] = useState({ time: 0, value: 0, kills: 0, items: 0 });
   const gameRef = useRef<GameHandle>(null);
@@ -46,6 +48,8 @@ export default function App() {
   const deploy = useCallback((kitId: string, training = false) => {
     const game = gameRef.current;
     if (!game || screenRef.current === 'playing') return;
+    const s = saveRef.current;
+    if (!training && getRaidMap(mapId).requiredExtracts > s.extracts) return;
     sfx.unlock();
     try {
       const de = document.documentElement;
@@ -55,7 +59,6 @@ export default function App() {
       const nav = navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<unknown> } };
       if (nav.wakeLock) void nav.wakeLock.request('screen').catch(() => {});
     } catch { /* wake lock unsupported */ }
-    const s = saveRef.current;
     const k = affordableLoadout(kitId, s.stash);
     trainingRef.current = training;
     if (!training) {
@@ -63,9 +66,9 @@ export default function App() {
       setKit(k.id);
     }
     setOver(null);
-    game.startRaid(k.id, training);
+    game.startRaid(k.id, training, mapId, s.characterId);
     transition('playing');
-  }, [commit, sfx, transition]);
+  }, [commit, mapId, sfx, transition]);
 
   const pause = useCallback(() => {
     if (screenRef.current !== 'playing') return;
@@ -103,7 +106,8 @@ export default function App() {
     let rank = -1;
     if (r.score > 0) {
       const entry: ScoreEntry = {
-        score: r.score, outcome: r.outcome, value: ok ? r.value : 0, kills: r.kills, time: Math.round(r.time), date: Date.now(), kit: r.kit,
+        score: r.score, outcome: r.outcome, value: ok ? r.value : 0, kills: r.kills, time: Math.round(r.time), date: Date.now(), kit: r.kit, mapId: r.mapId,
+        characterId: r.characterId,
         best: ok ? r.best?.name : undefined, bestIcon: ok ? r.best?.icon : undefined, bestR: ok ? r.best?.rarity : undefined,
       };
       const res = insertScore(s.scores, entry);
@@ -119,7 +123,7 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat || e.defaultPrevented) return;
       const c = e.code;
-      if ((c === 'Enter' || c === 'Space') && e.target instanceof HTMLElement && e.target.closest('button')) return;
+      if ((c === 'Enter' || c === 'Space') && e.target instanceof HTMLElement && e.target.closest('button, select')) return;
       const current = screenRef.current;
       if (current === 'playing') {
         if (c === 'Escape' || c === 'KeyP') { e.preventDefault(); pause(); }
@@ -146,6 +150,9 @@ export default function App() {
         <StartScreen
           save={save}
           kit={affordableLoadout(kit, save.stash).id}
+          mapId={mapId}
+          onMap={setMapId}
+          onCharacter={(characterId) => { sfx.unlock(); sfx.play('ui'); commit({ ...saveRef.current, characterId }); }}
           onKit={(k) => { sfx.unlock(); sfx.play('ui'); setKit(k); }}
           onDeploy={() => deploy(kit)}
           onTraining={() => deploy(kit, true)}

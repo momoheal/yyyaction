@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { cn } from '../utils/cn';
-import { LOADOUTS, RARITY_COLORS, RARITY_NAMES, RARITY_RGB, fmtMoney, fmtTime } from '../game/data';
+import { CHARACTERS, ENEMIES, LOADOUTS, RARITY_COLORS, RARITY_NAMES, RARITY_RGB, characterArmor, fmtMoney, fmtTime, getCharacter, type CharacterId } from '../game/data';
+import { RAID_MAPS, getRaidMap, type RaidMapId } from '../game/map';
 import type { ScoreEntry, SaveData } from '../game/storage';
 import type { RaidResult } from '../game/game';
 
@@ -49,6 +50,9 @@ export function ScoreTable({ scores, highlight = -1, compact = false }: { scores
           <span className={cn('w-6 text-center font-num text-lg font-bold', i === 0 ? 'text-[#ffd23f]' : i === 1 ? 'text-zinc-200' : i === 2 ? 'text-amber-600' : 'text-white/35')}>{i + 1}</span>
           <span className="min-w-0 flex-1">
             <span className="block font-num text-[17px] font-bold leading-tight text-white">{fmtMoney(s.score)}</span>
+              {(s.mapId || s.characterId) && <span className="block text-xs text-white/60">
+                {s.mapId && getRaidMap(s.mapId).name}{s.mapId && s.characterId && ' · '}{s.characterId && getCharacter(s.characterId).name}
+              </span>}
             <span className="block truncate text-[11px] text-white/45">
               {s.best ? <span style={{ color: RARITY_COLORS[s.bestR ?? 0] }}>{s.bestIcon === 'GUN' ? '🔫' : s.bestIcon} {s.best}</span> : '—'}
               <span className="ml-2">{s.kills}杀 · {fmtTime(s.time)}</span>
@@ -107,12 +111,15 @@ function Help() {
   );
 }
 
-export function StartScreen({ save, kit, onKit, onDeploy, onTraining, muted, onMute }: {
-  save: SaveData; kit: string; onKit: (k: string) => void; onDeploy: () => void; onTraining: () => void; muted: boolean; onMute: () => void;
+export function StartScreen({ save, kit, mapId, onMap, onCharacter, onKit, onDeploy, onTraining, muted, onMute }: {
+  save: SaveData; kit: string; mapId: RaidMapId; onMap: (id: RaidMapId) => void;
+  onCharacter: (id: CharacterId) => void; onKit: (k: string) => void;
+  onDeploy: () => void; onTraining: () => void; muted: boolean; onMute: () => void;
 }) {
   const [tab, setTab] = useState<'rank' | 'help'>(save.firstRun ? 'help' : 'rank');
   const rate = save.raids ? Math.round((save.extracts / save.raids) * 100) : 0;
   const sel = LOADOUTS.find((l) => l.id === kit) ?? LOADOUTS[0];
+  const map = getRaidMap(mapId);
   return (
     <div className="scroll-y absolute inset-0 z-10">
       <div className="pointer-events-none fixed inset-0 bg-gradient-to-r from-[#0b0d10]/95 via-[#0b0d10]/75 to-[#0b0d10]/30" />
@@ -125,7 +132,7 @@ export function StartScreen({ save, kit, onKit, onDeploy, onTraining, muted, onM
           </div>
           <h1 className="title-font mt-3 text-[64px] leading-none text-[#ffd23f] sm:text-[96px] short:mt-1.5 short:text-[46px]">鸭鸭鸭行动</h1>
           <p className="mt-3 max-w-md text-[15px] leading-relaxed text-white/70 short:hidden">
-            深入鸭鸭岛，搜刮物资、击败鸭匪与<span className="text-orange-300">鹅老大</span>，在倒计时结束前<span className="font-bold text-emerald-300">活着撤离</span>——只有带出去的才算你的。
+            搜刮物资，挑战各战区的首领，在倒计时结束前<span className="font-bold text-emerald-300">活着撤离</span>。带回的物资会存入仓库。
           </p>
 
           <div className="mt-5 flex flex-wrap items-stretch gap-3 short:hidden">
@@ -140,6 +147,27 @@ export function StartScreen({ save, kit, onKit, onDeploy, onTraining, muted, onM
             <div className="rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 backdrop-blur">
               <div className="text-[11px] tracking-widest text-white/45">最高得分</div>
               <div className="font-num text-2xl font-bold text-white">{fmtMoney(save.scores[0]?.score ?? 0)}</div>
+            </div>
+          </div>
+
+          <div role="group" aria-labelledby="character-label" className="mt-5 max-w-xl short:mt-2">
+            <div id="character-label" className="mb-1.5 text-xs font-bold tracking-widest text-white/60">选择角色</div>
+            <div className="grid grid-cols-3 gap-2">
+              {CHARACTERS.map((character) => {
+                const selected = save.characterId === character.id;
+                return (
+                  <button
+                    key={character.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => onCharacter(character.id)}
+                    className={cn('min-h-12 rounded-lg border px-2.5 py-1.5 text-left', selected ? 'border-[#ffd23f] bg-[#ffd23f]/12' : 'border-white/15 bg-black/40 hover:bg-white/10')}
+                  >
+                    <span className="block text-sm font-black" style={{ color: character.feathers[0] }}>{character.name} <span className="text-xs text-white/65">{character.role}</span></span>
+                    <span className="block text-[11px] leading-snug text-white/75">移速 {Math.round(100 * character.speed / CHARACTERS[0].speed)}%<br className="sm:hidden" /><span className="hidden sm:inline"> · </span>护甲 {characterArmor(character, sel.armor)}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -170,6 +198,28 @@ export function StartScreen({ save, kit, onKit, onDeploy, onTraining, muted, onM
                 );
               })}
             </div>
+          </div>
+
+          <div className="mt-4 max-w-xl short:mt-2">
+            <label htmlFor="raid-map" className="mb-1 block text-xs font-bold tracking-widest text-white/60">选择战区</label>
+            <select
+              id="raid-map"
+              value={mapId}
+              onChange={(event) => {
+                const next = RAID_MAPS.find((option) => option.id === event.target.value);
+                if (next && next.requiredExtracts <= save.extracts) onMap(next.id);
+              }}
+              className="min-h-10 w-full rounded-lg border border-white/20 bg-[#1b1e23] px-3 text-sm font-bold text-white"
+            >
+              {RAID_MAPS.map((option) => {
+                const locked = option.requiredExtracts > save.extracts;
+                return <option key={option.id} value={option.id} disabled={locked}>
+                  {option.name}{locked ? `（正式撤离 ${option.requiredExtracts} 次解锁）` : ''}
+                </option>;
+              })}
+            </select>
+            <p className="mt-1 text-xs leading-relaxed text-white/65">{map.theme} · 首领 {ENEMIES[map.boss].name}</p>
+            <p className="text-xs leading-relaxed text-white/65 short:hidden">物资 {map.loot}</p>
           </div>
 
           <button
@@ -273,7 +323,7 @@ export function GameOverScreen({ data, scores, onRetry, onMenu, canRetryKit }: {
             <div>
               <div className={cn('font-num text-xs font-bold tracking-[0.3em]', ok ? 'text-emerald-300' : 'text-red-300')}>{ok ? 'EXTRACTED' : r.outcome === 'dead' ? 'KILLED IN ACTION' : 'MISSING IN ACTION'}</div>
               <h2 className={cn('title-font text-5xl sm:text-6xl short:text-4xl', ok ? 'text-emerald-300' : 'text-red-300')}>{title}</h2>
-              <div className="mt-1 text-sm text-white/60">存活 {fmtTime(r.time)} · 击杀 {r.kills} · 装备「{kitName}」{ok ? '已带回' : r.kitCost ? '已丢失' : ''}</div>
+              <div className="mt-1 text-sm text-white/60">{getRaidMap(r.mapId).name} · {getCharacter(r.characterId).name} · 存活 {fmtTime(r.time)} · 击杀 {r.kills} · 装备「{kitName}」{ok ? '已带回' : r.kitCost ? '已丢失' : ''}</div>
             </div>
             <div className="text-right">
               <div className="text-xs tracking-widest text-white/50">本局得分</div>

@@ -1,4 +1,4 @@
-import { EXTRACT_TIME, RARITY_COLORS, RARITY_RGB, SEARCH_TIME, fmtMoney, fmtTime, type WeaponDef } from './data';
+import { ENEMIES, EXTRACT_TIME, RARITY_COLORS, RARITY_RGB, SEARCH_TIME, fmtMoney, fmtTime, type CharacterId, type WeaponDef } from './data';
 import { F_SIGHT, type FloorType, type Solid } from './map';
 import { hudScale, type Input } from './input';
 import { P_CASING, P_DEBRIS, P_DUST, P_FEATHER, P_FIRE, P_MUZZLE, P_RING, P_SMOKE, P_SPARK, P_STAR, TAU, type Container, type Enemy, type Game } from './game';
@@ -9,11 +9,22 @@ const FONT_EMOJI = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", s
 
 interface DuckStyle { body: string; wing: string; head: string; beak: string; vest?: string; helmet?: string; band?: string; visor?: string }
 const ST_PLAYER: DuckStyle = { body: '#ffd43b', wing: '#efbd27', head: '#ffd43b', beak: '#ff8c1a', vest: '#4b5a2e', helmet: '#5b6b35' };
+const PLAYER_STYLES: Record<CharacterId, DuckStyle> = {
+  duck: ST_PLAYER,
+  tank: { body: '#b0bca1', wing: '#839580', head: '#d7d9b5', beak: '#eda14b', vest: '#334139', helmet: '#536952', visor: '#d8deaa' },
+  scout: { body: '#a2e1ea', wing: '#63aec1', head: '#bfe8ea', beak: '#ef9f46', vest: '#2f5866', band: '#f18c44' },
+};
 const ST_BANDIT: DuckStyle = { body: '#a3abb0', wing: '#858e94', head: '#2f7d4f', beak: '#f2b134', vest: '#6b4a35', band: '#d64545' };
 const ST_ELITE: DuckStyle = { body: '#3d4248', wing: '#2c3035', head: '#24282c', beak: '#e0a030', vest: '#17191c', helmet: '#2b2f33', visor: '#ff4d4d' };
 const ST_CHICKEN: DuckStyle = { body: '#f7f3ea', wing: '#e6dfd0', head: '#f7f3ea', beak: '#f4b400' };
 const ST_GOOSE: DuckStyle = { body: '#f4f4f0', wing: '#dcdcd4', head: '#f4f4f0', beak: '#ff8a1e' };
-const STYLES: Record<string, DuckStyle> = { bandit: ST_BANDIT, elite: ST_ELITE, chicken: ST_CHICKEN, goose: ST_GOOSE };
+const STYLES: Record<Enemy['type'], DuckStyle> = {
+  bandit: ST_BANDIT, elite: ST_ELITE, chicken: ST_CHICKEN, goose: ST_GOOSE,
+  armored: { body: '#827887', wing: '#615464', head: '#b898a3', beak: '#ffb771', vest: '#48414e', helmet: '#59435b', visor: '#ff9273' },
+  lookout: { body: '#d6b681', wing: '#9d784d', head: '#e5c796', beak: '#b86d32', vest: '#645039', band: '#e8b13b' },
+  harborBoss: { ...ST_GOOSE, body: '#accad1', wing: '#557d89', head: '#cee6e8', vest: '#27475f', band: '#b14638' },
+  foundryBoss: { ...ST_GOOSE, body: '#b38e7b', wing: '#75554b', head: '#d9bc9d', vest: '#523840', helmet: '#574147', visor: '#ff8542' },
+};
 
 function mk(w: number, h: number) {
   const c = document.createElement('canvas');
@@ -603,7 +614,7 @@ export class Renderer {
 
   private drawWater(g: Game) {
     const ctx = this.ctx, w = g.map.water;
-    if (!this.inView(560, 400, 300)) return;
+    if (!w.some((pool) => this.inView(pool.x, pool.y, pool.r + 22))) return;
     ctx.fillStyle = '#cdb88a';
     ctx.beginPath();
     for (const c of w) { ctx.moveTo(c.x + c.r + 22, c.y); ctx.arc(c.x, c.y, c.r + 22, 0, TAU); }
@@ -766,9 +777,10 @@ export class Renderer {
       if (!this.inView(c.x, c.y, 40)) continue;
       const done = c.revealed >= c.items.length;
       if (c.body) {
-        const st = STYLES[c.etype ?? 'bandit'];
+        const type = c.etype ?? 'bandit';
+        const st = STYLES[type], def = ENEMIES[type];
         ctx.globalAlpha = 0.92;
-        drawDuck(ctx, c.x, c.y, c.angle, (c.etype === 'goose' ? 26 : c.etype === 'chicken' ? 11 : 15), st, 0, false, null, 0, c.etype === 'chicken' ? 1 : c.etype === 'goose' ? 2 : 0, true);
+        drawDuck(ctx, c.x, c.y, c.angle, c.w / 2, st, 0, false, null, 0, type === 'chicken' ? 1 : def.boss ? 2 : 0, true);
         ctx.globalAlpha = 1;
       } else this.drawCrate(c, t);
       if (!done) {
@@ -999,9 +1011,11 @@ export class Renderer {
     const raid = g.mode === 'raid';
     for (const e of g.enemies) {
       if (e.dead || (raid && e.visA < 0.03)) continue;
-      if (!this.inView(e.x, e.y, 60)) continue;
       ctx.globalAlpha = raid ? e.visA : 1;
-      const kind = e.type === 'chicken' ? 1 : e.type === 'goose' ? 2 : 0;
+      const phase = e.def.encounter?.phases[e.skillPhase];
+      if (phase && this.inView(e.x, e.y, phase.range)) this.drawBossWindup(e, phase.range, g.realT);
+      if (!this.inView(e.x, e.y, 60)) continue;
+      const kind = e.type === 'chicken' ? 1 : e.def.boss ? 2 : 0;
       let ang = e.aim;
       if (e.special === 'stun') ang += Math.sin(g.realT * 20) * 0.3;
       if (e.special === 'honkWind' || e.special === 'chargeWind') {
@@ -1014,17 +1028,43 @@ export class Renderer {
     ctx.globalAlpha = 1;
   }
 
+  private drawBossWindup(e: Enemy, range: number, time: number) {
+    if (e.special !== 'chargeWind' && e.special !== 'honkWind') return;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha *= 0.72 + 0.2 * Math.sin(time * 20);
+    ctx.beginPath();
+    if (e.special === 'chargeWind') {
+      ctx.moveTo(e.x, e.y);
+      ctx.lineTo(e.x + e.cdx * range, e.y + e.cdy * range);
+      ctx.lineWidth = e.r * 2;
+      ctx.strokeStyle = 'rgba(255,70,56,0.3)';
+      ctx.stroke();
+      ctx.strokeStyle = '#ff5546';
+    } else {
+      ctx.arc(e.x, e.y, range, 0, TAU);
+      ctx.fillStyle = 'rgba(255,141,50,0.14)';
+      ctx.fill();
+      ctx.strokeStyle = '#ffa94f';
+    }
+    ctx.setLineDash([14, 9]);
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.restore();
+  }
+
   private drawPlayer(g: Game) {
     const p = g.player;
     const w = p.weapons[p.cur];
+    const style = PLAYER_STYLES[p.character.id];
     let ang = p.aim;
     if (p.rollT > 0) ang += (1 - p.rollT / 0.3) * TAU * (p.rollDx >= 0 ? 1 : -1);
     if (p.rollT > 0) {
       this.ctx.globalAlpha = 0.25;
-      drawDuck(this.ctx, p.x - p.rollDx * 18, p.y - p.rollDy * 18, ang - 0.8, p.r, ST_PLAYER, p.walk, false, null, 0, 0);
+      drawDuck(this.ctx, p.x - p.rollDx * 18, p.y - p.rollDy * 18, ang - 0.8, p.r, style, p.walk, false, null, 0, 0);
       this.ctx.globalAlpha = 1;
     }
-    drawDuck(this.ctx, p.x, p.y, ang, p.r, ST_PLAYER, p.walk, p.flash > 0, w ? w.def : null, p.kick, 0);
+    drawDuck(this.ctx, p.x, p.y, ang, p.r, style, p.walk, p.flash > 0, w ? w.def : null, p.kick, 0);
   }
 
   private drawCanopies(g: Game) {
@@ -1232,7 +1272,7 @@ export class Renderer {
     if (raid) {
       for (const e of g.enemies) {
         if (e.visA < 0.3 || !this.inView(e.x, e.y, 60)) continue;
-        if (e.special === 'chargeWind') {
+        if (!e.def.encounter && e.special === 'chargeWind') {
           ctx.save();
           ctx.translate(e.x, e.y);
           ctx.rotate(Math.atan2(e.cdy, e.cdx));
@@ -1243,7 +1283,7 @@ export class Renderer {
           ctx.strokeRect(0, -e.r, 390, e.r * 2);
           ctx.restore();
         }
-        if (e.special === 'honkWind') {
+        if (!e.def.encounter && e.special === 'honkWind') {
           const k = 1 - e.specialT / 0.6;
           ctx.strokeStyle = `rgba(255,150,60,${0.4 + k * 0.5})`;
           ctx.lineWidth = 3;
@@ -1437,9 +1477,14 @@ export class Renderer {
       ctx.beginPath(); ctx.arc(mx + e.x * sc, my + e.y * sc, e.def.boss ? 3.5 : 2.2, 0, TAU); ctx.fill();
     }
     const vw = W / g.cam.zoom, vh = H / g.cam.zoom;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(mx, my, mmW, mmH);
+    ctx.clip();
     ctx.strokeStyle = 'rgba(255,255,255,0.35)';
     ctx.lineWidth = 1;
     ctx.strokeRect(mx + (g.cam.x - vw / 2) * sc, my + (g.cam.y - vh / 2) * sc, vw * sc, vh * sc);
+    ctx.restore();
     ctx.save();
     ctx.translate(mx + p.x * sc, my + p.y * sc);
     ctx.rotate(p.aim);
@@ -1455,7 +1500,7 @@ export class Renderer {
     let msgY = topY;
     if (g.boss && !g.boss.dead) {
       const b = g.boss, bw = Math.min(420 * u, W * (narrow ? 0.8 : 0.5)), bx = W / 2 - bw / 2, by = topY + 4;
-      this.txt(`👑 ${b.def.name}`, W / 2, by + 2, 14 * u, '#ffb37a', 'center', 800);
+      this.txt(`👑 ${b.def.name}${b.def.encounter ? ` · 阶段 ${b.phase + 1}` : ''}`, W / 2, by + 2, 14 * u, '#ffb37a', 'center', 800);
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(bx - 2, by + 12 * u, bw + 4, 12 * u + 4);
       ctx.fillStyle = '#e8463a';

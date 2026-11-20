@@ -3,12 +3,13 @@ import { Game, type RaidResult } from '../game/game';
 import { Renderer } from '../game/render';
 import { Input } from '../game/input';
 import type { Sfx } from '../game/audio';
-import { RAID_TIME } from '../game/data';
+import { RAID_TIME, type CharacterId } from '../game/data';
+import type { RaidMapId } from '../game/map';
 
 export type Screen = 'menu' | 'playing' | 'paused' | 'gameover';
 
 export interface GameHandle {
-  startRaid(kit: string, training: boolean): void;
+  startRaid(kit: string, training: boolean, mapId: RaidMapId, characterId: CharacterId): void;
   toMenu(): void;
   stats(): { time: number; value: number; kills: number; items: number };
 }
@@ -115,9 +116,9 @@ const GameView = forwardRef<GameHandle, Props>(function GameView(props, ref) {
   }, []);
 
   useImperativeHandle(ref, () => ({
-    startRaid: (kit: string, training: boolean) => {
+    startRaid: (kit: string, training: boolean, mapId: RaidMapId, characterId: CharacterId) => {
       inputRef.current?.reset();
-      gameRef.current?.startRaid(kit, training);
+      gameRef.current?.startRaid(kit, training, mapId, characterId);
     },
     toMenu: () => gameRef.current?.startDemo(),
     stats: () => {

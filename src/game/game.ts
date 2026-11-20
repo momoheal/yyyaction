@@ -1,9 +1,9 @@
 import {
   ARMORS, CONTAINER_DEFS, ENEMIES, EXTRACT_TIME, ITEM_BANDAGE, ITEM_GRENADE, ITEM_MEDKIT, LOADOUTS, LOOT, LOOT_BY_RARITY,
-  RAID_TIME, RARITY_COLORS, RARITY_NAMES, SEARCH_TIME, WEAPONS, fmtMoney, weaponItem,
-  type EnemyDef, type EnemyType, type ItemDef, type Loadout, type WeaponDef,
+  RAID_TIME, RARITY_COLORS, RARITY_NAMES, SEARCH_TIME, WEAPONS, characterArmor, fmtMoney, getCharacter, weaponItem,
+  type CharacterDef, type CharacterId, type EnemyDef, type EnemyType, type ItemDef, type Loadout, type WeaponDef,
 } from './data';
-import { buildMap, buildTrainingMap, F_BULLET, F_MOVE, F_SIGHT, type GameMap, type Solid } from './map';
+import { buildMap, buildTrainingMap, getRaidMap, F_BULLET, F_MOVE, F_SIGHT, type GameMap, type RaidMapId, type Solid } from './map';
 import { Grid, Nav, segCircle, type Hit } from './physics';
 import type { Sfx } from './audio';
 import type { Input } from './input';
@@ -18,6 +18,7 @@ export interface Container {
   items: LootItem[]; revealed: number; body: boolean; etype?: EnemyType; angle: number; open: number; shake: number;
 }
 export interface Player {
+  character: CharacterDef;
   x: number; y: number; vx: number; vy: number; kvx: number; kvy: number; r: number; aim: number;
   hp: number; maxHp: number; armor: number; armorMax: number;
   weapons: (WeaponInst | null)[]; cur: number;
@@ -36,6 +37,7 @@ export interface Enemy {
   losT: number; los: boolean; canSee: boolean; vis: boolean; visA: number; lastX: number; lastY: number; lostT: number; huntT: number;
   strafe: number; strafeT: number; reactT: number; alertT: number; qT: number; flash: number; walk: number; atkCd: number;
   special: string | null; specialT: number; cdx: number; cdy: number; honkCd: number; chargeCd: number; wanderT: number;
+  phase: 0 | 1; skillPhase: 0 | 1;
   dead: boolean; kick: number; hurtT: number;
 }
 export interface Bullet { x: number; y: number; ox: number; oy: number; vx: number; vy: number; dmg: number; life: number; from: 0 | 1; pierce: number; hitIds?: number[]; src: Enemy | null; w: number; crit: boolean }
@@ -51,7 +53,7 @@ export interface ExtractZone { id: string; name: string; x: number; y: number; r
 export type Outcome = 'extract' | 'dead' | 'mia';
 export interface ResultItem { name: string; icon: string; rarity: number; value: number }
 export interface RaidResult {
-  training: boolean; outcome: Outcome; items: ResultItem[]; value: number; killScore: number; kills: number; killsBy: Record<string, number>;
+  training: boolean; mapId: RaidMapId; characterId: CharacterId; outcome: Outcome; items: ResultItem[]; value: number; killScore: number; kills: number; killsBy: Record<string, number>;
   time: number; score: number; kit: string; kitCost: number; best: ResultItem | null;
 }
 
@@ -81,12 +83,15 @@ function shuffle<T>(a: T[]): T[] {
   return a;
 }
 
-export const FEATHER_COLORS: Record<string, string[]> = {
+export const FEATHER_COLORS: Record<EnemyType, string[]> = {
   bandit: ['#a3abb0', '#2f7d4f', '#ffffff', '#8d969c'],
   elite: ['#3a3f45', '#23272b', '#5a6068'],
+  armored: ['#827887', '#b898a3', '#534653'],
+  lookout: ['#d6b681', '#a37249', '#f5db9e'],
   chicken: ['#ffffff', '#f3ead8', '#e23b3b'],
   goose: ['#ffffff', '#f0f0ea', '#ff8a1e', '#ffffff'],
-  player: ['#ffd43b', '#fff1a8', '#ffffff', '#f2c12e'],
+  harborBoss: ['#9ec9d4', '#366575', '#ffb563', '#e2f3ee'],
+  foundryBoss: ['#cab0a3', '#684836', '#ff9b3d', '#ed7149'],
 };
 
 export class Game {
@@ -133,6 +138,7 @@ export class Game {
   zoneT = 0;
   tutorialT = 0;
   training = false;
+  mapId: RaidMapId = 'island';
   get timeLimit() { return this.training ? 90 : RAID_TIME; }
   booms: { x: number; y: number; t: number; r: number; dmg: number }[] = [];
   flash = { t: 0, color: '255,255,255' };
@@ -169,10 +175,11 @@ export class Game {
   }
 
   // ---------------------------------------------------------------- setup
-  private selectMap(training: boolean) {
-    if (training === this.training) return;
+  private selectMap(training: boolean, mapId: RaidMapId) {
+    if (training === this.training && mapId === this.mapId) return;
     this.training = training;
-    this.map = training ? buildTrainingMap() : buildMap();
+    this.mapId = mapId;
+    this.map = training ? buildTrainingMap() : getRaidMap(mapId).build();
     this.grid = new Grid(this.map.w, this.map.h, this.map.solids);
     this.nav = new Nav(this.map.w, this.map.h, this.grid);
     this.barrels = this.map.solids.filter((s) => s.kind === 'barrel');
@@ -201,9 +208,10 @@ export class Game {
     return { def, ammo: def.mag, reloadT: 0, cd: 0 };
   }
 
-  private makePlayer(x: number, y: number, kit: Loadout): Player {
+  private makePlayer(x: number, y: number, kit: Loadout, character = getCharacter()): Player {
+    const armor = characterArmor(character, kit.armor);
     return {
-      x, y, vx: 0, vy: 0, kvx: 0, kvy: 0, r: 15, aim: 0, hp: 100, maxHp: 100, armor: kit.armor, armorMax: kit.armor,
+      character, x, y, vx: 0, vy: 0, kvx: 0, kvy: 0, r: 15, aim: 0, hp: 100, maxHp: 100, armor, armorMax: armor,
       weapons: [kit.primary ? this.makeWeapon(kit.primary) : null, this.makeWeapon('pistol')], cur: kit.primary ? 0 : 1,
       rollT: 0, rollCd: 0, rollDx: 0, rollDy: 0, healT: 0, healDur: 0, healType: null,
       bandages: kit.bandages, medkits: kit.medkits, grenades: kit.grenades, backpack: [], capacity: 20,
@@ -212,7 +220,7 @@ export class Game {
   }
 
   startDemo() {
-    this.selectMap(false);
+    this.selectMap(false, 'island');
     this.mode = 'demo';
     this.resetWorld();
     this.player = this.makePlayer(-500, -500, LOADOUTS[0]);
@@ -224,14 +232,14 @@ export class Game {
     this.extracts = this.map.extractions.map((e) => ({ ...e }));
   }
 
-  startRaid(kitId: string, training = false) {
-    this.selectMap(training);
+  startRaid(kitId: string, training = false, mapId: RaidMapId = 'island', characterId?: CharacterId) {
+    this.selectMap(training, training ? 'island' : mapId);
     this.mode = 'raid';
     this.resetWorld();
     const kit = training ? LOADOUTS[0] : LOADOUTS.find((k) => k.id === kitId) ?? LOADOUTS[0];
     this.kit = kit;
     const sp = this.map.spawns[Math.floor(Math.random() * this.map.spawns.length)];
-    const p = this.makePlayer(sp.x, sp.y, kit);
+    const p = this.makePlayer(sp.x, sp.y, kit, getCharacter(characterId));
     this.player = p;
     p.aim = Math.atan2(this.map.h / 2 - sp.y, this.map.w / 2 - sp.x);
     if (training) {
@@ -249,16 +257,16 @@ export class Game {
     this.extracts = cands.slice(0, 2).map((o) => ({ ...o.e }));
     for (const s of this.map.enemySpots) {
       const d = Math.hypot(s.x - sp.x, s.y - sp.y);
-      if (s.type !== 'goose' && (d < 720 || Math.random() < 0.15)) continue;
+      if (mapId === 'island' && !ENEMIES[s.type].boss && (d < 720 || Math.random() < 0.15)) continue;
       if (s.type === 'chicken') this.spawnPack(s.x, s.y, s.n);
       else this.spawnEnemy(s.type, s.x, s.y, 'idle');
     }
-    this.spawnPack(sp.chick[0], sp.chick[1], 3);
+    if (mapId === 'island') this.spawnPack(sp.chick[0], sp.chick[1], 3);
     this.waveT = 50;
     this.nav.compute(p.x, p.y);
     this.navT = 0.3;
     this.cam.x = p.x; this.cam.y = p.y;
-    this.banner = { text: '行动开始', sub: '搜刮物资 · 击败鸭匪 · 活着撤离', color: '#ffd23f', t: 0, dur: 2.6 };
+    this.banner = { text: getRaidMap(mapId).name, sub: '行动开始 · 搜刮物资，活着撤离', color: '#ffd23f', t: 0, dur: 2.6 };
     this.tutorialT = 10;
     this.msg(`撤离点：${this.extracts.map((e) => e.name).join(' / ')}`, '#6dff9e');
     this.sfx.play('deploy');
@@ -297,10 +305,12 @@ export class Game {
 
   private rollBody(e: Enemy): LootItem[] {
     const out: ItemDef[] = [];
+    const encounter = e.def.encounter;
     switch (e.type) {
       case 'chicken':
         if (Math.random() < 0.45) out.push(this.rollLoot([70, 25, 5, 0, 0, 0]));
         break;
+      case 'lookout':
       case 'bandit': {
         const n = randInt(1, 3);
         for (let i = 0; i < n; i++) out.push(this.rollLoot([40, 34, 18, 6, 1.6, 0.25]));
@@ -309,6 +319,7 @@ export class Game {
         if (Math.random() < 0.12) out.push(ITEM_GRENADE);
         break;
       }
+      case 'armored':
       case 'elite': {
         const n = randInt(2, 3);
         for (let i = 0; i < n; i++) out.push(this.rollLoot([14, 30, 30, 18, 6.5, 1.2]));
@@ -328,6 +339,7 @@ export class Game {
         break;
       }
     }
+    if (encounter) out.push(encounter.trophy, this.rollLoot(encounter.extraLootWeights));
     return shuffle(out).map((def) => ({ def, revealed: false, taken: false, at: 0 }));
   }
 
@@ -344,6 +356,7 @@ export class Game {
       losT: Math.random() * 0.2, los: false, canSee: false, vis: false, visA: 0, lastX: pos.x, lastY: pos.y, lostT: 0, huntT: 0,
       strafe: Math.random() < 0.5 ? 1 : -1, strafeT: 1, reactT: 0, alertT: 0, qT: 0, flash: 0, walk: Math.random() * 10, atkCd: 0,
       special: null, specialT: 0, cdx: 0, cdy: 0, honkCd: 4, chargeCd: 6, wanderT: Math.random() * 2, dead: false, kick: 0, hurtT: 0,
+      phase: 0, skillPhase: 0,
     };
     this.enemies.push(e);
     return e;
@@ -364,7 +377,7 @@ export class Game {
     for (let k = 0; k < 16; k++) {
       const a = Math.random() * TAU, d = rand(minD, maxD);
       const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d;
-      if (this.nav.isOpen(x, y)) cands.push({ x, y });
+      if (x > 40 && x < this.map.w - 40 && y > 40 && y < this.map.h - 40 && this.nav.isOpen(x, y)) cands.push({ x, y });
     }
     const ok = cands.filter((c) => Math.hypot(c.x - p.x, c.y - p.y) > 560 && !this.grid.los(p.x, p.y, c.x, c.y, F_SIGHT));
     if (!ok.length) return false;
@@ -560,7 +573,7 @@ export class Game {
       p.vx = p.rollDx * sp; p.vy = p.rollDy * sp;
       if (Math.random() < 0.6) this.puff(p.x - p.rollDx * 10, p.y - p.rollDy * 10 + 6, 1, 'rgba(214,196,160,0.45)', 6, 30, 0.4);
     } else {
-      let speed = 240;
+      let speed = p.character.speed;
       if (p.healT > 0) speed *= 0.5;
       if (w.def.id === 'lmg') speed *= 0.9;
       const k = Math.min(1, dt * 20);
@@ -778,17 +791,24 @@ export class Game {
       e.reactT = Math.min(0.22, e.def.reaction);
       e.alertT = 1.2;
       e.lastX = this.player.x; e.lastY = this.player.y;
-      this.sfx.play(e.type === 'chicken' ? 'cluck' : e.type === 'goose' ? 'honk' : 'quack', e.x, e.y, 0.8);
+      this.sfx.play(e.type === 'chicken' ? 'cluck' : e.def.boss ? 'honk' : 'quack', e.x, e.y, 0.8);
     }
     if (e.def.boss) this.engageBoss(e);
     if (e.hp <= 0) this.killEnemy(e, nx, ny);
+    else if (e.def.encounter && e.phase === 0 && e.hp <= e.maxHp * e.def.encounter.phaseAt) {
+      e.phase = 1;
+      e.honkCd = Math.min(e.honkCd, 1.5);
+      e.chargeCd = Math.min(e.chargeCd, 1.5);
+      this.banner = { text: `${e.def.name} · 第二阶段`, sub: e.def.encounter.phaseWarning, color: '#ff8a5c', t: 0, dur: 2.4 };
+      this.sfx.play('alarm');
+    }
   }
 
   private engageBoss(e: Enemy) {
     this.boss = e;
     if (!this.bossSeen) {
       this.bossSeen = true;
-      this.banner = { text: '鹅老大 出现了！', sub: '小心冲撞与震地鹅叫', color: '#ff8a1e', t: 0, dur: 2.4 };
+      this.banner = { text: `${e.def.name} 出现了！`, sub: e.def.encounter?.warning ?? '小心冲撞与震地鹅叫', color: '#ff8a1e', t: 0, dur: 2.4 };
       this.sfx.play('alarm');
     }
   }
@@ -823,7 +843,7 @@ export class Game {
     this.containers.push({ id: this.nextId++, type: 'body', name: `${e.def.name}的遗体`, x: e.x, y: e.y, w: e.r * 2, h: e.r * 2, items, revealed: 0, body: true, etype: e.type, angle: Math.atan2(ny, nx), open: 0, shake: 0 });
     if (e.def.boss) {
       this.boss = null;
-      this.banner = { text: '击败 鹅老大！', sub: '搜刮它的遗体获取顶级物资', color: '#ffb93b', t: 0, dur: 2.8 };
+      this.banner = { text: `击败 ${e.def.name}！`, sub: '搜刮它的遗体获取顶级物资', color: '#ffb93b', t: 0, dur: 2.8 };
       this.slowT = 0.9; this.slowScale = 0.3;
       this.flash = { t: 0.35, color: '255,220,120' };
       this.lights.push({ x: e.x, y: e.y, r: 420, color: '#ffb93b', life: 0.6, max: 0.6 });
@@ -850,7 +870,7 @@ export class Game {
     this.addTrauma(0.2 + Math.min(0.3, dmg * 0.012));
     this.dmgInds.push({ ang: Math.atan2(sy - p.y, sx - p.x), t: 1 });
     if (this.dmgInds.length > 6) this.dmgInds.shift();
-    this.feathers(p.x, p.y, 3, FEATHER_COLORS.player, p.x - sx, p.y - sy, 0.7);
+    this.feathers(p.x, p.y, 3, p.character.feathers, p.x - sx, p.y - sy, 0.7);
     this.sfx.play('hurt');
     if (p.hp <= 0) {
       p.hp = 0;
@@ -860,7 +880,7 @@ export class Game {
       this.endT = 0;
       this.search = null;
       this.slowT = 1.5; this.slowScale = 0.3;
-      this.feathers(p.x, p.y, 45, FEATHER_COLORS.player, 0, 0, 1.4);
+      this.feathers(p.x, p.y, 45, p.character.feathers, 0, 0, 1.4);
       this.sfx.play('death');
       this.banner = { text: '阵亡', sub: '背包物资全部丢失', color: '#ff4f4f', t: 0, dur: 3 };
       this.addTrauma(0.8);
@@ -900,7 +920,7 @@ export class Game {
     const extracted = this.outcome === 'extract';
     const score = extracted ? value + this.stats.killScore : Math.floor(this.stats.killScore * 0.3);
     return {
-      training: this.training, outcome: this.outcome ?? 'dead', items, value, killScore: this.stats.killScore, kills: this.stats.kills,
+      training: this.training, mapId: this.mapId, characterId: p.character.id, outcome: this.outcome ?? 'dead', items, value, killScore: this.stats.killScore, kills: this.stats.kills,
       killsBy: { ...this.stats.killsBy }, time: this.t, score, kit: this.kit.id, kitCost: this.kit.cost, best: items[0] ?? null,
     };
   }
@@ -987,10 +1007,16 @@ export class Game {
       case 'grenade':
         if (p.grenades < 4) { p.grenades++; note = '手雷 +1'; } else taken = this.toBackpack(it);
         break;
-      case 'armor':
-        if ((d.armor ?? 0) > p.armorMax || p.armor < (d.armor ?? 0) * 0.5) { p.armorMax = d.armor ?? 0; p.armor = p.armorMax; note = `装备 ${d.name}`; this.sfx.play('shield'); }
-        else taken = this.toBackpack(it);
+      case 'armor': {
+        const armor = characterArmor(p.character, d.armor ?? 0);
+        if (armor > p.armorMax || p.armor < armor * 0.5) {
+          p.armorMax = armor;
+          p.armor = armor;
+          note = `装备 ${d.name}`;
+          this.sfx.play('shield');
+        } else taken = this.toBackpack(it);
         break;
+      }
       case 'weapon': {
         const wd = WEAPONS[d.weapon ?? 'pistol'];
         const cur = p.weapons[0];
@@ -1136,7 +1162,7 @@ export class Game {
     e.state = 'react';
     e.reactT = e.def.reaction * (0.8 + Math.random() * 0.4);
     e.alertT = 1.2;
-    this.sfx.play(e.type === 'chicken' ? 'cluck' : e.type === 'goose' ? 'honk' : 'quack', e.x, e.y, 0.9);
+    this.sfx.play(e.type === 'chicken' ? 'cluck' : e.def.boss ? 'honk' : 'quack', e.x, e.y, 0.9);
     if (e.def.boss) this.engageBoss(e);
   }
 
@@ -1170,7 +1196,8 @@ export class Game {
 
       if (e.special) {
         this.updateSpecial(e, dt, dist, angTo);
-        faceA = e.special === 'charge' || e.special === 'stun' ? null : angTo;
+        faceA = e.special === 'charge' || e.special === 'stun' ? null
+          : e.special === 'chargeWind' && def.encounter ? Math.atan2(e.cdy, e.cdx) : angTo;
       } else {
         switch (e.state) {
           case 'idle':
@@ -1224,13 +1251,7 @@ export class Game {
                 dv.x = (fx / l) * def.speed * 0.8; dv.y = (fy / l) * def.speed * 0.8;
               }
               this.enemyShoot(e, dt, dist, angTo);
-              if (e.type === 'goose') {
-                e.honkCd -= dt; e.chargeCd -= dt;
-                if (e.canSee) {
-                  if (e.honkCd <= 0 && dist < 290) { e.special = 'honkWind'; e.specialT = 0.6; }
-                  else if (e.chargeCd <= 0 && dist > 150 && dist < 560) { e.special = 'chargeWind'; e.specialT = 0.75; }
-                }
-              }
+              if (e.def.boss) this.prepareBossSkill(e, dt, dist, angTo);
             }
             break;
           }
@@ -1253,7 +1274,7 @@ export class Game {
     const col = this.grid.resolve(e, e.r, F_MOVE);
     e.x = clamp(e.x, e.r, this.map.w - e.r); e.y = clamp(e.y, e.r, this.map.h - e.r);
     if (col && e.special === 'charge') {
-      e.special = 'stun'; e.specialT = 1.5; e.chargeCd = 9;
+      e.special = 'stun'; e.specialT = 1.5; e.chargeCd = e.def.encounter?.phases[e.skillPhase].cooldown ?? 9;
       this.addTrauma(Math.max(0, 0.6 - dist / 1500));
       this.sfx.play('stun', e.x, e.y);
       this.puff(e.x + e.cdx * 20, e.y + e.cdy * 20, 8, 'rgba(200,190,170,0.6)', 10, 120);
@@ -1262,27 +1283,49 @@ export class Game {
     e.walk += Math.hypot(e.vx, e.vy) * dt * 0.06;
   }
 
+  private prepareBossSkill(e: Enemy, dt: number, dist: number, angTo: number) {
+    e.honkCd -= dt;
+    e.chargeCd -= dt;
+    if (!e.canSee) return;
+    const profile = e.def.encounter;
+    const phase = profile?.phases[e.phase];
+    if (profile?.skill !== 'charge' && e.honkCd <= 0 && dist < (phase?.range ?? 290)) {
+      e.special = 'honkWind';
+      e.specialT = phase?.windup ?? 0.6;
+    } else if (profile?.skill !== 'pulse' && e.chargeCd <= 0 && dist > (phase ? 140 : 150) && dist < (phase?.range ?? 560)) {
+      e.special = 'chargeWind';
+      e.specialT = phase?.windup ?? 0.75;
+      e.cdx = Math.cos(angTo);
+      e.cdy = Math.sin(angTo);
+    } else return;
+    e.skillPhase = e.phase;
+  }
+
   private updateSpecial(e: Enemy, dt: number, dist: number, angTo: number) {
     const p = this.player;
+    const phase = e.def.encounter?.phases[e.skillPhase];
     e.specialT -= dt;
     switch (e.special) {
       case 'honkWind':
-        if (e.specialT <= 0) { this.honk(e, dist); e.special = null; e.honkCd = 7 + Math.random() * 3; }
+        if (e.specialT <= 0) { this.honk(e, dist); e.special = null; e.honkCd = phase?.cooldown ?? (7 + Math.random() * 3); }
         break;
       case 'chargeWind':
-        e.cdx = Math.cos(angTo); e.cdy = Math.sin(angTo);
-        if (e.specialT <= 0) { e.special = 'charge'; e.specialT = 0.6; this.sfx.play('honk', e.x, e.y, 0.7); }
+        if (!phase) { e.cdx = Math.cos(angTo); e.cdy = Math.sin(angTo); }
+        if (e.specialT <= 0) { e.special = 'charge'; e.specialT = phase ? phase.range / 640 : 0.6; this.sfx.play('honk', e.x, e.y, 0.7); }
         break;
       case 'charge':
         if (Math.random() < 0.7) this.puff(e.x - e.cdx * 20, e.y - e.cdy * 20 + 8, 1, 'rgba(214,196,160,0.5)', 8, 30, 0.5);
         if (dist < e.r + p.r + 6 && !p.dead) {
           if (p.rollT <= 0) {
-            this.damagePlayer(30, e.x, e.y);
+            this.damagePlayer(phase?.damage ?? 30, e.x, e.y);
             p.kvx += e.cdx * 750; p.kvy += e.cdy * 750;
             this.addTrauma(0.5);
-          }
-          e.special = null; e.chargeCd = 9;
-        } else if (e.specialT <= 0) { e.special = null; e.chargeCd = 9; }
+            e.special = null;
+          } else if (phase) {
+            this.damagePlayer(phase.damage, e.x, e.y);
+          } else e.special = null;
+        }
+        if (!e.special || e.specialT <= 0) { e.special = null; e.chargeCd = phase?.cooldown ?? 9; }
         break;
       case 'stun':
         if (Math.random() < 0.15) {
@@ -1298,20 +1341,30 @@ export class Game {
 
   private honk(e: Enemy, dist: number) {
     const p = this.player;
+    const phase = e.def.encounter?.phases[e.skillPhase];
+    const range = phase?.range ?? 290;
     this.sfx.play('honk', e.x, e.y, 1.3);
     for (let i = 0; i < 3; i++) {
       const ring = this.P(P_RING, e.x, e.y, 0, 0, 0.45 + i * 0.12, 20, i === 0 ? 'rgba(255,170,80,0.9)' : 'rgba(255,255,255,0.6)');
-      if (ring) ring.grow = 560 - i * 90;
+      if (ring) ring.grow = (phase ? range * 2 : 560) - i * 90;
     }
-    this.text(e.x, e.y - 46, '嘎——！！', '#ff8a1e', 26, true);
+    this.text(e.x, e.y - 46, phase ? '炉心热浪！' : '嘎——！！', '#ff8a1e', 26, true);
     this.addTrauma(Math.max(0, 0.65 - dist / 1400));
-    if (dist < 290 && !p.dead && p.rollT <= 0) {
+    if (phase && dist < range && this.grid.los(e.x, e.y, p.x, p.y, F_SIGHT)) {
+      this.damagePlayer(phase.damage, e.x, e.y);
+      if (p.rollT <= 0 && !p.dead) {
+        p.kvx += (p.x - e.x) / dist * 680;
+        p.kvy += (p.y - e.y) / dist * 680;
+      }
+    } else if (!phase && dist < range && !p.dead && p.rollT <= 0) {
       const nx = (p.x - e.x) / (dist || 1), ny = (p.y - e.y) / (dist || 1);
       p.kvx += nx * 680; p.kvy += ny * 680;
       if (dist < 230) this.damagePlayer(14, e.x, e.y);
     }
-    for (const o of this.enemies) {
-      if (o !== e && o.state === 'idle' && Math.hypot(o.x - e.x, o.y - e.y) < 900) { o.state = 'hunt'; o.huntT = 12; o.qT = 1.4; }
+    if (!phase) {
+      for (const o of this.enemies) {
+        if (o !== e && o.state === 'idle' && Math.hypot(o.x - e.x, o.y - e.y) < 900) { o.state = 'hunt'; o.huntT = 12; o.qT = 1.4; }
+      }
     }
   }
 

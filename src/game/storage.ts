@@ -1,4 +1,5 @@
-import { STARTING_STASH } from './data';
+import { STARTING_STASH, getCharacter, type CharacterId } from './data';
+import type { RaidMapId } from './map';
 
 export interface ScoreEntry {
   score: number;
@@ -8,6 +9,8 @@ export interface ScoreEntry {
   time: number;
   date: number;
   kit: string;
+  mapId?: RaidMapId;
+  characterId?: CharacterId;
   best?: string;
   bestIcon?: string;
   bestR?: number;
@@ -17,6 +20,7 @@ export interface SaveData {
   stash: number;
   scores: ScoreEntry[];
   kit: string;
+  characterId: CharacterId;
   muted: boolean;
   raids: number;
   extracts: number;
@@ -28,7 +32,7 @@ export interface SaveData {
 const KEY = 'duckops.save.v1';
 
 export function defaultSave(): SaveData {
-  return { stash: STARTING_STASH, scores: [], kit: 'assault', muted: false, raids: 0, extracts: 0, bestValue: 0, firstRun: true, trainingCompleted: false };
+  return { stash: STARTING_STASH, scores: [], kit: 'assault', characterId: 'duck', muted: false, raids: 0, extracts: 0, bestValue: 0, firstRun: true, trainingCompleted: false };
 }
 
 export function loadSave(): SaveData {
@@ -40,6 +44,7 @@ export function loadSave(): SaveData {
       return {
         ...base,
         ...d,
+        characterId: getCharacter(d.characterId).id,
         scores: Array.isArray(d.scores) ? d.scores.filter((s) => s && typeof s.score === 'number').slice(0, 10) : [],
         stash: typeof d.stash === 'number' && isFinite(d.stash) ? Math.max(0, d.stash) : base.stash,
       };
