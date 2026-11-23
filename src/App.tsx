@@ -133,9 +133,14 @@ export default function App() {
       const nav = navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<unknown> } };
       if (nav.wakeLock) void nav.wakeLock.request('screen').catch(() => {});
     } catch { /* wake lock unsupported */ }
-    const gear = !training && kitId === WAREHOUSE_KIT ? availableGear(s.warehouse) : {};
+    let gear = !training && kitId === WAREHOUSE_KIT ? availableGear(s.warehouse) : {};
+    let k = hasWarehouseLoadout(gear) ? warehouseLoadout(gear) : affordableLoadout(kitId, s.stash);
+    if (k.cost > s.stash) {
+      // Custom supplies must never drive the stash negative — fall back to a free run.
+      gear = {};
+      k = LOADOUTS[0];
+    }
     const equipped = raidGearItems(gear);
-    const k = hasWarehouseLoadout(gear) ? warehouseLoadout(gear) : affordableLoadout(kitId, s.stash);
     trainingRef.current = training;
     if (!training) {
       const items = equipped.reduce((stock, item) => changeStock(stock, item, -1), s.warehouse.items);
