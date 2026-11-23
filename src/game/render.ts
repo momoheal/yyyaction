@@ -1397,6 +1397,7 @@ export class Renderer {
         drawDuck(ctx, e.x, e.y, ang, e.r, STYLES[e.type], e.walk, e.flash > 0, e.weapon, e.kick, kind);
         ctx.restore();
       } else drawDuck(ctx, e.x, e.y, ang, e.r, STYLES[e.type], e.walk, e.flash > 0, e.weapon, e.kick, kind);
+      if (e.def.boss) this.drawBossIdentity(e);
       if (e.chillT > 0) {
         ctx.save();
         ctx.globalAlpha = Math.min(0.85, e.chillT * 0.5) * (raid ? e.visA : 1);
@@ -1437,6 +1438,69 @@ export class Renderer {
     ctx.globalAlpha = 1;
   }
 
+  /** Large, rounded signature gear makes each late-game boss readable at play scale. */
+  private drawBossIdentity(e: Enemy) {
+    const ctx = this.ctx, r = e.r;
+    ctx.save();
+    ctx.translate(e.x, e.y);
+    ctx.rotate(e.aim);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    if (e.type === 'broodQueen') {
+      // A woven egg sling and three bright eggs mark the summoner at a glance.
+      ctx.fillStyle = '#615f37'; ctx.strokeStyle = '#d6c47a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(-r * 0.78, 0, r * 0.56, r * 0.78, 0, 0, TAU); ctx.fill(); ctx.stroke();
+      for (const [x, y] of [[-r * 0.92, -r * 0.34], [-r * 0.92, r * 0.34], [-r * 0.62, 0]] as const) {
+        ctx.fillStyle = '#fff3c8'; ctx.beginPath(); ctx.ellipse(x, y, r * 0.15, r * 0.21, -0.18, 0, TAU); ctx.fill();
+        ctx.strokeStyle = '#b6a36a'; ctx.lineWidth = 1; ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.fillRect(x - r * 0.06, y - r * 0.12, r * 0.08, r * 0.04);
+      }
+      ctx.fillStyle = '#f4d76d';
+      for (const [x, y] of [[r * 0.9, -r * 0.88], [r * 1.22, -r * 1.03], [r * 1.5, -r * 0.82]] as const) {
+        ctx.beginPath(); ctx.ellipse(x, y, r * 0.13, r * 0.18, -0.22, 0, TAU); ctx.fill();
+      }
+    } else if (e.type === 'frostMarshal') {
+      // Officer's dark ice cape, bright shoulder plates and snowflake insignia.
+      ctx.fillStyle = '#31586e'; ctx.strokeStyle = '#9be5ff'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-r * 0.55, -r * 0.72); ctx.quadraticCurveTo(-r * 1.5, 0, -r * 0.55, r * 0.72); ctx.lineTo(-r * 0.18, r * 0.44); ctx.lineTo(-r * 0.18, -r * 0.44); ctx.closePath(); ctx.fill(); ctx.stroke();
+      for (const y of [-r * 0.72, r * 0.72]) {
+        ctx.fillStyle = '#8ddcf4'; ctx.beginPath(); ctx.ellipse(-r * 0.18, y, r * 0.32, r * 0.22, 0, 0, TAU); ctx.fill(); ctx.stroke();
+      }
+      const sx = r * 0.2, sy = 0, sr = r * 0.22;
+      ctx.strokeStyle = '#e4fbff'; ctx.lineWidth = Math.max(1.5, r * 0.055);
+      for (let i = 0; i < 6; i++) {
+        const a = i * Math.PI / 3;
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + Math.cos(a) * sr, sy + Math.sin(a) * sr); ctx.stroke();
+      }
+      ctx.fillStyle = '#e4fbff'; ctx.beginPath(); ctx.arc(sx, sy, r * 0.07, 0, TAU); ctx.fill();
+    } else if (e.type === 'ironGuard') {
+      // Broad steel shoulder caps and a forward red ram plate signal frontal armour.
+      for (const y of [-r * 0.68, r * 0.68]) {
+        ctx.fillStyle = '#687989'; ctx.strokeStyle = '#d6e6f0'; ctx.lineWidth = 2;
+        rr(ctx, -r * 0.45, y - r * 0.27, r * 0.68, r * 0.54, r * 0.2); ctx.fill(); ctx.stroke();
+        ctx.strokeStyle = '#9aabba'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(-r * 0.3, y); ctx.lineTo(r * 0.05, y); ctx.stroke();
+      }
+      ctx.fillStyle = '#8d3c3b'; ctx.strokeStyle = '#ffd4b5'; ctx.lineWidth = 2;
+      rr(ctx, r * 0.12, r * 0.46, r * 0.64, r * 0.38, r * 0.13); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ffd5ad'; ctx.beginPath(); ctx.arc(r * 0.45, r * 0.65, r * 0.09, 0, TAU); ctx.fill();
+    } else if (e.type === 'duckKing') {
+      // Purple mantle, rounded crown and a gold scepter distinguish the final boss.
+      ctx.fillStyle = '#51266e'; ctx.strokeStyle = '#e4c56d'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-r * 0.52, -r * 0.55); ctx.quadraticCurveTo(-r * 1.35, 0, -r * 0.5, r * 0.7); ctx.lineTo(-r * 0.12, r * 0.44); ctx.lineTo(-r * 0.12, -r * 0.42); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#dcae45'; ctx.strokeStyle = '#fff0ae'; ctx.lineWidth = 1.5;
+      rr(ctx, r * 0.73, -r * 1.0, r * 0.64, r * 0.2, r * 0.08); ctx.fill(); ctx.stroke();
+      for (const x of [r * 0.82, r * 1.04, r * 1.26]) {
+        ctx.beginPath(); ctx.arc(x, -r * 1.1, r * 0.11, 0, TAU); ctx.fill(); ctx.stroke();
+      }
+      ctx.strokeStyle = '#f0d274'; ctx.lineWidth = r * 0.12;
+      ctx.beginPath(); ctx.moveTo(r * 0.35, r * 0.68); ctx.lineTo(r * 0.78, r * 1.16); ctx.stroke();
+      ctx.fillStyle = '#e8c466'; ctx.beginPath(); ctx.arc(r * 0.82, r * 1.2, r * 0.17, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#bb70ee'; ctx.beginPath(); ctx.arc(r * 0.82, r * 1.2, r * 0.08, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+  }
+
   private drawBossWindup(e: Enemy, range: number, time: number) {
     if (e.special !== 'chargeWind' && e.special !== 'honkWind' && e.special !== 'summonWind') return;
     const ctx = this.ctx;
@@ -1467,6 +1531,42 @@ export class Renderer {
     ctx.setLineDash([14, 9]);
     ctx.lineWidth = 4;
     ctx.stroke();
+    ctx.setLineDash([]);
+    if (e.special === 'summonWind') {
+      const nestR = Math.min(260, range * 0.42);
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * TAU + time * 0.15, x = e.x + Math.cos(a) * nestR, y = e.y + Math.sin(a) * nestR;
+        ctx.fillStyle = e.type === 'duckKing' ? '#e7c76c' : '#fff0bb';
+        ctx.strokeStyle = e.type === 'duckKing' ? '#fff2ba' : '#8eaa58'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(x, y, 6, 9, a, 0, TAU); ctx.fill(); ctx.stroke();
+      }
+    }
+    if (e.special === 'honkWind' && e.type === 'frostMarshal') {
+      // Eight ice spokes make the marshal's freezing nova unlike a generic pulse.
+      for (let i = 0; i < 8; i++) {
+        const a = i * TAU / 8 + time * 0.08;
+        ctx.strokeStyle = 'rgba(220,250,255,0.9)'; ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(e.x + Math.cos(a) * range * 0.76, e.y + Math.sin(a) * range * 0.76);
+        ctx.lineTo(e.x + Math.cos(a) * range * 0.98, e.y + Math.sin(a) * range * 0.98);
+        ctx.stroke();
+      }
+    }
+    if (e.special === 'chargeWind' && (e.type === 'ironGuard' || e.type === 'duckKing')) {
+      const tx = e.x + e.cdx * range, ty = e.y + e.cdy * range;
+      const a = Math.atan2(e.cdy, e.cdx), head = e.type === 'duckKing' ? '#ffe18a' : '#ffb49a';
+      ctx.save(); ctx.translate(tx, ty); ctx.rotate(a);
+      ctx.fillStyle = head; ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-8, -9); ctx.lineTo(-5, 0); ctx.lineTo(-8, 9); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    const bossLabel = e.def.encounter?.skillLabels?.[e.castSkill ?? e.def.encounter?.skill ?? 'slam'];
+    if (bossLabel) {
+      ctx.font = `bold 12px ${FONT_CN}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const labelY = e.y - e.r - 30;
+      const width = ctx.measureText(bossLabel).width + 20;
+      ctx.fillStyle = 'rgba(10,14,18,0.8)'; rr(ctx, e.x - width / 2, labelY - 10, width, 20, 9); ctx.fill();
+      ctx.fillStyle = tint ?? '#ffe18a'; ctx.fillText(bossLabel, e.x, labelY);
+    }
     ctx.restore();
   }
 
@@ -1926,10 +2026,11 @@ export class Renderer {
     for (const [i, b] of activeBosses.entries()) {
       const bw = Math.min(420 * u, W * (narrow ? 0.8 : 0.5)), bx = W / 2 - bw / 2, by = topY + 4 + i * barStep;
       const enc = b.def.encounter;
-      const skill = enc?.skillCycle?.[b.castCount % enc.skillCycle.length] ?? enc?.skill;
+      const skill = b.castSkill ?? enc?.skillCycle?.[b.castCount % enc.skillCycle.length] ?? enc?.skill;
       const skillTag = skill ? skillLabels[skill] : '';
+      const shownSkill = skill ? enc?.skillLabels?.[skill] ?? skillTag : '';
       const bossTint = enc?.ringColor ?? '#ffb37a';
-      this.txt(`👑 ${b.def.name}${enc?.skillName ? ` · ${enc.skillName}` : skillTag ? ` · ${skillTag}` : ''}${enc ? ` · 阶段 ${b.phase + 1}` : ''}`, W / 2, by + 2, (narrow ? 12 : 14) * u, bossTint, 'center', 800);
+      this.txt(`👑 ${b.def.name}${enc?.skillName ? ` · ${enc.skillName}` : ''}${shownSkill ? ` · ${shownSkill}` : ''}${enc ? ` · 阶段 ${b.phase + 1}` : ''}`, W / 2, by + 2, (narrow ? 12 : 14) * u, bossTint, 'center', 800);
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(bx - 2, by + 12 * u, bw + 4, 12 * u + 4);
       ctx.fillStyle = '#e8463a';

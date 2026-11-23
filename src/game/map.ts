@@ -38,7 +38,8 @@ export interface SceneryProp {
       | 'barrels' | 'bollard' | 'crane'
       | 'fountain' | 'duck_king_statue' | 'billboard' | 'vending_machine'
       | 'bed' | 'table_map_cup' | 'table_field_kit' | 'wood_chair'
-      | 'bedside_cabinet' | 'potted_flower';
+      | 'bedside_cabinet' | 'potted_flower' | 'egg_nest' | 'ice_beacon'
+      | 'king_vault_gate';
   x: number;
   y: number;
   rot: number;
@@ -279,11 +280,13 @@ function withBiomeArt(map: GameMap, biome: BiomeStyle): GameMap {
   }
 
   const trees = biome === 'outpost'
-    ? [
-        [90, 62, 42], [500, 58, 46], [960, 54, 40], [1640, 58, 44], [2500, 64, 43],
-        [80, 1635, 44], [500, 1640, 40], [980, 1640, 48], [1680, 1640, 43], [2520, 1635, 42],
-        [48, 330, 38], [52, 1110, 43], [2550, 470, 40], [2550, 1080, 42],
-      ].map(([x, y, r], i) => ({ x, y, r, v: i % 3, solid: false }))
+    ? [0.04, 0.14, 0.25, 0.75, 0.86, 0.96].flatMap((f, i) => [
+        { x: map.w * f, y: 62 + (i % 2) * 18, r: 40 + (i % 3) * 4, v: i % 3, solid: false },
+        { x: map.w * f, y: map.h - 62 - (i % 2) * 18, r: 40 + ((i + 1) % 3) * 4, v: (i + 1) % 3, solid: false },
+      ]).concat([
+        { x: 56, y: map.h * 0.32, r: 42, v: 0, solid: false }, { x: 58, y: map.h * 0.67, r: 44, v: 1, solid: false },
+        { x: map.w - 58, y: map.h * 0.3, r: 40, v: 2, solid: false }, { x: map.w - 56, y: map.h * 0.68, r: 43, v: 0, solid: false },
+      ])
     : map.trees;
   return { ...map, decor: [...map.decor, ...decor], trees };
 }
@@ -308,7 +311,8 @@ function buildRooms(rooms: RoomDef[]): RoomResult {
   const decor: Decor[] = [];
   const pads: Pad[] = [];
   const TH = 18; // wall thickness
-  const GAP = 62; // door opening width
+  // Bosses reach a 70-unit diameter. Leave room for their collider and the 32-unit nav grid.
+  const GAP = 104;
 
   const wallKind = (kind?: string) => (kind === 'rack' ? 'rack' : 'wall') as 'wall' | 'cargo' | 'rack';
 
@@ -345,9 +349,8 @@ function buildRooms(rooms: RoomDef[]): RoomResult {
     vertical('w', x);
     vertical('e', x + w - TH);
 
-    // Partitions must leave a walkable gap (player diameter ~30) at one end,
-    // otherwise a room gets split into dead-ends and loot becomes unreachable.
-    const CHANNEL = 52;
+    // Keep partition channels wide enough for the largest boss collider too.
+    const CHANNEL = 100;
     for (const [axis, px, py, len, thick] of room.parts ?? []) {
       if (axis === 'h') {
         const roomRight = x + w - TH;
@@ -418,6 +421,26 @@ function raidSolids(w: number, h: number, cover: Cover[], water: GameMap['water'
     solids.push({ id: solids.length, t: 1, x, y, w: 0, h: 0, r: 14, f: F_MOVE | F_BULLET, kind: 'barrel', v: 0, stamp: 0, dead: false, hp: 20 });
   }
   return solids;
+}
+
+/** Move an authored raid layout into a larger world while rebuilding its outer walls. */
+function reframeMap(map: GameMap, dx: number, dy: number, w: number, h: number): GameMap {
+  const point = <T extends { x: number; y: number }>(item: T): T => ({ ...item, x: item.x + dx, y: item.y + dy });
+  const solids = map.solids.filter((solid) => solid.kind !== 'bound').map((solid) => ({ ...solid, x: solid.x + dx, y: solid.y + dy, stamp: 0 }));
+  let nextId = solids.reduce((max, solid) => Math.max(max, solid.id), -1) + 1;
+  const wall = F_MOVE | F_BULLET | F_SIGHT;
+  const bounds: Solid[] = [
+    [-32, -32, w + 64, 32], [-32, h, w + 64, 32], [-32, 0, 32, h], [w, 0, 32, h],
+  ].map(([x, y, bw, bh]) => ({ id: nextId++, t: 0, x, y, w: bw, h: bh, r: 0, f: wall, kind: 'bound', v: 0, stamp: 0, dead: false, hp: 0 }));
+  const shiftPolyline = (line: number[]) => line.map((value, index) => value + (index % 2 ? dy : dx));
+  return {
+    ...map, w, h, solids: [...solids, ...bounds],
+    props: map.props.map(point), floors: map.floors.map(point), decor: map.decor.map(point),
+    trees: map.trees.map(point), water: map.water.map(point), roads: map.roads.map(shiftPolyline),
+    pads: map.pads.map(point), containers: map.containers.map(point), extractions: map.extractions.map(point),
+    spawns: map.spawns.map(point), enemySpots: map.enemySpots.map(point), reinforce: map.reinforce.map(point),
+    zones: map.zones.map(point), tracks: map.tracks.map((y) => y + dy),
+  };
 }
 
 function buildHarbor(): GameMap {
@@ -677,16 +700,18 @@ function buildHatchery(): GameMap {
     { kind: 'barrels', x: 1010, y: 1120, scale: 1.0, rot: 0 },
     { kind: 'crane', x: 2040, y: 900, scale: 1.05, rot: 0 },
     { kind: 'vending_machine', x: 1260, y: 390, rot: 0, scale: 0.8 },
+    { kind: 'egg_nest', x: 1220, y: 835, rot: 0, scale: 1.5 },
     { kind: 'bed', x: 700, y: 500, rot: 0, scale: 0.8 },
     { kind: 'bedside_cabinet', x: 760, y: 420, rot: 0, scale: 0.55 },
     { kind: 'potted_flower', x: 355, y: 520, rot: 0, scale: 0.75 },
   ];
-  return withBiomeArt({
+  return withBiomeArt(reframeMap({
     w, h, water, props,
     solids: raidSolids(w, h, [...rooms.cover, ...extraCover], water, [[1180, 640], [1520, 1080], [820, 1300]]),
     floors: [
       ...rooms.floors,
       { name: '孵化中庭', type: 'concrete', x: 700, y: 600, w: 1200, h: 400 },
+      { name: '鸭后孵化巢', type: 'wood', x: 960, y: 590, w: 520, h: 460 },
       { name: '西侧腐叶道', type: 'concrete', x: 110, y: 700, w: 420, h: 370 },
     ],
     decor: [...rooms.decor, ...scatterDecor(w, h, 85, 7)], trees: [], tracks: [],
@@ -698,6 +723,7 @@ function buildHatchery(): GameMap {
       { type: 'crate', x: 1300, y: 300, fixedItem: 'minigun' },
       { type: 'weaponcase', x: 1960, y: 1160, fixedItem: 'frostmp9' },
       { type: 'crate', x: 1280, y: 1300, fixedItem: 'rpg' },
+      { type: 'treasure_chest', x: 1435, y: 960 },
       { type: 'vending', x: 1260, y: 390 }, { type: 'treasure_chest', x: 900, y: 1460 }, { type: 'coin_pile', x: 1900, y: 1450 },
     ],
     spawns: [
@@ -717,12 +743,13 @@ function buildHatchery(): GameMap {
     ],
     reinforce: [{ x: 150, y: 900 }, { x: 900, y: 150 }, { x: 2000, y: 220 }, { x: 2150, y: 900 }, { x: 400, y: 1480 }, { x: 1700, y: 1500 }, { x: 1150, y: 1400 }],
     zones: [
-      { name: '北侧育雏区', x: 0, y: 0, w: 2300, h: 620 },
-      { name: '中央巢穴', x: 0, y: 620, w: 1150, h: 470 },
-      { name: '孵化中庭', x: 1150, y: 620, w: 1150, h: 470 },
-      { name: '南侧腐叶区', x: 0, y: 1090, w: 2300, h: 510 },
+      { name: '北缘育雏棚', x: -350, y: -250, w: 3000, h: 500 },
+      { name: '西侧育雏棚', x: -350, y: 250, w: 1200, h: 650 },
+      { name: '中央孵化中庭', x: 850, y: 250, w: 900, h: 650 },
+      { name: '鸭后蛋巢', x: 1750, y: 250, w: 900, h: 650 },
+      { name: '南侧腐叶区', x: -350, y: 900, w: 3000, h: 950 },
     ],
-  }, 'hatchery');
+  }, 350, 250, 3000, 2100), 'hatchery');
 }
 
 /** 霜锋哨站：两名首领分守冻土广场两端，冰湖把战场切成两条推进路线。 */
@@ -760,14 +787,18 @@ function buildOutpost(): GameMap {
     { kind: 'barrels', x: 1180, y: 700, scale: 1.0, rot: 0 },
     { kind: 'crane', x: 2350, y: 1350, scale: 1.1, rot: 0 },
     { kind: 'vending_machine', x: 1780, y: 1450, rot: 0, scale: 0.8 },
+    { kind: 'ice_beacon', x: 850, y: 520, rot: 0, scale: 1.15 },
+    { kind: 'ice_beacon', x: 2060, y: 1080, rot: Math.PI / 4, scale: 1.1 },
     { kind: 'bed', x: 730, y: 560, rot: 0, scale: 0.78 },
   ];
-  return withBiomeArt({
+  return withBiomeArt(reframeMap({
     w, h, water, props,
     solids: raidSolids(w, h, [...rooms.cover, ...extraCover], water, [[1180, 1000], [1620, 860], [2050, 1080], [600, 1320]]),
     floors: [
       ...rooms.floors,
       { name: '冰封中庭', type: 'concrete', x: 900, y: 700, w: 1100, h: 340 },
+      { name: '霜羽元帅雪丘', type: 'concrete', x: 700, y: 430, w: 500, h: 380 },
+      { name: '铁壁统领擂台', type: 'concrete', x: 1690, y: 840, w: 560, h: 440 },
       { name: '西侧冻土路', type: 'concrete', x: 120, y: 700, w: 400, h: 380 },
       { name: '东侧广场', type: 'concrete', x: 1900, y: 960, w: 560, h: 160 },
     ],
@@ -800,11 +831,13 @@ function buildOutpost(): GameMap {
     ],
     reinforce: [{ x: 150, y: 950 }, { x: 780, y: 120 }, { x: 1500, y: 150 }, { x: 2500, y: 700 }, { x: 2450, y: 1180 }, { x: 1000, y: 1580 }, { x: 1900, y: 1600 }],
     zones: [
-      { name: '西侧机库', x: 0, y: 0, w: 900, h: 1700 },
-      { name: '冻土广场', x: 900, y: 0, w: 900, h: 1700 },
-      { name: '东侧哨所', x: 1800, y: 0, w: 800, h: 1700 },
+      { name: '北缘雷达雪坡', x: -300, y: -250, w: 3200, h: 650 },
+      { name: '西侧机库与元帅雪丘', x: -300, y: 400, w: 1200, h: 1050 },
+      { name: '冻土中央走廊', x: 900, y: 400, w: 900, h: 1050 },
+      { name: '铁壁擂台与东哨所', x: 1800, y: 400, w: 1100, h: 1050 },
+      { name: '南侧运输坡', x: -300, y: 1450, w: 3200, h: 500 },
     ],
-  }, 'outpost');
+  }, 300, 250, 3200, 2200), 'outpost');
 }
 
 /** 鸭王陵寝：双宝库提供顶级装备，鸭王在大厅轮换四种招式。 */
@@ -817,16 +850,15 @@ function buildMausoleum(): GameMap {
   const rooms = buildRooms([
     { name: '王座大厅', x: 1050, y: 650, w: 760, h: 560, floor: 'concrete',
       doors: [['n', 0.5], ['s', 0.5], ['w', 0.5], ['e', 0.5]],
-      parts: [['v', 1400, 700, 240, 20], ['v', 1700, 700, 240, 20]],
-      racks: [[1480, 1020, 260, 30]], loot: [['safe', 0.15, 0.2], ['weaponcase', 0.85, 0.2], ['medbox', 0.5, 0.85]] },
+      loot: [['safe', 0.15, 0.2], ['weaponcase', 0.85, 0.2], ['medbox', 0.5, 0.85]] },
     { name: '西宝库', x: 350, y: 350, w: 420, h: 340, floor: 'tile', doors: [['s', 0.5], ['e', 0.6]],
       loot: [['safe', 0.2, 0.2], ['pc', 0.8, 0.25], ['crate', 0.5, 0.85]] },
     { name: '东宝库', x: 2050, y: 350, w: 420, h: 340, floor: 'tile', doors: [['s', 0.5], ['w', 0.6]],
       loot: [['safe', 0.2, 0.2], ['pc', 0.8, 0.25], ['crate', 0.5, 0.85]] },
     { name: '禁卫营', x: 450, y: 1250, w: 500, h: 340, floor: 'concrete', doors: [['n', 0.5], ['e', 0.5]],
       racks: [[520, 1320, 200, 24], [520, 1400, 200, 24]], loot: [['weaponcase', 0.2, 0.2], ['crate', 0.8, 0.3], ['medbox', 0.5, 0.85]] },
-    { name: '祭司房', x: 1900, y: 1300, w: 460, h: 320, floor: 'tile', doors: [['n', 0.5], ['w', 0.5]],
-      loot: [['pc', 0.2, 0.2], ['safe', 0.8, 0.25], ['medbox', 0.5, 0.85]] },
+    { name: '鸭王私人宝库', x: 1900, y: 1300, w: 560, h: 400, floor: 'tile', doors: [['n', 0.5], ['w', 0.5]],
+      loot: [['safe', 0.17, 0.18], ['weaponcase', 0.83, 0.18], ['treasure_chest', 0.5, 0.5], ['safe', 0.18, 0.82], ['duffel', 0.82, 0.82]] },
     { name: '回廊哨', x: 1150, y: 140, w: 360, h: 280, floor: 'wood', doors: [['s', 0.5], ['e', 0.5]],
       loot: [['crate', 0.2, 0.2], ['toolbox', 0.8, 0.3]] },
     { name: '南库', x: 1350, y: 1400, w: 380, h: 260, floor: 'concrete', doors: [['n', 0.5], ['w', 0.5]],
@@ -848,16 +880,18 @@ function buildMausoleum(): GameMap {
     { kind: 'crane', x: 2450, y: 250, scale: 1.1, rot: 0 },
     { kind: 'duck_king_statue', x: 1400, y: 500, rot: 0, scale: 1.0 },
     { kind: 'fountain', x: 1610, y: 500, rot: 0, scale: 0.95 },
+    { kind: 'king_vault_gate', x: 2180, y: 1284, rot: 0, scale: 1.25 },
     { kind: 'table_map_cup', x: 1320, y: 320, rot: 0, scale: 0.9 },
     { kind: 'wood_chair', x: 1320, y: 386, rot: 0, scale: 0.78 },
-    { kind: 'vending_machine', x: 2180, y: 1480, rot: 0, scale: 0.8 },
+    { kind: 'vending_machine', x: 2600, y: 1080, rot: 0, scale: 0.8 },
   ];
-  return withBiomeArt({
+  return withBiomeArt(reframeMap({
     w, h, water, props,
     solids: raidSolids(w, h, [...rooms.cover, ...extraCover], water, [[1150, 580], [1780, 1180], [820, 1080], [2300, 1000]]),
     floors: [
       ...rooms.floors,
       { name: '王陵广场', type: 'concrete', x: 900, y: 600, w: 1000, h: 700 },
+      { name: '王家秘库前厅', type: 'tile', x: 1850, y: 1280, w: 610, h: 430 },
       { name: '神道', type: 'tile', x: 1300, y: 80, w: 220, h: 560 },
     ],
     decor: [...rooms.decor, ...scatterDecor(w, h, 100, 13)], trees: [], tracks: [],
@@ -871,7 +905,8 @@ function buildMausoleum(): GameMap {
       { type: 'weaponcase', x: 2100, y: 1400, fixedItem: 'm4legend' },
       { type: 'crate', x: 1550, y: 250, fixedItem: 'minigun' },
       { type: 'safe', x: 1500, y: 1490, fixedItem: 'frostmp9' },
-      { type: 'vending', x: 2180, y: 1480 }, { type: 'treasure_chest', x: 800, y: 520 }, { type: 'coin_pile', x: 1960, y: 520 },
+      { type: 'vending', x: 2600, y: 1080 }, { type: 'treasure_chest', x: 800, y: 520 }, { type: 'coin_pile', x: 1960, y: 520 },
+      { type: 'treasure_chest', x: 2200, y: 1540 }, { type: 'coin_pile', x: 2340, y: 1540 },
     ],
     spawns: [
       { x: 110, y: 600, chick: [620, 800] }, { x: 1350, y: 100, chick: [1400, 520] },
@@ -879,7 +914,7 @@ function buildMausoleum(): GameMap {
     ],
     extractions: [{ id: 'A', name: '西门神道', x: 130, y: 200, r: 78 }, { id: 'B', name: '东陵货运口', x: 2650, y: 1650, r: 78 }],
     enemySpots: [
-      { type: 'duckKing', x: 1550, y: 950, n: 1 },
+      { type: 'duckKing', x: 1450, y: 930, n: 1 },
       { type: 'elite', x: 1180, y: 860, n: 1 }, { type: 'elite', x: 1900, y: 700, n: 1 },
       { type: 'elite', x: 620, y: 700, n: 1 }, { type: 'elite', x: 2350, y: 1250, n: 1 },
       { type: 'shield', x: 1120, y: 1120, n: 1 }, { type: 'shield', x: 1850, y: 1150, n: 1 },
@@ -892,11 +927,13 @@ function buildMausoleum(): GameMap {
     ],
     reinforce: [{ x: 150, y: 1050 }, { x: 1150, y: 120 }, { x: 2150, y: 180 }, { x: 2650, y: 900 }, { x: 2650, y: 1400 }, { x: 750, y: 1720 }, { x: 1800, y: 1720 }],
     zones: [
-      { name: '外陵神道', x: 0, y: 0, w: 1000, h: 1800 },
-      { name: '王座大厅', x: 1000, y: 0, w: 900, h: 1800 },
-      { name: '东陵宝库', x: 1900, y: 0, w: 900, h: 1800 },
+      { name: '北侧神道与殿廊', x: -300, y: -250, w: 3400, h: 700 },
+      { name: '西侧禁卫与西宝库', x: -300, y: 450, w: 1200, h: 1000 },
+      { name: '王座大厅', x: 900, y: 450, w: 900, h: 1000 },
+      { name: '东侧王家秘库', x: 1800, y: 450, w: 1300, h: 1000 },
+      { name: '南侧外陵与运输道', x: -300, y: 1450, w: 3400, h: 550 },
     ],
-  }, 'mausoleum');
+  }, 300, 250, 3400, 2300), 'mausoleum');
 }
 
 export function buildMap(): GameMap {

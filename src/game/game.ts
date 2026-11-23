@@ -28,7 +28,7 @@ export interface Player {
   bandages: number; medkits: number;
   throwables: Record<ThrowableId, number>; selectedThrowable: ThrowableId;
   backpack: LootItem[]; capacity: number;
-  walk: number; hurtT: number; dead: boolean; bloom: number; stepAcc: number; kick: number; flash: number;
+  walk: number; hurtT: number; dead: boolean; bloom: number; stepAcc: number; kick: number; flash: number; chillT: number;
 }
 export type EState = 'idle' | 'react' | 'engage' | 'hunt' | 'search';
 export interface Enemy {
@@ -268,7 +268,7 @@ export class Game {
       },
       selectedThrowable: THROWABLE_IDS.find((id) => (kit.throwables[id] ?? 0) > 0) ?? 'grenade',
       backpack: [], capacity: 20 + u.capacity * 4,
-      walk: 0, hurtT: 0, dead: false, bloom: 0, stepAcc: 0, kick: 0, flash: 0,
+      walk: 0, hurtT: 0, dead: false, bloom: 0, stepAcc: 0, kick: 0, flash: 0, chillT: 0,
     };
   }
 
@@ -478,7 +478,14 @@ export class Game {
         break;
       }
     }
-    if (encounter) out.push(encounter.trophy, this.rollLoot(encounter.extraLootWeights));
+    if (encounter) {
+      out.push(encounter.trophy);
+      for (const reward of encounter.rewardRolls ?? []) {
+        for (let i = 0; i < reward.count; i++) out.push(this.rollLoot(reward.weights));
+      }
+      for (const weapon of encounter.weaponDrops ?? []) out.push(weaponItem(weapon));
+      out.push(this.rollLoot(encounter.extraLootWeights));
+    }
     return shuffle(out).map((def) => ({ def, revealed: false, taken: false, at: 0 }));
   }
 
@@ -662,7 +669,7 @@ export class Game {
   private updatePlayer(dt: number) {
     const p = this.player, inp = this.input;
     if (p.dead) return;
-    p.rollCd -= dt; p.hurtT -= dt; p.flash -= dt;
+    p.rollCd -= dt; p.hurtT -= dt; p.flash -= dt; p.chillT = Math.max(0, p.chillT - dt);
     p.kick *= Math.exp(-dt * 18);
     p.bloom = Math.max(0, p.bloom - dt * 0.35);
     this.dodgeT -= dt;
@@ -731,6 +738,7 @@ export class Game {
     } else {
       let speed = p.character.speed * p.speedMul;
       if (p.healT > 0) speed *= 0.5;
+      if (p.chillT > 0) speed *= 0.62;
       if (w.def.id === 'lmg') speed *= 0.9;
       const k = Math.min(1, dt * 20);
       p.vx += (mx * speed - p.vx) * k;
@@ -1568,6 +1576,14 @@ export class Game {
 
   private flow(e: Enemy, speed: number, out: { x: number; y: number }) {
     if (this.nav.dir(e.x, e.y, this.fd)) { out.x = this.fd.x * speed; out.y = this.fd.y * speed; }
+    else if (e.def.boss && Math.hypot(this.player.x - e.x, this.player.y - e.y) >= this.nav.cs * 1.5) {
+      // Don't steer a large boss straight into a wall when the flow field has no next cell.
+      // Nudge it back to the nearest navigable cell; the normal flow field then takes over.
+      const open = this.nav.nearestOpen(e.x, e.y);
+      const dx = open.x - e.x, dy = open.y - e.y, d = Math.hypot(dx, dy);
+      if (d > 2) { out.x = (dx / d) * speed; out.y = (dy / d) * speed; }
+      else { out.x = 0; out.y = 0; }
+    }
     else {
       const p = this.player;
       const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1;
@@ -1834,6 +1850,10 @@ export class Game {
     this.addTrauma(Math.max(0, 0.65 - dist / 1400));
     if (dist < range && this.grid.los(e.x, e.y, p.x, p.y, F_SIGHT)) {
       this.damagePlayer(phase?.damage ?? 24, e.x, e.y);
+      if (e.type === 'frostMarshal' && !p.dead && p.rollT <= 0) {
+        p.chillT = Math.max(p.chillT, e.skillPhase === 1 ? 2.4 : 1.8);
+        this.text(p.x, p.y - 34, '寒潮减速！', '#9fe6ff', 18, true);
+      }
       if (p.rollT <= 0 && !p.dead) {
         p.kvx += (p.x - e.x) / dist * 680;
         p.kvy += (p.y - e.y) / dist * 680;
@@ -1898,7 +1918,7 @@ export class Game {
     const sp = e.def.bulletSpeed * (w.id === 'sniper' ? 1.6 : 1);
     for (let i = 0; i < w.pellets; i++) {
       const a = e.aim + gauss() * acc + (w.pellets > 1 ? (Math.random() - 0.5) * w.spread * 2 : 0);
-      this.bullets.push({ x: mx, y: my, ox: mx, oy: my, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dmg: w.dmg * e.def.dmgMul, life: (w.range * 0.95) / sp, from: 1, pierce: 0, src: e, w: 2.4, crit: false });
+      this.bullets.push({ x: mx, y: my, ox: mx, oy: my, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dmg: w.dmg * e.def.dmgMul, life: (w.range * 0.95) / sp, from: 1, pierce: 0, src: e, w: 2.4, crit: false, chill: e.type === 'frostMarshal' });
     }
     e.kick = w.kick * 0.8;
     if (e.visA > 0.05 || dist < 900) {
@@ -1969,6 +1989,10 @@ export class Game {
             continue;
           }
           this.damagePlayer(b.dmg, b.src ? b.src.x : b.x - nx * 100, b.src ? b.src.y : b.y - ny * 100);
+          if (b.chill && !p.dead) {
+            p.chillT = Math.max(p.chillT, 1.5);
+            this.text(p.x, p.y - 32, '冰弹减速！', '#9fe6ff', 16, true);
+          }
         }
         bs[i] = bs[bs.length - 1]; bs.pop();
         continue;

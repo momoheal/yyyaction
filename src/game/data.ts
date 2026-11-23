@@ -179,6 +179,8 @@ export interface BossEncounter {
   skillCycle?: BossSkillKind[];
   /** HUD label override for the signature skill. */
   skillName?: string;
+  /** Current attack name shown in the boss HUD for each skill-cycle entry. */
+  skillLabels?: Partial<Record<BossSkillKind, string>>;
   /** Text shown on cast; defaults to a per-skill message. */
   hitText?: string;
   /** Telegraph / ring tint as a CSS colour. */
@@ -191,6 +193,10 @@ export interface BossEncounter {
   phases: [BossPhase, BossPhase];
   trophy: ItemDef;
   extraLootWeights: number[];
+  /** Guaranteed high-tier reward rolls, in addition to the trophy and base bonus. */
+  rewardRolls?: { count: number; weights: number[] }[];
+  /** Signature guns awarded when this boss is defeated. */
+  weaponDrops?: string[];
 }
 
 export interface EnemyDef {
@@ -278,7 +284,7 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
     accuracy: 0.16, score: 32000, weapons: ['smg'], dmgMul: 0.24, bulletSpeed: 700,
     prefMin: 180, prefMax: 360, burst: [5, 8], melee: 0, boss: true,
     encounter: {
-      skill: 'summon', skillName: '孵巢', hitText: '鸭后孵巢！', ringColor: 'rgba(180,255,140,0.95)',
+      skill: 'summon', skillName: '孵巢潮', skillLabels: { summon: '孵巢爆发' }, hitText: '鸭后孵巢翻涌！', ringColor: 'rgba(180,255,140,0.95)',
       summon: { types: ['chicken', 'hen', 'bandit'], counts: [4, 6] },
       warning: '它会持续孵出小鸡与投弹母鸡，清掉巢边杂兵再输出首领',
       phaseWarning: '孵化速度翻倍，每波数量增加，还会带出精英鸭匪', phaseAt: 0.5,
@@ -286,8 +292,14 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
         { windup: 1.4, cooldown: 10, damage: 0, range: 620 },
         { windup: 1.1, cooldown: 6.5, damage: 0, range: 760 },
       ],
-      trophy: L('queen_egg', '鸭后金蛋', '🥚', 4, 180000),
-      extraLootWeights: [0, 0, 0, 1, 0, 0],
+      trophy: L('queen_egg', '鸭后金蛋', '🥚', 5, 620000),
+      extraLootWeights: [0, 0, 0, 0, 1, 0],
+      rewardRolls: [
+        { count: 1, weights: [0, 0, 0, 0, 0, 1] },
+        { count: 2, weights: [0, 0, 0, 0, 52, 48] },
+        { count: 1, weights: [0, 0, 18, 32, 36, 14] },
+      ],
+      weaponDrops: ['frostmp9'],
     },
   },
   frostMarshal: {
@@ -295,15 +307,21 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
     accuracy: 0.14, score: 30000, weapons: ['frostmp9'], dmgMul: 0.26, bulletSpeed: 800,
     prefMin: 260, prefMax: 460, burst: [6, 10], melee: 0, boss: true,
     encounter: {
-      skill: 'pulse', skillName: '霜爆', hitText: '霜羽寒潮！', ringColor: 'rgba(125,215,255,0.95)',
+      skill: 'pulse', skillName: '极夜寒潮', skillLabels: { pulse: '霜环爆发' }, hitText: '霜羽释放寒潮！', ringColor: 'rgba(105,215,255,0.98)',
       warning: '冰蓝圈内会被寒潮击退，且它的子弹会减速；霜羽元帅与铁壁统领同场',
       phaseWarning: '寒潮范围扩大、预警缩短', phaseAt: 0.45,
       phases: [
         { windup: 1.2, cooldown: 8.5, damage: 20, range: 300 },
         { windup: 0.95, cooldown: 6, damage: 27, range: 390 },
       ],
-      trophy: L('frost_insignia', '霜羽徽记', '❄️', 4, 190000),
-      extraLootWeights: [0, 0, 0, 1, 0, 0],
+      trophy: L('frost_insignia', '霜羽元帅徽记', '❄️', 5, 580000),
+      extraLootWeights: [0, 0, 0, 0, 1, 0],
+      rewardRolls: [
+        { count: 1, weights: [0, 0, 0, 0, 0, 1] },
+        { count: 2, weights: [0, 0, 0, 0, 55, 45] },
+        { count: 1, weights: [0, 0, 12, 28, 42, 18] },
+      ],
+      weaponDrops: ['frostmp9'],
     },
   },
   ironGuard: {
@@ -311,15 +329,21 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
     accuracy: 0.2, score: 34000, weapons: ['lmg'], dmgMul: 0.26, bulletSpeed: 720,
     prefMin: 120, prefMax: 280, burst: [8, 12], melee: 0, boss: true, frontArmor: true,
     encounter: {
-      skill: 'charge', skillName: '铁壁冲撞', ringColor: 'rgba(255,90,70,0.95)',
+      skill: 'charge', skillName: '钢铁破阵', skillLabels: { charge: '铁壁冲锋' }, ringColor: 'rgba(255,92,72,0.98)',
       warning: '正面装甲极厚，绕后输出；看到红色冲撞路线立刻横向闪避',
       phaseWarning: '冲撞更频繁、距离更远', phaseAt: 0.5,
       phases: [
         { windup: 1.3, cooldown: 8, damage: 22, range: 380 },
         { windup: 1.0, cooldown: 6, damage: 30, range: 480 },
       ],
-      trophy: L('iron_badge', '铁壁勋衔', '🛡️', 4, 170000),
-      extraLootWeights: [0, 0, 0, 1, 0, 0],
+      trophy: L('iron_badge', '铁壁统领勋章', '🛡️', 5, 540000),
+      extraLootWeights: [0, 0, 0, 0, 1, 0],
+      rewardRolls: [
+        { count: 1, weights: [0, 0, 0, 0, 0, 1] },
+        { count: 2, weights: [0, 0, 0, 0, 58, 42] },
+        { count: 1, weights: [0, 0, 14, 32, 38, 16] },
+      ],
+      weaponDrops: ['lmg'],
     },
   },
   duckKing: {
@@ -327,7 +351,8 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
     accuracy: 0.15, score: 55000, weapons: ['ak'], dmgMul: 0.28, bulletSpeed: 820,
     prefMin: 200, prefMax: 400, burst: [6, 10], melee: 0, boss: true,
     encounter: {
-      skill: 'slam', skillCycle: ['slam', 'summon', 'charge', 'pulse'], skillName: '王权四连',
+      skill: 'slam', skillCycle: ['slam', 'summon', 'charge', 'pulse'], skillName: '王权轮招',
+      skillLabels: { slam: '王座震地', summon: '禁卫召集', charge: '御驾冲锋', pulse: '王权冲击' },
       ringColor: 'rgba(255,205,90,0.95)',
       summon: { types: ['elite', 'hen', 'shield'], counts: [3, 5] },
       warning: '鸭王轮换震地、召集成员、冲撞与王权冲击四种招式，注意识别预警形状',
@@ -336,8 +361,14 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
         { windup: 1.15, cooldown: 7.5, damage: 22, range: 340 },
         { windup: 0.9, cooldown: 5, damage: 30, range: 430 },
       ],
-      trophy: L('duck_throne', '鸭王御座', '👑', 5, 880000),
-      extraLootWeights: [0, 0, 0, 0, 1, 0],
+      trophy: L('duck_throne', '鸭王御座', '👑', 5, 1800000),
+      extraLootWeights: [0, 0, 0, 0, 0, 1],
+      rewardRolls: [
+        { count: 2, weights: [0, 0, 0, 0, 0, 1] },
+        { count: 2, weights: [0, 0, 0, 0, 35, 65] },
+        { count: 1, weights: [0, 0, 0, 15, 45, 40] },
+      ],
+      weaponDrops: ['m4legend', 'awmlegend'],
     },
   },
 };

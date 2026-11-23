@@ -15,7 +15,6 @@ const RED = '#c0392b', RED_LT = '#d9583a';
 const BLUE = '#2e6fb5', BLUE_LT = '#3b82c9', BLUE_DK = '#245a93';
 const YELLOW = '#d9a21b', YEL_DK = '#b8861b';
 const METAL = '#7f8a94', METAL_D = '#4a5057';
-const STONE_LIGHT = '#8b8f86';
 const WOOD = '#a3835a', WOOD_L = '#c4ad7e', WOOD_D = '#5c4126';
 const CREAM = '#e8e2d4', RUST = '#a8492f';
 
@@ -176,36 +175,68 @@ function drawAsset(ctx: CanvasRenderingContext2D, kind: SceneryProp['kind']) {
       break;
     }
     case 'fountain': {
-      pg(ctx, [[27, 42], [43, 31], [85, 31], [101, 42], [109, 75], [96, 101], [32, 101], [19, 75]], '#71756f');
-      pg(ctx, [[31, 44], [45, 35], [83, 35], [97, 45], [104, 74], [93, 95], [35, 95], [24, 74]], STONE_LIGHT);
-      pg(ctx, [[37, 48], [48, 40], [80, 40], [91, 49], [97, 73], [88, 88], [40, 88], [31, 73]], '#4d8794');
-      el(ctx, 64, 66, 26, 19, '#68a6b2');
-      ctx.strokeStyle = '#b9e2e3'; ctx.lineWidth = 1.3; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.ellipse(49, 65, 11, 4, -0.12, Math.PI * 1.08, Math.PI * 1.84); ctx.stroke();
-      ctx.beginPath(); ctx.ellipse(77, 70, 9, 3.5, -0.12, Math.PI * 0.08, Math.PI * 0.82); ctx.stroke();
-      el(ctx, 64, 47, 15, 15, '#797d74', '#444b49', 1.5);
-      el(ctx, 64, 47, 11, 11, '#c2bdad', '#646a65', 1.3);
-      el(ctx, 64, 47, 7, 7, '#dfd7c0', '#766f5b', 1);
-      // Plain duck face, deliberately without the king's crown.
-      el(ctx, 64, 47, 6, 5.8, '#ffd95d');
-      el(ctx, 61.5, 45.5, 0.8, 1, '#303637'); el(ctx, 66.5, 45.5, 0.8, 1, '#303637');
-      el(ctx, 64, 49, 3.3, 1.7, '#d1843f');
+      // Simple round stone basin with a calm pool and a small duck-head medallion.
+      el(ctx, 64, 68, 48, 34, '#555b57', '#353c39', 2);
+      el(ctx, 64, 65, 43, 30, '#b4b0a1', '#73756e', 1.6);
+      el(ctx, 64, 63, 36, 23, '#3e7885', '#39606a', 1);
+      el(ctx, 64, 62, 30, 18, '#68a8b3');
+      ctx.strokeStyle = 'rgba(221,248,243,0.78)'; ctx.lineWidth = 1.8; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.ellipse(64, 62, 22, 11, 0, Math.PI * 1.12, Math.PI * 1.88); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(64, 65, 14, 7, 0, Math.PI * 0.12, Math.PI * 0.88); ctx.stroke();
+      el(ctx, 64, 48, 16, 15, '#777b73', '#454b47', 1.5);
+      el(ctx, 64, 47, 12, 11, '#e0d8c1', '#77766a', 1);
+      el(ctx, 64, 47, 8.5, 8, '#ffd95d');
+      el(ctx, 61, 45, 1, 1.2, '#303637'); el(ctx, 67, 45, 1, 1.2, '#303637');
+      el(ctx, 64, 49, 4.2, 2.1, '#d1843f');
       break;
     }
     case 'duck_king_statue': {
-      el(ctx, 64, 65, 45, 40, '#666b66', '#303837', 2);
-      el(ctx, 64, 64, 40, 36, '#aaa797', '#74776d', 1.5);
-      el(ctx, 64, 64, 35, 32, '#c2bdac', '#77796f', 1);
-      el(ctx, 64, 78, 24, 19, '#99998d', '#666b65', 1.5);
-      el(ctx, 53, 76, 6, 10, '#85877c'); el(ctx, 75, 76, 6, 10, '#85877c');
-      el(ctx, 64, 43, 18, 17, '#d2cbb8', '#77796f', 1.5);
-      rr(ctx, 50, 43, 28, 5, 2.5, '#b79854', '#6b5837', 1);
-      el(ctx, 55, 42, 4, 4, '#c6aa68', '#75613c', 1);
-      el(ctx, 64, 38, 5, 5, '#c6aa68', '#75613c', 1);
-      el(ctx, 73, 42, 4, 4, '#c6aa68', '#75613c', 1);
-      el(ctx, 58.5, 48, 1.3, 1.5, '#393e3d'); el(ctx, 69.5, 48, 1.3, 1.5, '#393e3d');
-      el(ctx, 64, 54, 6.8, 3.5, '#b99d6d', '#76654b', 1);
-      el(ctx, 64, 73, 12, 10, '#b0ad9e');
+      el(ctx, 64, 92, 40, 18, '#77796f', '#454a45', 2);
+      rr(ctx, 34, 67, 60, 29, 7, '#b4b0a1', '#6e7168', 1.5);
+      rr(ctx, 40, 72, 48, 18, 5, '#cfbf91', '#8c7951', 1);
+      el(ctx, 64, 57, 30, 30, '#9a9a8d', '#686d66', 1.5);
+      el(ctx, 64, 49, 20, 20, '#c4bfad', '#777a70', 1.3);
+      el(ctx, 64, 48, 15, 15, '#ddd5be');
+      el(ctx, 60, 46, 1.6, 1.8, '#40423d'); el(ctx, 68, 46, 1.6, 1.8, '#40423d');
+      el(ctx, 64, 52, 6.8, 3.5, '#ad8251', '#735a3d', 1);
+      rr(ctx, 48, 32, 32, 6, 3, '#aa8950', '#75603b', 1);
+      for (const x of [53, 64, 75]) el(ctx, x, 30, 3.8, 4.2, '#c4a260', '#75603b', 0.8);
+      el(ctx, 47, 59, 6, 8, '#aaa797'); el(ctx, 81, 59, 6, 8, '#aaa797');
+      break;
+    }
+    case 'egg_nest': {
+      // A low, readable nest built from broad rings and three clean egg shapes.
+      el(ctx, 64, 79, 48, 27, '#62452e', '#3b3025', 2);
+      el(ctx, 64, 75, 41, 21, '#a77745', '#68492f', 2);
+      el(ctx, 64, 72, 32, 15, '#523d2c');
+      ctx.strokeStyle = '#c59a5e'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.ellipse(64, 75, 36, 17, 0, Math.PI * 1.05, Math.PI * 1.95); ctx.stroke();
+      for (const [x, y, r] of [[51, 67, 8], [66, 63, 9], [78, 70, 7]] as const) {
+        el(ctx, x, y, r * 0.72, r, '#f0e6ca', '#ad966d', 1);
+        el(ctx, x - 2, y - 3, 1.5, 2.2, 'rgba(255,255,255,0.7)');
+      }
+      break;
+    }
+    case 'ice_beacon': {
+      // Broad blue crystal on a low base; the silhouette reads at map scale.
+      el(ctx, 64, 96, 35, 14, '#34474b', '#26383b', 2);
+      rr(ctx, 38, 83, 52, 17, 5, '#73858a', '#415459', 2);
+      pg(ctx, [[64, 13], [84, 43], [79, 78], [64, 88], [49, 78], [44, 43]], '#72cddd');
+      pg(ctx, [[64, 13], [64, 88], [49, 78], [44, 43]], '#388ca7');
+      pg(ctx, [[64, 18], [78, 45], [71, 75], [64, 81]], '#a8f1f0');
+      ln(ctx, [[50, 46], [61, 33], [61, 67]], 'rgba(223,255,255,0.72)', 2);
+      el(ctx, 64, 16, 4, 4, '#e5ffff');
+      break;
+    }
+    case 'king_vault_gate': {
+      // A rounded stone frame with evenly spaced gold bars, avoiding thin spikes.
+      rr(ctx, 14, 18, 100, 90, 14, '#393632', '#242624', 2);
+      rr(ctx, 21, 24, 86, 83, 12, '#a99b7b', '#625947', 2);
+      rr(ctx, 31, 34, 66, 73, 10, '#353536', '#514a3e', 1.5);
+      rr(ctx, 36, 39, 56, 68, 8, '#20272a');
+      for (const x of [44, 58, 72, 86]) rr(ctx, x - 3, 43, 6, 59, 3, '#d4b66a', '#725c34', 1);
+      rr(ctx, 31, 31, 66, 13, 5, '#d7bd77', '#78653b', 1.4);
+      el(ctx, 64, 37, 5, 5, '#f3df9e', '#78653b', 1);
       break;
     }
     case 'billboard': {
@@ -259,42 +290,44 @@ function drawAsset(ctx: CanvasRenderingContext2D, kind: SceneryProp['kind']) {
     }
     case 'table_map_cup':
     case 'table_field_kit': {
-      for (const [x, y] of [[26, 25], [102, 25], [26, 94], [102, 94]]) rr(ctx, x - 7, y - 7, 14, 14, 3, WOOD_D, '#302a24', 1);
-      rr(ctx, 25, 24, 78, 72, 7, '#5c412d', '#302a24', 2);
-      rr(ctx, 29, 28, 70, 64, 5.5, '#a77d50', '#674a31', 1.5);
-      rr(ctx, 33, 32, 62, 56, 4, '#b88c5b');
-      ln(ctx, [[40, 39], [88, 39]], '#c69b68', 1);
-      rr(ctx, 37, 45, 33, 30, 2.5, '#e4ddc6', '#685b45', 1);
-      ln(ctx, [[53.5, 46.5], [53.5, 73.5]], '#bdb39a', 0.6);
-      ln(ctx, [[40, 60], [67, 60]], '#bdb39a', 0.6);
-      ln(ctx, [[42, 69], [47, 63], [54, 65], [63, 53]], '#64826b', 1.1);
-      el(ctx, 64, 53, 1.8, 1.8, '#c76b4e');
+      for (const [x, y] of [[34, 32], [94, 32], [34, 90], [94, 90]]) rr(ctx, x - 5, y - 5, 10, 10, 2, '#493625');
+      rr(ctx, 25, 23, 78, 76, 8, '#60442d', '#33281f', 2);
+      rr(ctx, 29, 27, 70, 68, 6, '#b58a59', '#755334', 1.5);
+      rr(ctx, 34, 31, 60, 60, 4, '#c39a67');
+      for (const y of [44, 59, 74]) ln(ctx, [[36, y], [92, y]], 'rgba(91,58,31,0.36)', 1.2);
+      // Folded map: clear paper silhouette, a route, a compass mark and one landmark.
+      rr(ctx, 39, 39, 32, 39, 2, '#ece4cc', '#75644b', 1);
+      ln(ctx, [[55, 41], [55, 76]], '#c0b59a', 0.8);
+      ln(ctx, [[41, 58], [69, 58]], '#c0b59a', 0.8);
+      ln(ctx, [[43, 70], [48, 63], [56, 66], [66, 48]], '#5c8a71', 1.6);
+      el(ctx, 66, 48, 2.2, 2.2, '#c85d45');
+      el(ctx, 44, 45, 2.7, 2.7, '#d5a84e');
       if (kind === 'table_map_cup') {
-        el(ctx, 83, 63, 8.5, 8.5, '#c6a77c');
-        rr(ctx, 77, 56, 12, 13, 2.5, '#e8e0ce', '#685b45', 1);
-        el(ctx, 89, 61, 3.5, 4, '#c6a77c', '#685b45', 0.8);
-        el(ctx, 89, 61, 1.8, 2.4, '#3a403e');
+        el(ctx, 82, 63, 9, 9, '#cbb58e', '#6e5739', 1);
+        rr(ctx, 75, 53, 14, 17, 3, '#ede6d4', '#776448', 1.2);
+        rr(ctx, 88, 57, 7, 9, 3, '#cbb58e', '#776448', 1.2);
+        el(ctx, 82, 55, 5.3, 2.2, '#6c4934');
+        ctx.strokeStyle = 'rgba(239,238,220,0.8)'; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(80, 49); ctx.quadraticCurveTo(77, 44, 81, 40); ctx.stroke();
       } else {
-        rr(ctx, 76, 44, 14, 19, 2.5, '#455e58', '#293b37', 1);
-        rr(ctx, 79, 47, 8, 6.5, 1.2, '#c5c7ae');
-        ln(ctx, [[83, 46], [86, 39]], '#293b37', 1.2);
-        el(ctx, 79, 58, 1.6, 1.6, '#d2b56b');
-        el(ctx, 84, 77, 8.5, 8.5, '#c6a77c');
-        rr(ctx, 78, 70, 12, 13, 2.5, '#b9c6bd', '#685b45', 1);
-        el(ctx, 90, 75, 3.5, 4, '#c6a77c', '#685b45', 0.8);
-        el(ctx, 90, 75, 1.8, 2.4, '#3a403e');
+        rr(ctx, 76, 45, 15, 24, 3, '#354943', '#293731', 1.2);
+        rr(ctx, 79, 49, 9, 9, 1.5, '#bbd0b6', '#4b6256', 0.8);
+        ln(ctx, [[83.5, 47], [88, 41]], '#c49b58', 1.5);
+        el(ctx, 80, 64, 1.8, 1.8, '#e0c36c'); el(ctx, 86, 64, 1.8, 1.8, '#75cb91');
+        rr(ctx, 77, 76, 15, 8, 2, '#8c6e48', '#61482f', 0.8);
       }
       break;
     }
     case 'wood_chair': {
-      for (const x of [38, 90]) rr(ctx, x - 4, 35, 8, 60, 2.5, WOOD_D, '#302a24', 1);
-      rr(ctx, 28, 14, 72, 30, 9, WOOD_D, '#302a24', 2);
-      rr(ctx, 33, 18, 62, 20, 7, '#b08552', '#765438', 1);
-      for (const x of [52, 76]) rr(ctx, x - 1.5, 20, 3, 14, 1.2, WOOD_L);
-      rr(ctx, 33, 44, 62, 49, 9, '#5c412d', '#302a24', 2);
-      rr(ctx, 38, 49, 52, 39, 7, '#bd9463', '#765438', 1);
-      rr(ctx, 44, 54, 40, 27, 6, '#d0ab7c');
-      for (const x of [38, 90]) for (const y of [45, 91]) el(ctx, x, y, 3.5, 3.5, WOOD_D, '#302a24', 1);
+      // Plain top-down dining chair: a slatted back, square seat and four exposed legs.
+      for (const [x, y] of [[37, 38], [91, 38], [37, 91], [91, 91]]) rr(ctx, x - 4, y - 4, 8, 8, 2, '#443223', '#291f18', 1);
+      rr(ctx, 31, 15, 66, 28, 5, '#5e422d', '#30251d', 2);
+      rr(ctx, 36, 19, 56, 20, 3, '#bd925d', '#725236', 1.2);
+      for (const x of [49, 64, 79]) ln(ctx, [[x, 21], [x, 37]], '#78573a', 2);
+      rr(ctx, 37, 43, 54, 48, 5, '#6b4a30', '#30251d', 2);
+      rr(ctx, 42, 48, 44, 38, 3, '#c39a67', '#795939', 1.2);
+      ln(ctx, [[45, 56], [83, 56]], '#d2ad7a', 1.2);
+      ln(ctx, [[45, 77], [83, 77]], '#a67d50', 1.1);
       break;
     }
     case 'bedside_cabinet': {
@@ -328,12 +361,13 @@ export function drawScenery(ctx: CanvasRenderingContext2D, p: SceneryProp) {
   // 底座投影：水面小船投影略窄，车辆偏长，统一用椭圆近似
   const ship = p.kind === 'rowboat' || p.kind === 'fishing_boat' || p.kind === 'speedboat';
   const bed = p.kind === 'bed';
-  const compact = p.kind === 'table_map_cup' || p.kind === 'table_field_kit' || p.kind === 'wood_chair' || p.kind === 'bedside_cabinet' || p.kind === 'potted_flower';
+  const compact = p.kind === 'table_map_cup' || p.kind === 'table_field_kit' || p.kind === 'wood_chair' || p.kind === 'bedside_cabinet' || p.kind === 'potted_flower' || p.kind === 'egg_nest' || p.kind === 'ice_beacon';
+  const gate = p.kind === 'king_vault_gate';
   ctx.fillStyle = 'rgba(15,22,10,0.3)';
   ctx.beginPath();
-  ctx.ellipse(4, 7, ship ? 30 : compact ? 34 : 42, ship ? 48 : bed ? 48 : compact ? 29 : 40, 0, 0, TAU);
+  ctx.ellipse(4, 7, ship ? 30 : compact ? 34 : gate ? 48 : 42, ship ? 48 : bed ? 48 : compact ? 29 : gate ? 38 : 40, 0, 0, TAU);
   ctx.fill();
-  if (!ship && !compact && !bed) { ctx.beginPath(); ctx.ellipse(4, 7, 44, 30, 0, 0, TAU); ctx.fill(); }
+  if (!ship && !compact && !bed && !gate) { ctx.beginPath(); ctx.ellipse(4, 7, 44, 30, 0, 0, TAU); ctx.fill(); }
 
   drawAsset(ctx, p.kind);
   ctx.restore();
