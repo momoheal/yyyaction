@@ -1,7 +1,7 @@
-import { ARMORS, ITEM_BANDAGE, ITEM_MEDKIT, LOADOUTS, THROWABLE_IDS, THROWABLE_ITEMS, THROWABLES, WEAPONS, weaponItem, type ItemDef, type Loadout, type ThrowableId } from './data';
+import { ARMORS, ITEM_BANDAGE, ITEM_MEDKIT, LOADOUTS, THROWABLE_IDS, THROWABLE_ITEMS, THROWABLES, WEAPONS, weaponItem, type ItemDef, type Loadout, type ThrowableId, type WeaponDef } from './data';
 
-export type TuneType = 'stable' | 'damage' | 'velocity' | 'pierce';
-export interface GearItem { id: string; tuned: boolean; mod?: TuneType }
+export type TuneType = 'stable' | 'damage' | 'velocity' | 'pierce' | 'mag' | 'rapid' | 'choke';
+export interface GearItem { id: string; tuned: boolean; mods?: TuneType[] }
 export interface GearStack extends GearItem { count: number }
 export interface ConsumableLoadout {
   bandages: number;
@@ -49,25 +49,69 @@ export function consumableCost(c: ConsumableLoadout | undefined): number {
 }
 
 export const WAREHOUSE_KIT = 'warehouse';
-export const TUNED_SPREAD = 0.8;
-export const TUNED_DAMAGE = 1.25;
-export const TUNED_VELOCITY = 1.3;
-export const TUNED_PIERCE = 2;
-export const TUNE_TYPES: TuneType[] = ['stable', 'damage', 'velocity', 'pierce'];
+export const TUNE_TYPES: TuneType[] = ['stable', 'damage', 'velocity', 'pierce', 'mag', 'rapid', 'choke'];
 
 export const TUNE_LABELS: Record<TuneType, string> = {
   stable: '稳定型', damage: '高伤害', velocity: '高速弹', pierce: '穿甲型',
+  mag: '扩容弹匣', rapid: '轻量复进', choke: '收束器',
 };
 export const TUNE_DESCS: Record<TuneType, string> = {
-  stable: '散布 −20%',
+  stable: '散布 −25% · 后坐 −30%',
   damage: '伤害 +25%',
-  velocity: '弹速 +30%',
+  velocity: '弹速 +30% · 射程 +10%',
   pierce: '穿透 +2',
+  mag: '弹匣容量 +50%',
+  rapid: '射速 +20%',
+  choke: '散布 −45%（霰弹收束）',
+};
+/** Short stat tag shown on the weapon row. */
+export const TUNE_TAGS: Record<TuneType, string> = {
+  stable: '散布−25%', damage: '伤害+25%', velocity: '弹速+30%', pierce: '穿透+2',
+  mag: '弹匣+50%', rapid: '射速+20%', choke: '散布−45%',
 };
 
-/** Old saves stored `tuned: true` with no mod — that was the stable tune. */
-export function gearMod(item: GearItem): TuneType {
-  return item.mod ?? 'stable';
+/** Every weapon can take two mods; legendary guns get a third slot. */
+export function modSlots(id: string): number {
+  const def = WEAPONS[id.startsWith('w_') ? id.slice(2) : id];
+  return def && def.rarity >= 5 ? 3 : 2;
+}
+
+/** Older saves stored a single `mod`; everything now reads through this. */
+export function gearMods(item: GearItem | undefined): TuneType[] {
+  if (!item) return [];
+  const legacy = (item as GearItem & { mod?: TuneType }).mod;
+  const list = Array.isArray(item.mods) ? item.mods : legacy ? [legacy] : [];
+  return list.filter((mod, i) => TUNE_TYPES.includes(mod) && list.indexOf(mod) === i).slice(0, modSlots(item.id));
+}
+
+/** Mods are unordered, so the stack identity is the sorted key. */
+export function modsKey(mods: TuneType[] | undefined): string {
+  return [...(mods ?? [])].sort().join('+');
+}
+
+export function gearLabel(item: GearItem | undefined): string {
+  return gearMods(item).map((mod) => TUNE_LABELS[mod]).join(' · ');
+}
+
+/** Single source of truth for what a mod package does to a gun. */
+export function modWeapon(base: WeaponDef, mods: TuneType[]): WeaponDef {
+  const def = { ...base };
+  for (const mod of mods) {
+    if (mod === 'stable') { def.spread *= 0.75; def.kick *= 0.7; }
+    else if (mod === 'damage') def.dmg *= 1.25;
+    else if (mod === 'velocity') { def.speed *= 1.3; def.range *= 1.1; }
+    else if (mod === 'pierce') def.pierce += 2;
+    else if (mod === 'mag') def.mag = Math.round(def.mag * 1.5);
+    else if (mod === 'rapid') def.rate *= 1.2;
+    else if (mod === 'choke') def.spread *= 0.55;
+  }
+  return def;
+}
+
+/** Weapon with the given mods applied, or the untouched definition. */
+export function gunWithMods(id: string, mods: TuneType[]): WeaponDef | undefined {
+  const base = WEAPONS[id.startsWith('w_') ? id.slice(2) : id];
+  return base ? modWeapon(base, mods) : undefined;
 }
 
 export function gearDef(id: string): ItemDef | undefined {
@@ -77,7 +121,7 @@ export function gearDef(id: string): ItemDef | undefined {
 }
 
 export function sameGear(a: GearItem | undefined, b: GearItem) {
-  return a?.id === b.id && a.tuned === b.tuned && (a.tuned === false || gearMod(a) === gearMod(b));
+  return a?.id === b.id && a.tuned === b.tuned && modsKey(gearMods(a)) === modsKey(gearMods(b));
 }
 
 export function availableGear(warehouse: Warehouse): RaidGear {
@@ -115,7 +159,8 @@ export function hasWarehouseLoadout(gear: RaidGear) {
 
 export function changeStock(items: GearStack[], gear: GearItem, delta: number): GearStack[] {
   const existing = items.find((item) => sameGear(gear, item));
-  if (!existing) return delta > 0 ? [...items, { id: gear.id, tuned: gear.tuned, ...(gear.tuned ? { mod: gearMod(gear) } : {}), count: delta }] : items;
+  const mods = gearMods(gear);
+  if (!existing) return delta > 0 ? [...items, { id: gear.id, tuned: mods.length > 0, ...(mods.length ? { mods } : {}), count: delta }] : items;
   const count = existing.count + delta;
   return items.flatMap((item) => item !== existing ? [item] : count > 0 ? [{ ...item, count }] : []);
 }
@@ -126,12 +171,12 @@ export function tuningPrice(item: ItemDef) {
 
 function readGear(value: unknown): GearItem | undefined {
   if (!value || typeof value !== 'object') return;
-  const gear = value as Partial<GearItem>;
+  const gear = value as Partial<GearItem> & { mod?: TuneType };
   if (typeof gear.id !== 'string' || typeof gear.tuned !== 'boolean') return;
   const def = gearDef(gear.id);
   if (!def || (gear.tuned && def.kind !== 'weapon')) return;
-  const mod = TUNE_TYPES.includes(gear.mod as TuneType) ? gear.mod as TuneType : undefined;
-  return { id: gear.id, tuned: gear.tuned, ...(gear.tuned ? { mod: mod ?? 'stable' } : {}) };
+  const mods = gearMods(gear as GearItem);
+  return { id: gear.id, tuned: mods.length > 0, ...(mods.length ? { mods } : {}) };
 }
 
 export function readWarehouse(value: unknown): Warehouse {

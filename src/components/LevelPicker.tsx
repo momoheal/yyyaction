@@ -14,14 +14,14 @@ function MapThumbnail({ level }: { level: RaidMapDef }) {
   return <canvas ref={canvas} width={360} height={250} aria-hidden="true" className="pointer-events-none block aspect-[36/25] w-full rounded-md border border-white/10" />;
 }
 
-export default function LevelPicker({ selected, extracts, onPick, onClose }: { selected: RaidMapId; extracts: number; onPick: (id: RaidMapId) => void; onClose: () => void }) {
+export default function LevelPicker({ selected, extracts, debugMode, onPick, onClose }: { selected: RaidMapId; extracts: number; debugMode: boolean; onPick: (id: RaidMapId) => void; onClose: () => void }) {
   return (
     <LobbyDialog title="选择战区" onClose={onClose}>
       <div className="p-3 sm:p-5">
-        <p className="mb-3 text-xs text-white/70">地图标记 · <span className="text-[#a1ffcb]">绿色为候选撤离点</span> · <span className="text-[#ff9b77]">橙色为首领驻地</span></p>
+        <p className="mb-3 text-xs text-white/70">地图标记 · <span className="text-[#a1ffcb]">绿色为候选撤离点</span> · <span className="text-[#ff9b77]">橙色为首领驻地</span>{debugMode && <span className="ml-2 font-bold text-[#ffd376]">· 调试模式：全部战区已解锁</span>}</p>
         <ul className="grid gap-2 md:grid-cols-3 short:sm:grid-cols-3">
           {RAID_MAPS.map((level) => {
-            const locked = extracts < level.requiredExtracts;
+            const locked = !debugMode && extracts < level.requiredExtracts;
             return <li key={level.id}>
               <button
                 type="button"

@@ -7,7 +7,7 @@ import { buildMap, buildTrainingMap, getRaidMap, F_BULLET, F_MOVE, F_SIGHT, type
 import { Grid, Nav, segCircle, type Hit } from './physics';
 import type { Sfx } from './audio';
 import type { Input } from './input';
-import { WAREHOUSE_KIT, TUNED_DAMAGE, TUNED_PIERCE, TUNED_SPREAD, TUNED_VELOCITY, gearDef, gearMod, raidGearItems, warehouseLoadout, type GearItem, type RaidGear } from './warehouse';
+import { WAREHOUSE_KIT, gearDef, gearMods, modWeapon, raidGearItems, warehouseLoadout, type GearItem, type RaidGear } from './warehouse';
 
 export const TAU = Math.PI * 2;
 export const P_SPARK = 0, P_FEATHER = 1, P_SMOKE = 2, P_FIRE = 3, P_DEBRIS = 4, P_CASING = 5, P_RING = 6, P_DUST = 7, P_STAR = 8, P_MUZZLE = 9;
@@ -300,14 +300,11 @@ export class Game {
     const p = this.makePlayer(sp.x, sp.y, kit, getCharacter(characterId));
     const weapon = p.weapons[p.cur];
     const tunedGear = this.warehouseGear?.weapon;
-    if (tunedGear?.tuned && weapon) {
-      const mod = gearMod(tunedGear);
-      const def = { ...weapon.def };
-      if (mod === 'stable') def.spread *= TUNED_SPREAD;
-      else if (mod === 'damage') def.dmg *= TUNED_DAMAGE;
-      else if (mod === 'velocity') def.speed *= TUNED_VELOCITY;
-      else if (mod === 'pierce') def.pierce += TUNED_PIERCE;
-      weapon.def = def;
+    const tunedMods = tunedGear ? gearMods(tunedGear) : [];
+    if (weapon && tunedMods.length) {
+      // Every installed mod stacks — a two-slot gun gets both effects at once.
+      const base = WEAPONS[weapon.def.id] ?? weapon.def;
+      weapon.def = modWeapon(base, tunedMods);
     }
     this.player = p;
     p.aim = Math.atan2(this.map.h / 2 - sp.y, this.map.w / 2 - sp.x);

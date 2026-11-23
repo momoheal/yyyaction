@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { cn } from '../utils/cn';
 import { CHARACTERS, ENEMIES, LOADOUTS, RARITY_COLORS, RARITY_NAMES, RARITY_RGB, characterArmor, fmtMoney, fmtTime, getCharacter, type CharacterId, type Loadout } from '../game/data';
 import { getRaidMap, type RaidMapId } from '../game/map';
-import { TUNE_LABELS, availableGear, gearDef, gearMod, raidGearItems, WAREHOUSE_KIT } from '../game/warehouse';
+import { availableGear, gearDef, gearLabel, raidGearItems, WAREHOUSE_KIT } from '../game/warehouse';
 import type { ScoreEntry, SaveData } from '../game/storage';
 import type { RaidResult } from '../game/game';
 import Armory, { type WarehouseAction } from './Armory';
@@ -16,6 +16,9 @@ const OUTCOME: Record<string, { label: string; cls: string }> = {
   dead: { label: '阵亡', cls: 'bg-red-500/15 text-red-300 ring-red-400/30' },
   mia: { label: '失踪', cls: 'bg-zinc-400/15 text-zinc-300 ring-zinc-400/30' },
 };
+
+// Client-side convenience gate for development only; this is not a server-side secret.
+const DEBUG_PASSWORD = 'DUCK-OPS-DEV-2026';
 
 function useCountUp(target: number, dur = 1.2, delay = 0) {
   const [v, setV] = useState(0);
@@ -118,14 +121,16 @@ function Help() {
   );
 }
 
-export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWarehouse, onCharacter, onKit, onDeploy, onTraining, muted, onMute }: {
+export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWarehouse, onCharacter, onKit, onDeploy, onTraining, onDebugMode, onDebugMoney, muted, onMute }: {
   save: SaveData; kit: Loadout; mapId: RaidMapId; onMap: (id: RaidMapId) => void;
   onWarehouse: (action: WarehouseAction) => void; onUseWarehouse: () => void;
   onCharacter: (id: CharacterId) => void; onKit: (k: string) => void;
-  onDeploy: () => void; onTraining: () => void; muted: boolean; onMute: () => void;
+  onDeploy: () => void; onTraining: () => void; onDebugMode: (enabled: boolean) => void; onDebugMoney: () => void; muted: boolean; onMute: () => void;
 }) {
   const [tab, setTab] = useState<'rank' | 'help'>(save.firstRun ? 'help' : 'rank');
-  const [panel, setPanel] = useState<'warehouse' | 'maps' | 'rank' | 'help' | null>(null);
+  const [panel, setPanel] = useState<'warehouse' | 'maps' | 'rank' | 'help' | 'debug' | null>(null);
+  const [debugPassword, setDebugPassword] = useState('');
+  const [debugError, setDebugError] = useState(false);
   const rate = save.raids ? Math.round((save.extracts / save.raids) * 100) : 0;
   const map = getRaidMap(mapId);
   const prepared = raidGearItems(availableGear(save.warehouse));
@@ -216,7 +221,7 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
             </div>
             {!!prepared.length && (
               <button type="button" onClick={onUseWarehouse} aria-pressed={sel.id === WAREHOUSE_KIT} className={cn('mt-2 block w-full max-w-xl rounded-md border px-2.5 py-1.5 text-left text-xs font-bold', sel.id === WAREHOUSE_KIT ? 'border-[#ffd23f] bg-[#ffd23f]/12 text-[#ffe183]' : 'border-white/20 bg-black/40 text-white/85')}>
-                仓库配装 · {prepared.map((gear) => `${gearDef(gear.id)?.name}${gear.tuned ? `（${TUNE_LABELS[gearMod(gear)]}）` : ''}`).join(' · ')}
+                仓库配装 · {prepared.map((gear) => `${gearDef(gear.id)?.name}${gear.tuned ? `（${gearLabel(gear)}）` : ''}`).join(' · ')}
               </button>
             )}
           </div>
@@ -242,6 +247,9 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
           <button onClick={save.trainingCompleted ? onTraining : onDeploy} className="mt-2 min-h-10 rounded-lg border border-white/20 bg-black/40 px-4 text-sm font-bold text-white/85 active:scale-[0.98]">
             {save.trainingCompleted ? '重玩新手行动' : '直接开始正式行动'}
           </button>
+          <button type="button" onClick={() => { setDebugPassword(''); setDebugError(false); setPanel('debug'); }} className="ml-2 min-h-10 rounded-lg border border-white/10 bg-black/25 px-3 text-xs font-bold text-white/55 hover:border-white/25 hover:text-white/80">
+            {save.debugMode ? '🛠 调试模式已开启' : '🛠 调试入口'}
+          </button>
           <div className="mt-2 grid grid-cols-2 gap-2 lg:hidden">
             <button type="button" onClick={() => { setTab('rank'); setPanel('rank'); }} className="min-h-10 rounded-lg border border-white/20 bg-black/40 text-sm font-bold text-white/85 active:scale-[0.98]">🏆 排行榜</button>
             <button type="button" onClick={() => { setTab('help'); setPanel('help'); }} className="min-h-10 rounded-lg border border-white/20 bg-black/40 text-sm font-bold text-white/85 active:scale-[0.98]">🎮 操作与规则</button>
@@ -260,7 +268,38 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
         </div>
       </div>
       {panel === 'warehouse' && <Armory save={save} onAction={onWarehouse} onClose={() => setPanel(null)} />}
-      {panel === 'maps' && <LevelPicker selected={mapId} extracts={save.extracts} onPick={onMap} onClose={() => setPanel(null)} />}
+      {panel === 'maps' && <LevelPicker selected={mapId} extracts={save.extracts} debugMode={save.debugMode} onPick={onMap} onClose={() => setPanel(null)} />}
+      {panel === 'debug' && (
+        <LobbyDialog title="调试模式" onClose={() => setPanel(null)}>
+          {save.debugMode ? (
+            <div className="space-y-4 p-4 sm:p-5">
+              <div className="rounded-xl border border-emerald-300/25 bg-emerald-400/10 p-3">
+                <div className="font-black text-emerald-200">调试模式已开启</div>
+                <p className="mt-1 text-sm text-white/70">全部战区可以进入。调试模式保存在本机存档中。</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={onDebugMoney} className="min-h-11 rounded-lg bg-[#ffd23f] px-4 font-black text-[#1d1500] hover:bg-[#ffe27d]">增加 ¥1,000,000</button>
+                <button type="button" onClick={() => { onDebugMode(false); setPanel(null); }} className="min-h-11 rounded-lg border border-white/20 px-4 font-bold text-white/85 hover:bg-white/10">关闭调试模式</button>
+              </div>
+              <p className="text-xs text-white/45">关闭后余额保留；战区重新按正常撤离次数限制。</p>
+            </div>
+          ) : (
+            <form onSubmit={(event) => {
+              event.preventDefault();
+              if (debugPassword.trim() === DEBUG_PASSWORD) {
+                onDebugMode(true);
+                setDebugPassword('');
+                setDebugError(false);
+              } else setDebugError(true);
+            }} className="space-y-3 p-4 sm:p-5">
+              <label htmlFor="debug-password" className="block text-sm font-bold text-white/80">输入调试密码</label>
+              <input id="debug-password" type="password" autoComplete="off" maxLength={64} value={debugPassword} onChange={(event) => { setDebugPassword(event.target.value); setDebugError(false); }} className="min-h-11 w-full rounded-lg border border-white/20 bg-black/40 px-3 text-white outline-none focus:border-[#ffd23f]" placeholder="调试密码" />
+              {debugError && <p role="alert" className="text-sm font-bold text-red-300">密码不正确，请重试。</p>}
+              <button type="submit" className="min-h-11 rounded-lg bg-[#ffd23f] px-4 font-black text-[#1d1500] hover:bg-[#ffe27d]">进入调试模式</button>
+            </form>
+          )}
+        </LobbyDialog>
+      )}
       {(panel === 'rank' || panel === 'help') && (
         <LobbyDialog title={tab === 'rank' ? '🏆 本地排行榜' : '🎮 操作与规则'} onClose={() => setPanel(null)}>
           <div className="scroll-y max-h-[70vh] overflow-y-auto">{tab === 'rank' ? <ScoreTable scores={save.scores} /> : <Help />}</div>

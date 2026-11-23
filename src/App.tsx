@@ -7,7 +7,7 @@ import { LOADOUTS, UPGRADE_MAX, upgradePrice } from './game/data';
 import type { RaidResult } from './game/game';
 import { getRaidMap, type RaidMapId } from './game/map';
 import { insertScore, loadSave, writeSave, type SaveData, type ScoreEntry } from './game/storage';
-import { availableGear, changeStock, gearDef, hasWarehouseLoadout, normalizeConsumables, raidGearItems, sameGear, tuningPrice, warehouseLoadout, WAREHOUSE_KIT, type RaidGear } from './game/warehouse';
+import { availableGear, changeStock, gearDef, gearMods, hasWarehouseLoadout, modSlots, normalizeConsumables, raidGearItems, sameGear, tuningPrice, warehouseLoadout, WAREHOUSE_KIT, type RaidGear } from './game/warehouse';
 import type { WarehouseAction } from './components/Armory';
 
 function affordableLoadout(id: string, stash: number) {
@@ -75,7 +75,7 @@ export default function App() {
       };
       const item = action.gear;
       if (item && (gearDef(item.id)?.kind !== action.slot || !items.some((row) => sameGear(item, row)))) return;
-      next[action.slot] = item && { id: item.id, tuned: item.tuned };
+      next[action.slot] = item && { id: item.id, tuned: item.tuned, mods: gearMods(item) };
       const nextKit = hasWarehouseLoadout(next) ? WAREHOUSE_KIT : LOADOUTS[0].id;
       setKit(nextKit);
       commit({ ...s, kit: nextKit, warehouse: { items, selected: next } });
@@ -100,29 +100,32 @@ export default function App() {
       commit({ ...s, stash: s.stash - cost, upgrades: { ...s.upgrades, [action.key]: level + 1 } });
       return;
     }
-    const def = gearDef(action.id);
-    if (!def || def.kind !== 'weapon') return;
-    const gear = { id: action.id, tuned: false };
     if (action.type === 'buy') {
+      const def = gearDef(action.id);
+      if (!def || def.kind !== 'weapon') return;
       if (s.stash < def.value) return;
-      commit({ ...s, stash: s.stash - def.value, warehouse: { items: changeStock(items, gear, 1), selected } });
-    } else {
-      const cost = tuningPrice(def);
-      const source = items.find((item) => item.id === gear.id && (!item.tuned || (item.mod ?? 'stable') !== action.mod)) ?? items.find((item) => sameGear(gear, item));
-      if (s.stash < cost || !source) return;
-      const tuned = { id: action.id, tuned: true, mod: action.mod };
-      commit({ ...s, stash: s.stash - cost, warehouse: {
-        items: changeStock(changeStock(items, source, -1), tuned, 1),
-        selected: sameGear(selected.weapon, source) ? { ...selected, weapon: tuned } : selected,
-      } });
+      commit({ ...s, stash: s.stash - def.value, warehouse: { items: changeStock(items, { id: action.id, tuned: false }, 1), selected } });
+      return;
     }
+    const base = gearDef(action.gear.id);
+    if (!base || base.kind !== 'weapon') return;
+    const mods = gearMods(action.gear);
+    if (mods.includes(action.mod) || mods.length >= modSlots(action.gear.id)) return;
+    const cost = tuningPrice(base);
+    const source = items.find((item) => sameGear(action.gear, item));
+    if (s.stash < cost || !source) return;
+    const tuned = { id: source.id, tuned: true, mods: [...mods, action.mod] };
+    commit({ ...s, stash: s.stash - cost, warehouse: {
+      items: changeStock(changeStock(items, source, -1), tuned, 1),
+      selected: sameGear(selected.weapon, source) ? { ...selected, weapon: tuned } : selected,
+    } });
   };
 
   const deploy = useCallback((kitId: string, training = false) => {
     const game = gameRef.current;
     if (!game || screenRef.current === 'playing') return;
     const s = saveRef.current;
-    if (!training && getRaidMap(mapId).requiredExtracts > s.extracts) return;
+    if (!training && !s.debugMode && getRaidMap(mapId).requiredExtracts > s.extracts) return;
     sfx.unlock();
     music.unlock();
     try {
@@ -247,6 +250,12 @@ export default function App() {
           onKit={(k) => { sfx.unlock(); sfx.play('ui'); setKit(k); }}
           onDeploy={() => deploy(kit)}
           onTraining={() => deploy(kit, true)}
+          onDebugMode={(enabled) => {
+            const current = saveRef.current;
+            commit({ ...current, debugMode: enabled });
+            if (!enabled && getRaidMap(mapId).requiredExtracts > current.extracts) setMapId('island');
+          }}
+          onDebugMoney={() => commit({ ...saveRef.current, stash: saveRef.current.stash + 1_000_000 })}
           muted={save.muted}
           onMute={toggleMute}
         />

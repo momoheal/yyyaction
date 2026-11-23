@@ -28,6 +28,7 @@ export interface SaveData {
   bestValue: number;
   firstRun: boolean;
   trainingCompleted: boolean;
+  debugMode: boolean;
   warehouse: Warehouse;
   upgrades: CharacterUpgrades;
 }
@@ -46,7 +47,7 @@ function readUpgrades(value: unknown): CharacterUpgrades {
 }
 
 export function defaultSave(): SaveData {
-  return { stash: STARTING_STASH, scores: [], kit: 'assault', characterId: 'duck', muted: false, raids: 0, extracts: 0, bestValue: 0, firstRun: true, trainingCompleted: false, warehouse: { items: [], selected: {} }, upgrades: { capacity: 0, rollCd: 0, speed: 0 } };
+  return { stash: STARTING_STASH, scores: [], kit: 'assault', characterId: 'duck', muted: false, raids: 0, extracts: 0, bestValue: 0, firstRun: true, trainingCompleted: false, debugMode: false, warehouse: { items: [], selected: {} }, upgrades: { capacity: 0, rollCd: 0, speed: 0 } };
 }
 
 export function loadSave(): SaveData {
@@ -58,6 +59,7 @@ export function loadSave(): SaveData {
       return {
         ...base,
         ...d,
+        debugMode: d.debugMode === true,
         characterId: getCharacter(d.characterId).id,
         warehouse: readWarehouse(d.warehouse),
         upgrades: readUpgrades(d.upgrades),
