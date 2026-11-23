@@ -87,7 +87,7 @@ function Help() {
     [<Key>鼠标</Key>, '瞄准 · 左键射击'],
     [<><Key>空格</Key><Key>右键</Key></>, '翻滚（无敌闪避）'],
     [<><Key>E</Key></>, '搜索容器 / 尸体'],
-    [<><Key>R</Key><Key>G</Key><Key>H</Key></>, '换弹 · 手雷 · 治疗'],
+    [<><Key>R</Key><Key>G</Key><Key>T</Key><Key>H</Key></>, '换弹 · 投掷 · 切雷 · 治疗'],
     [<><Key>Q</Key><Key>1</Key><Key>2</Key></>, '切换武器'],
     [<><Key>B</Key><Key>V</Key></>, '背包 · 丢弃最低价值'],
     [<><Key>Esc</Key><Key>M</Key></>, '暂停 · 静音'],
@@ -102,7 +102,7 @@ function Help() {
       </div>
       <div>
         <div className="mb-1 text-xs font-bold tracking-widest text-[#ffd23f]">触屏操作</div>
-        <p className="leading-relaxed">左半屏拖动移动；右半屏拖动瞄准并<b className="text-white">自动开火</b>（带吸附、预判和子弹微调）；右下按钮翻滚 / 换弹 / 手雷 / 背包 / 治疗 / 切枪；靠近容器点击「搜索」。</p>
+        <p className="leading-relaxed">左半屏拖动移动；右半屏拖动瞄准并<b className="text-white">自动开火</b>（带吸附、预判和子弹微调）；右下按钮翻滚 / 换弹 / 投掷 / 切雷 / 背包 / 治疗 / 切枪；靠近容器点击「搜索」。</p>
       </div>
       <div>
         <div className="mb-1 text-xs font-bold tracking-widest text-[#ffd23f]">规则</div>

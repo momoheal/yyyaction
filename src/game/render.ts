@@ -1,4 +1,4 @@
-import { ARMORS, ENEMIES, EXTRACT_TIME, RARITY_COLORS, RARITY_RGB, SEARCH_TIME, fmtMoney, fmtTime, type CharacterId, type WeaponDef } from './data';
+import { ARMORS, ENEMIES, EXTRACT_TIME, RARITY_COLORS, RARITY_RGB, SEARCH_TIME, THROWABLE_IDS, THROWABLES, fmtMoney, fmtTime, type CharacterId, type WeaponDef } from './data';
 import { F_SIGHT, type FloorType, type GameMap, type RaidMapId, type Solid } from './map';
 import { bagUi, hudScale, type Input } from './input';
 import { P_CASING, P_DEBRIS, P_DUST, P_FEATHER, P_FIRE, P_MUZZLE, P_RING, P_SMOKE, P_SPARK, P_STAR, TAU, type Container, type Enemy, type Game } from './game';
@@ -615,6 +615,7 @@ export class Renderer {
     this.drawGrenades(g);
     this.drawEnemies(g);
     if (raid && (!g.player.dead || g.outcome === 'extract')) this.drawPlayer(g);
+    this.drawZones(g);
     this.drawCanopies(g);
     this.drawParticles(g, 1);
     if (raid) this.drawFog(g);
@@ -1292,23 +1293,59 @@ export class Renderer {
   private drawGrenades(g: Game) {
     const ctx = this.ctx;
     for (const gr of g.grenades) {
+      const def = THROWABLES[gr.kind];
+      const body = gr.egg ? '#f4edda' : gr.kind === 'smoke' ? '#8e9ba1' : gr.kind === 'flash' ? '#e8dfa8' : gr.kind === 'fire' ? '#a4472c' : '#3d4a2c';
       ctx.fillStyle = 'rgba(0,0,0,0.3)';
       ell(ctx, gr.x + 2, gr.y + 3, 5, 3.5);
-      ctx.fillStyle = gr.egg ? '#f4edda' : '#3d4a2c';
+      ctx.fillStyle = body;
       ell(ctx, gr.x, gr.y - gr.z, gr.egg ? 5 : 6, gr.egg ? 6.5 : 6);
       if (gr.egg) {
         ctx.fillStyle = '#d9c9a4';
         ell(ctx, gr.x - 1.5, gr.y - gr.z - 1.5, 2, 2.5);
       }
-      ctx.fillStyle = (gr.fuse < 0.6 ? Math.sin(g.realT * 40) > 0 : Math.sin(g.realT * 14) > 0) ? '#ff4040' : (gr.egg ? '#b98b4e' : '#5a2020');
+      ctx.fillStyle = (gr.fuse < 0.6 ? Math.sin(g.realT * 40) > 0 : Math.sin(g.realT * 14) > 0) ? '#ff4040' : def.color;
       ell(ctx, gr.x + Math.cos(gr.spin) * 2, gr.y - gr.z + Math.sin(gr.spin) * 2, 2, 2);
-      if (gr.z < 4) {
-        ctx.strokeStyle = `rgba(255,70,50,${0.25 + 0.35 * (1 - gr.fuse / 1.3)})`;
+      if (gr.z < 4 && gr.kind !== 'flash') {
+        const warn = Math.max(0.08, 0.55 * (1 - gr.fuse / def.fuse));
+        ctx.strokeStyle = gr.kind === 'smoke' ? `rgba(190,205,215,${warn})` : gr.kind === 'fire' ? `rgba(255,110,50,${warn})` : `rgba(255,70,50,${warn})`;
         ctx.lineWidth = 2;
         ctx.setLineDash([8, 8]);
-        ctx.beginPath(); ctx.arc(gr.x, gr.y, 150, 0, TAU); ctx.stroke();
+        ctx.beginPath(); ctx.arc(gr.x, gr.y, def.radius, 0, TAU); ctx.stroke();
         ctx.setLineDash([]);
       }
+    }
+  }
+
+  private drawZones(g: Game) {
+    const ctx = this.ctx;
+    for (const f of g.fires) {
+      const fade = Math.min(1, (f.dur - f.t) / 1.2);
+      const grd = ctx.createRadialGradient(f.x, f.y, 6, f.x, f.y, f.r);
+      grd.addColorStop(0, `rgba(255,140,40,${0.3 * fade})`);
+      grd.addColorStop(0.7, `rgba(220,70,24,${0.18 * fade})`);
+      grd.addColorStop(1, 'rgba(180,40,20,0)');
+      ctx.fillStyle = grd;
+      ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, TAU); ctx.fill();
+      ctx.strokeStyle = `rgba(255,150,60,${0.4 * fade})`;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([10, 8]);
+      ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, TAU); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    for (const s of g.smokes) {
+      const edge = Math.min(1, s.t / 0.5, (s.dur - s.t) / 0.8);
+      ctx.save();
+      ctx.globalAlpha = 0.72 * edge;
+      for (let i = 0; i < 5; i++) {
+        const a = s.pulse * 0.35 + (i / 5) * TAU;
+        const d = s.r * (0.28 + 0.07 * Math.sin(s.pulse * 1.4 + i));
+        const grd = ctx.createRadialGradient(s.x + Math.cos(a) * d, s.y + Math.sin(a) * d, 8, s.x + Math.cos(a) * d, s.y + Math.sin(a) * d, s.r * 0.78);
+        grd.addColorStop(0, 'rgba(206,214,218,0.5)');
+        grd.addColorStop(1, 'rgba(182,193,199,0)');
+        ctx.fillStyle = grd;
+        ctx.beginPath(); ctx.arc(s.x + Math.cos(a) * d, s.y + Math.sin(a) * d, s.r * 0.78, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
     }
   }
 
@@ -1998,7 +2035,7 @@ export class Renderer {
       ctx.globalAlpha = Math.max(0, a);
       const lines = touch
         ? ['左半屏拖动 移动 · 右半屏拖动 瞄准并自动开火', '靠近容器点「搜索」 · 翻滚可闪避子弹', '目标：拾取武器 → 击退鸭匪 → 搜刮 → 安全撤离']
-        : ['WASD 移动 · 鼠标 瞄准/射击 · 空格 翻滚闪避', 'E 搜索 · R 换弹 · G 手雷 · H 治疗 · Q 切枪 · Esc 暂停', '目标：拾取武器 → 击退鸭匪 → 搜刮 → 安全撤离'];
+        : ['WASD 移动 · 鼠标 瞄准/射击 · 空格 翻滚闪避', 'E 搜索 · R 换弹 · G 投掷 · T 切雷 · H 治疗 · Q 切枪 · Esc 暂停', '目标：拾取武器 → 击退鸭匪 → 搜刮 → 安全撤离'];
       const tw = Math.min(W - 40, 470 * u), th = 76 * u;
       const c = g.cam;
       const psy = H / 2 + (p.y - c.y - c.ky) * c.zoom;
@@ -2023,7 +2060,8 @@ export class Renderer {
     const hpR = Math.max(0, p.hp / p.maxHp);
     if (!compact) {
       this.panel(x - 8, y - 30 * u, w + 16, 82 * u);
-      const items: [string, number, string][] = [['🩹', p.bandages, 'H'], ['💉', p.medkits, 'H'], ['💣', p.grenades, 'G']];
+      const t = THROWABLES[p.selectedThrowable];
+      const items: [string, number, string][] = [['🩹', p.bandages, 'H'], ['💉', p.medkits, 'H'], [t.icon, p.throwables[p.selectedThrowable], 'G/T']];
       let ix = x;
       for (const [ic, n, k] of items) {
         ctx.globalAlpha = n > 0 ? 1 : 0.35;
@@ -2254,7 +2292,11 @@ export class Renderer {
       let badge = '';
       let ring = -1;
       let label = b.label;
-      if (b.id === 'grenade') { badge = `${p.grenades}`; dis = p.grenades <= 0; }
+      if (b.id === 'grenade') { badge = `${p.throwables[p.selectedThrowable]}`; dis = p.throwables[p.selectedThrowable] <= 0; label = THROWABLES[p.selectedThrowable].icon; }
+      if (b.id === 'throwableNext') {
+        const total = THROWABLE_IDS.reduce((sum, id) => sum + p.throwables[id], 0);
+        dis = total <= 1;
+      }
       if (b.id === 'heal') { badge = `${p.bandages + p.medkits}`; dis = p.bandages + p.medkits <= 0; if (p.healT > 0) ring = 1 - p.healT / p.healDur; }
       if (b.id === 'roll' && p.rollCd > 0) ring = 1 - p.rollCd / 0.72;
       if (b.id === 'reload' && w && w.reloadT > 0) ring = 1 - w.reloadT / w.def.reload;

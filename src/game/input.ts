@@ -1,4 +1,4 @@
-export type Action = 'reload' | 'interact' | 'grenade' | 'heal' | 'swap' | 'roll' | 'slot1' | 'slot2' | 'bag' | 'dropLowest';
+export type Action = 'reload' | 'interact' | 'grenade' | 'throwableNext' | 'heal' | 'swap' | 'roll' | 'slot1' | 'slot2' | 'bag' | 'dropLowest';
 
 export interface Btn { id: string; x: number; y: number; r: number; label: string }
 
@@ -61,7 +61,8 @@ export function touchLayout(W: number, H: number): TouchLayout {
       button('roll', '翻滚', 26, 50, 25),      // bottom-left of aim stick, within thumb reach
       button('reload', '换弹', 150, 30, 21),   // bottom-right corner
       button('heal', '治疗', 96, 196, 21),     // directly above aim stick
-      button('grenade', '手雷', 170, 148, 20), // right column, mid — clear of aim stick
+      button('grenade', '投掷', 170, 148, 20), // right column, mid — clear of aim stick
+      button('throwableNext', '切雷', 170, 108, 17), // above throw button — cycle among carried types
       button('swap', '切枪', 170, 220, 20),    // right column, high
       button('bag', '背包', 96, 268, 21),      // top, far from firing thumb
     ],
@@ -94,6 +95,7 @@ export class Input {
   interactVisible = false;
   hasHealing = false;
   hasGrenade = false;
+  hasThrowableNext = false;
   hasSecondWeapon = false;
   enabled = false;
   bagOpen = false;
@@ -161,6 +163,7 @@ export class Input {
         case 'KeyR': this.press('reload'); break;
         case 'KeyE': case 'KeyF': this.press('interact'); break;
         case 'KeyG': this.press('grenade'); break;
+        case 'KeyT': this.press('throwableNext'); break;
         case 'KeyH': case 'KeyX': this.press('heal'); break;
         case 'KeyQ': this.press('swap'); break;
         case 'KeyB': this.press('bag'); break;
@@ -177,6 +180,7 @@ export class Input {
   buttonAvailable(id: string) {
     if (id === 'heal') return this.hasHealing;
     if (id === 'grenade') return this.hasGrenade;
+    if (id === 'throwableNext') return this.hasThrowableNext;
     if (id === 'swap') return this.hasSecondWeapon;
     if (id === 'dropLowest') return this.dropLowestEnabled;
     return true;

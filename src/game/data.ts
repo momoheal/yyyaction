@@ -23,6 +23,7 @@ export interface ItemDef {
   kind: ItemKind;
   armor?: number;
   weapon?: string;
+  throwable?: ThrowableId;
 }
 
 const L = (id: string, name: string, icon: string, rarity: Rarity, value: number): ItemDef => ({
@@ -67,9 +68,30 @@ export const LOOT: ItemDef[] = [
 
 export const LOOT_BY_RARITY: ItemDef[][] = [0, 1, 2, 3, 4, 5].map((r) => LOOT.filter((i) => i.rarity === r));
 
+export type ThrowableId = 'grenade' | 'smoke' | 'flash' | 'fire';
+
 export const ITEM_BANDAGE: ItemDef = { id: 'bandage', name: '绷带', icon: '🩹', rarity: 0, value: 1500, kind: 'bandage' };
 export const ITEM_MEDKIT: ItemDef = { id: 'medkit', name: '急救针', icon: '💉', rarity: 2, value: 9000, kind: 'medkit' };
-export const ITEM_GRENADE: ItemDef = { id: 'grenade', name: '破片手雷', icon: '💣', rarity: 1, value: 4000, kind: 'grenade' };
+export const ITEM_GRENADE: ItemDef = { id: 'grenade', name: '破片手雷', icon: '💣', rarity: 1, value: 4000, kind: 'grenade', throwable: 'grenade' };
+export const ITEM_SMOKE: ItemDef = { id: 'smoke', name: '烟雾弹', icon: '🌫️', rarity: 1, value: 6000, kind: 'grenade', throwable: 'smoke' };
+export const ITEM_FLASH: ItemDef = { id: 'flash', name: '闪光弹', icon: '✨', rarity: 2, value: 7500, kind: 'grenade', throwable: 'flash' };
+export const ITEM_FIRE: ItemDef = { id: 'fire', name: '燃烧瓶', icon: '🔥', rarity: 2, value: 8500, kind: 'grenade', throwable: 'fire' };
+
+export const THROWABLE_IDS: ThrowableId[] = ['grenade', 'smoke', 'flash', 'fire'];
+export const THROWABLE_ITEMS: ItemDef[] = [ITEM_GRENADE, ITEM_SMOKE, ITEM_FLASH, ITEM_FIRE];
+
+export interface ThrowableDef {
+  id: ThrowableId; name: string; icon: string; color: string;
+  radius: number; fuse: number; value: number; damage: number; desc: string;
+}
+
+/** Shared tuning for both the thrown projectile and the warehouse loadout UI. */
+export const THROWABLES: Record<ThrowableId, ThrowableDef> = {
+  grenade: { id: 'grenade', name: '破片手雷', icon: '💣', color: '#ff8a3c', radius: 150, fuse: 1.3, value: 4000, damage: 135, desc: '范围爆发伤害，可引爆油桶' },
+  smoke: { id: 'smoke', name: '烟雾弹', icon: '🌫️', color: '#b9c6cc', radius: 190, fuse: 1.1, value: 6000, damage: 0, desc: '烟雾持续 9 秒，阻断敌人视线' },
+  flash: { id: 'flash', name: '闪光弹', icon: '✨', color: '#fff3b0', radius: 260, fuse: 1.0, value: 7500, damage: 0, desc: '范围内敌人目眩 2.6 秒，停止射击' },
+  fire: { id: 'fire', name: '燃烧瓶', icon: '🔥', color: '#ff5a2a', radius: 135, fuse: 1.2, value: 8500, damage: 18, desc: '地面燃烧 6 秒，持续灼烧范围内目标' },
+};
 export const ARMORS: ItemDef[] = [
   { id: 'armor2', name: '二级护甲', icon: 'gear:armor2', rarity: 1, value: 12000, kind: 'armor', armor: 60 },
   { id: 'armor4', name: '四级护甲', icon: 'gear:armor4', rarity: 3, value: 45000, kind: 'armor', armor: 120 },
@@ -367,13 +389,13 @@ export interface Loadout {
   armor: number;
   bandages: number;
   medkits: number;
-  grenades: number;
+  throwables: Partial<Record<ThrowableId, number>>;
 }
 
 export const LOADOUTS: Loadout[] = [
-  { id: 'knife', name: '跑刀', tag: '零成本', desc: 'M9 手枪 · 1 绷带', cost: 0, primary: null, armor: 0, bandages: 1, medkits: 0, grenades: 0 },
-  { id: 'assault', name: '突击', tag: '均衡', desc: 'MP5 · 二级甲 · 绷带×2 · 急救针 · 手雷', cost: 60000, primary: 'smg', armor: 60, bandages: 2, medkits: 1, grenades: 1 },
-  { id: 'heavy', name: '重装', tag: '火力压制', desc: 'M4A1 · 四级甲 · 绷带×3 · 急救针×2 · 手雷×2', cost: 180000, primary: 'rifle', armor: 120, bandages: 3, medkits: 2, grenades: 2 },
+  { id: 'knife', name: '跑刀', tag: '零成本', desc: 'M9 手枪 · 1 绷带', cost: 0, primary: null, armor: 0, bandages: 1, medkits: 0, throwables: {} },
+  { id: 'assault', name: '突击', tag: '均衡', desc: 'MP5 · 二级甲 · 绷带×2 · 急救针 · 手雷', cost: 60000, primary: 'smg', armor: 60, bandages: 2, medkits: 1, throwables: { grenade: 1 } },
+  { id: 'heavy', name: '重装', tag: '火力压制', desc: 'M4A1 · 四级甲 · 绷带×3 · 急救针×2 · 手雷×2', cost: 180000, primary: 'rifle', armor: 120, bandages: 3, medkits: 2, throwables: { grenade: 2 } },
 ];
 
 export const STARTING_STASH = 100000;

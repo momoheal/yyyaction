@@ -242,7 +242,9 @@ function loop() {
   if (dt <= 0) dt = 0.001;
   const step = Math.min(dt, 1 / 30);
   input.hasHealing = game.player.bandages + game.player.medkits > 0;
-  input.hasGrenade = game.player.grenades > 0;
+  const carried = Object.values(game.player.throwables);
+  input.hasGrenade = carried.some((n) => n > 0);
+  input.hasThrowableNext = carried.filter((n) => n > 0).length > 1;
   input.hasSecondWeapon = game.player.weapons.every(Boolean);
   input.dropLowestEnabled = game.player.backpack.length > 0;
   input.bagOpen = screen === 'playing' && game.bagOpen && !game.player.dead && !game.ended;

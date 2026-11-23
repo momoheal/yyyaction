@@ -105,7 +105,9 @@ const GameView = forwardRef<GameHandle, Props>(function GameView(props, ref) {
 
       const player = game.player;
       input.hasHealing = player.bandages + player.medkits > 0;
-      input.hasGrenade = player.grenades > 0;
+      const carried = Object.values(player.throwables);
+      input.hasGrenade = carried.some((n) => n > 0);
+      input.hasThrowableNext = carried.filter((n) => n > 0).length > 1;
       input.hasSecondWeapon = player.weapons.every(Boolean);
       input.dropLowestEnabled = player.backpack.length > 0;
       input.bagOpen = scr === 'playing' && game.bagOpen && !game.player.dead && !game.ended;

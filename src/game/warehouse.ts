@@ -1,12 +1,51 @@
-import { ARMORS, LOADOUTS, WEAPONS, weaponItem, type ItemDef, type Loadout } from './data';
+import { ARMORS, ITEM_BANDAGE, ITEM_MEDKIT, LOADOUTS, THROWABLE_IDS, THROWABLE_ITEMS, THROWABLES, WEAPONS, weaponItem, type ItemDef, type Loadout, type ThrowableId } from './data';
 
 export type TuneType = 'stable' | 'damage' | 'velocity' | 'pierce';
 export interface GearItem { id: string; tuned: boolean; mod?: TuneType }
 export interface GearStack extends GearItem { count: number }
-export interface RaidGear { weapon?: GearItem; armor?: GearItem }
+export interface ConsumableLoadout {
+  bandages: number;
+  medkits: number;
+  throwables: Partial<Record<ThrowableId, number>>;
+}
+export interface RaidGear { weapon?: GearItem; armor?: GearItem; consumables?: ConsumableLoadout }
 export interface Warehouse {
   items: GearStack[];
   selected: RaidGear;
+}
+
+export const CONSUMABLE_LIMITS = { bandages: 5, medkits: 3, perThrowable: 4, totalThrowables: 6 };
+
+export function emptyConsumables(): ConsumableLoadout {
+  return { bandages: 0, medkits: 0, throwables: {} };
+}
+
+/** Clamp saved or edited counts so a custom kit can never exceed its carry limits. */
+export function normalizeConsumables(value: unknown): ConsumableLoadout {
+  const raw = value && typeof value === 'object' ? value as Partial<ConsumableLoadout> : {};
+  const whole = (n: unknown, max: number) => Number.isFinite(n) ? Math.max(0, Math.min(max, Math.floor(n as number))) : 0;
+  const out = emptyConsumables();
+  out.bandages = whole(raw.bandages, CONSUMABLE_LIMITS.bandages);
+  out.medkits = whole(raw.medkits, CONSUMABLE_LIMITS.medkits);
+  let budget = CONSUMABLE_LIMITS.totalThrowables;
+  const src = raw.throwables && typeof raw.throwables === 'object' ? raw.throwables as Record<string, unknown> : {};
+  for (const id of THROWABLE_IDS) {
+    const n = Math.min(budget, whole(src[id], CONSUMABLE_LIMITS.perThrowable));
+    if (n > 0) { out.throwables[id] = n; budget -= n; }
+  }
+  return out;
+}
+
+export function consumableCount(c: ConsumableLoadout | undefined): number {
+  if (!c) return 0;
+  return c.bandages + c.medkits + THROWABLE_IDS.reduce((sum, id) => sum + (c.throwables[id] ?? 0), 0);
+}
+
+export function consumableCost(c: ConsumableLoadout | undefined): number {
+  if (!c) return 0;
+  let total = c.bandages * ITEM_BANDAGE.value + c.medkits * ITEM_MEDKIT.value;
+  for (const item of THROWABLE_ITEMS) total += (c.throwables[item.throwable!] ?? 0) * item.value;
+  return total;
 }
 
 export const WAREHOUSE_KIT = 'warehouse';
@@ -43,7 +82,10 @@ export function sameGear(a: GearItem | undefined, b: GearItem) {
 
 export function availableGear(warehouse: Warehouse): RaidGear {
   const { items, selected } = warehouse;
-  return raidGearItems(selected).every((gear) => items.some((item) => sameGear(gear, item))) ? selected : {};
+  const armed = raidGearItems(selected).every((gear) => items.some((item) => sameGear(gear, item)));
+  if (armed) return selected;
+  // A lost weapon must not silently erase the consumable part of a custom kit.
+  return selected.consumables ? { consumables: normalizeConsumables(selected.consumables) } : {};
 }
 
 export function raidGearItems(gear: RaidGear): GearItem[] {
@@ -52,11 +94,23 @@ export function raidGearItems(gear: RaidGear): GearItem[] {
 
 export function warehouseLoadout(gear: RaidGear): Loadout {
   const weapon = gear.weapon ? gearDef(gear.weapon.id)?.weapon : undefined;
+  const c = normalizeConsumables(gear.consumables);
+  const parts: string[] = [];
+  if (c.bandages) parts.push(`绷带×${c.bandages}`);
+  if (c.medkits) parts.push(`急救针×${c.medkits}`);
+  for (const id of THROWABLE_IDS) if (c.throwables[id]) parts.push(`${THROWABLES[id].name}×${c.throwables[id]}`);
   return {
-    ...LOADOUTS[0], id: WAREHOUSE_KIT, name: '仓库配装',
+    ...LOADOUTS[0], id: WAREHOUSE_KIT, name: '自定义配装',
+    tag: '仓库', desc: parts.length ? parts.join(' · ') : '仅携带入库装备',
+    cost: consumableCost(c),
     primary: weapon && weapon !== 'pistol' ? weapon : null,
     armor: gear.armor ? gearDef(gear.armor.id)?.armor ?? 0 : 0,
+    bandages: c.bandages, medkits: c.medkits, throwables: c.throwables,
   };
+}
+
+export function hasWarehouseLoadout(gear: RaidGear) {
+  return raidGearItems(gear).length > 0 || consumableCount(gear.consumables) > 0;
 }
 
 export function changeStock(items: GearStack[], gear: GearItem, delta: number): GearStack[] {
@@ -93,6 +147,7 @@ export function readWarehouse(value: unknown): Warehouse {
     selected: {
       weapon: weapon && gearDef(weapon.id)?.kind === 'weapon' ? weapon : undefined,
       armor: armor && gearDef(armor.id)?.kind === 'armor' ? armor : undefined,
+      consumables: normalizeConsumables(raw.selected?.consumables),
     },
   };
 }

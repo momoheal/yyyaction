@@ -7,7 +7,7 @@ import { LOADOUTS, UPGRADE_MAX, upgradePrice } from './game/data';
 import type { RaidResult } from './game/game';
 import { getRaidMap, type RaidMapId } from './game/map';
 import { insertScore, loadSave, writeSave, type SaveData, type ScoreEntry } from './game/storage';
-import { availableGear, changeStock, gearDef, raidGearItems, sameGear, tuningPrice, warehouseLoadout, WAREHOUSE_KIT, type RaidGear } from './game/warehouse';
+import { availableGear, changeStock, gearDef, hasWarehouseLoadout, normalizeConsumables, raidGearItems, sameGear, tuningPrice, warehouseLoadout, WAREHOUSE_KIT, type RaidGear } from './game/warehouse';
 import type { WarehouseAction } from './components/Armory';
 
 function affordableLoadout(id: string, stash: number) {
@@ -71,11 +71,23 @@ export default function App() {
       const next: RaidGear = {
         weapon: items.find((item) => sameGear(selected.weapon, item)),
         armor: items.find((item) => sameGear(selected.armor, item)),
+        consumables: selected.consumables,
       };
       const item = action.gear;
       if (item && (gearDef(item.id)?.kind !== action.slot || !items.some((row) => sameGear(item, row)))) return;
       next[action.slot] = item && { id: item.id, tuned: item.tuned };
-      const nextKit = raidGearItems(next).length ? WAREHOUSE_KIT : LOADOUTS[0].id;
+      const nextKit = hasWarehouseLoadout(next) ? WAREHOUSE_KIT : LOADOUTS[0].id;
+      setKit(nextKit);
+      commit({ ...s, kit: nextKit, warehouse: { items, selected: next } });
+      return;
+    }
+    if (action.type === 'consumable') {
+      const c = normalizeConsumables(selected.consumables);
+      if (action.key === 'bandages') c.bandages += action.delta;
+      else if (action.key === 'medkits') c.medkits += action.delta;
+      else c.throwables[action.key] = (c.throwables[action.key] ?? 0) + action.delta;
+      const next: RaidGear = { ...selected, consumables: normalizeConsumables(c) };
+      const nextKit = hasWarehouseLoadout(next) ? WAREHOUSE_KIT : LOADOUTS[0].id;
       setKit(nextKit);
       commit({ ...s, kit: nextKit, warehouse: { items, selected: next } });
       return;
@@ -123,7 +135,7 @@ export default function App() {
     } catch { /* wake lock unsupported */ }
     const gear = !training && kitId === WAREHOUSE_KIT ? availableGear(s.warehouse) : {};
     const equipped = raidGearItems(gear);
-    const k = equipped.length ? warehouseLoadout(gear) : affordableLoadout(kitId, s.stash);
+    const k = hasWarehouseLoadout(gear) ? warehouseLoadout(gear) : affordableLoadout(kitId, s.stash);
     trainingRef.current = training;
     if (!training) {
       const items = equipped.reduce((stock, item) => changeStock(stock, item, -1), s.warehouse.items);
@@ -213,7 +225,7 @@ export default function App() {
   }, [kit, deploy, pause, resume, toMenu, over]);
 
   const gear = availableGear(save.warehouse);
-  const kitObj = kit === WAREHOUSE_KIT && raidGearItems(gear).length ? warehouseLoadout(gear) : affordableLoadout(kit, save.stash);
+  const kitObj = kit === WAREHOUSE_KIT && hasWarehouseLoadout(gear) ? warehouseLoadout(gear) : affordableLoadout(kit, save.stash);
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#0d0f12] text-white">

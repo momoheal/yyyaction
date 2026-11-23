@@ -1,7 +1,7 @@
 import {
-  ARMORS, CHILL_WEAPONS, CONTAINER_DEFS, ENEMIES, EXPLOSIVE_WEAPONS, EXTRACT_TIME, ITEM_BANDAGE, ITEM_GRENADE, ITEM_MEDKIT, LOADOUTS, LOOT, LOOT_BY_RARITY,
-  RAID_TIME, RARITY_COLORS, RARITY_NAMES, SEARCH_TIME, WEAPONS, characterArmor, fmtMoney, getCharacter, weaponItem,
-  type BossSkillKind, type CharacterDef, type CharacterId, type CharacterUpgrades, type EnemyDef, type EnemyType, type ItemDef, type Loadout, type WeaponDef,
+  ARMORS, CHILL_WEAPONS, CONTAINER_DEFS, ENEMIES, EXPLOSIVE_WEAPONS, EXTRACT_TIME, ITEM_BANDAGE, ITEM_FIRE, ITEM_FLASH, ITEM_GRENADE, ITEM_MEDKIT, ITEM_SMOKE,
+  LOADOUTS, LOOT, LOOT_BY_RARITY, RAID_TIME, RARITY_COLORS, RARITY_NAMES, SEARCH_TIME, THROWABLE_IDS, THROWABLES, WEAPONS, characterArmor, fmtMoney, getCharacter, weaponItem,
+  type BossSkillKind, type CharacterDef, type CharacterId, type CharacterUpgrades, type EnemyDef, type EnemyType, type ItemDef, type Loadout, type ThrowableId, type WeaponDef,
 } from './data';
 import { buildMap, buildTrainingMap, getRaidMap, F_BULLET, F_MOVE, F_SIGHT, type GameMap, type RaidMapId, type Solid } from './map';
 import { Grid, Nav, segCircle, type Hit } from './physics';
@@ -25,7 +25,8 @@ export interface Player {
   weapons: (WeaponInst | null)[]; cur: number;
   rollT: number; rollCd: number; rollDx: number; rollDy: number; rollCdMax: number; speedMul: number;
   healT: number; healDur: number; healType: 'bandage' | 'medkit' | null;
-  bandages: number; medkits: number; grenades: number;
+  bandages: number; medkits: number;
+  throwables: Record<ThrowableId, number>; selectedThrowable: ThrowableId;
   backpack: LootItem[]; capacity: number;
   walk: number; hurtT: number; dead: boolean; bloom: number; stepAcc: number; kick: number; flash: number;
 }
@@ -39,12 +40,14 @@ export interface Enemy {
   strafe: number; strafeT: number; reactT: number; alertT: number; qT: number; flash: number; walk: number; atkCd: number;
   special: string | null; specialT: number; cdx: number; cdy: number; honkCd: number; chargeCd: number; nadeCd: number; wanderT: number;
   phase: 0 | 1; skillPhase: 0 | 1; castCount: number; castSkill: BossSkillKind | null;
-  dead: boolean; kick: number; hurtT: number; chillT: number;
+  dead: boolean; kick: number; hurtT: number; chillT: number; stunT: number;
 }
 export interface Bullet { x: number; y: number; ox: number; oy: number; vx: number; vy: number; dmg: number; life: number; from: 0 | 1; pierce: number; hitIds?: number[]; src: Enemy | null; w: number; crit: boolean; chill?: boolean; explosive?: boolean }
 export interface Particle { x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; max: number; size: number; color: string; type: number; rot: number; vr: number; drag: number; grow: number }
 export interface FText { x: number; y: number; text: string; color: string; life: number; max: number; size: number; vy: number }
-export interface Grenade { x: number; y: number; z: number; vx: number; vy: number; vz: number; fuse: number; spin: number; egg?: boolean }
+export interface Grenade { x: number; y: number; z: number; vx: number; vy: number; vz: number; fuse: number; spin: number; kind: ThrowableId; egg?: boolean }
+export interface Smoke { x: number; y: number; r: number; t: number; dur: number; pulse: number }
+export interface FireZone { x: number; y: number; r: number; t: number; dur: number; tick: number }
 export interface Light { x: number; y: number; r: number; color: string; life: number; max: number }
 export interface Decal { x: number; y: number; r: number; rot: number }
 export interface Beam { x: number; y: number; color: string; life: number; max: number }
@@ -123,6 +126,8 @@ export class Game {
   texts: FText[] = [];
   containers: Container[] = [];
   grenades: Grenade[] = [];
+  smokes: Smoke[] = [];
+  fires: FireZone[] = [];
   lights: Light[] = [];
   decals: Decal[] = [];
   beams: Beam[] = [];
@@ -212,7 +217,7 @@ export class Game {
     this.dodgeT = 0; this.bufRoll = 0; this.bufHeal = 0; this.bufNade = 0;
     this.t = 0;
     this.enemies = []; this.bullets = []; this.particles = []; this.texts = []; this.containers = [];
-    this.grenades = []; this.lights = []; this.decals = []; this.beams = []; this.msgs = []; this.dmgInds = []; this.booms = [];
+    this.grenades = []; this.smokes = []; this.fires = []; this.lights = []; this.decals = []; this.beams = []; this.msgs = []; this.dmgInds = []; this.booms = [];
     this.banner = null; this.exZone = null; this.exProg = 0; this.exWaves.clear(); this.search = null; this.nearC = null;
     this.stats = { kills: 0, killScore: 0, killsBy: {}, shots: 0, hits: 0 };
     this.tutorialStage = 0; this.tutorialKills = 0; this.tutorialWaveSpawned = false;
@@ -256,7 +261,13 @@ export class Game {
       weapons: [kit.primary ? this.makeWeapon(kit.primary) : null, this.makeWeapon('pistol')], cur: kit.primary ? 0 : 1,
       rollT: 0, rollCd: 0, rollDx: 0, rollDy: 0, rollCdMax: Math.max(0.37, 0.72 - u.rollCd * 0.07), speedMul: 1 + u.speed * 0.06,
       healT: 0, healDur: 0, healType: null,
-      bandages: kit.bandages, medkits: kit.medkits, grenades: kit.grenades, backpack: [], capacity: 20 + u.capacity * 4,
+      bandages: kit.bandages, medkits: kit.medkits,
+      throwables: {
+        grenade: kit.throwables.grenade ?? 0, smoke: kit.throwables.smoke ?? 0,
+        flash: kit.throwables.flash ?? 0, fire: kit.throwables.fire ?? 0,
+      },
+      selectedThrowable: THROWABLE_IDS.find((id) => (kit.throwables[id] ?? 0) > 0) ?? 'grenade',
+      backpack: [], capacity: 20 + u.capacity * 4,
       walk: 0, hurtT: 0, dead: false, bloom: 0, stepAcc: 0, kick: 0, flash: 0,
     };
   }
@@ -379,6 +390,11 @@ export class Game {
     return list[Math.floor(Math.random() * list.length)];
   }
 
+  private rollThrowable(): ItemDef {
+    const pool: [ItemDef, number][] = [[ITEM_GRENADE, 50], [ITEM_SMOKE, 22], [ITEM_FLASH, 16], [ITEM_FIRE, 12]];
+    return pool[pickIndex(pool.map((row) => row[1]))][0];
+  }
+
   private rollItems(type: string): LootItem[] {
     const d = CONTAINER_DEFS[type];
     const out: ItemDef[] = [];
@@ -391,16 +407,16 @@ export class Game {
       out.push(weaponItem(opts[pickIndex(opts.map((o) => o[1]))][0]));
       const r = Math.random();
       if (r < 0.35) out.push(Math.random() < 0.7 ? ARMORS[0] : ARMORS[1]);
-      else if (r < 0.7) out.push(ITEM_GRENADE);
+      else if (r < 0.7) out.push(this.rollThrowable());
     } else if (d.special === 'med') {
       out.push(ITEM_BANDAGE);
       if (Math.random() < 0.65) out.push(Math.random() < 0.5 ? ITEM_MEDKIT : ITEM_BANDAGE);
-      if (Math.random() < 0.3) out.push(ITEM_GRENADE);
+      if (Math.random() < 0.3) out.push(this.rollThrowable());
       if (Math.random() < 0.5) out.push(this.rollLoot([30, 40, 22, 7, 1, 0]));
     } else {
       const n = randInt(d.min, d.max);
       for (let i = 0; i < n; i++) {
-        if (Math.random() < 0.07) out.push(Math.random() < 0.6 ? ITEM_BANDAGE : ITEM_GRENADE);
+        if (Math.random() < 0.07) out.push(Math.random() < 0.6 ? ITEM_BANDAGE : this.rollThrowable());
         else out.push(this.rollLoot(d.weights));
       }
     }
@@ -420,7 +436,7 @@ export class Game {
         for (let i = 0; i < n; i++) out.push(this.rollLoot([40, 34, 18, 6, 1.6, 0.25]));
         if (e.weapon && Math.random() < 0.35) out.push(weaponItem(e.weapon.id));
         if (Math.random() < 0.3) out.push(ITEM_BANDAGE);
-        if (Math.random() < 0.12) out.push(ITEM_GRENADE);
+        if (Math.random() < 0.12) out.push(this.rollThrowable());
         break;
       }
       case 'shield': {
@@ -432,7 +448,7 @@ export class Game {
       }
       case 'hen': {
         for (let i = 0; i < randInt(1, 3); i++) out.push(this.rollLoot([35, 33, 20, 9, 2.5, 0.5]));
-        if (Math.random() < 0.6) out.push(ITEM_GRENADE);
+        if (Math.random() < 0.6) out.push(this.rollThrowable());
         break;
       }
       case 'armored':
@@ -471,7 +487,7 @@ export class Game {
       weapon: w, ammo: w ? w.mag : 0, reloadT: 0, cd: 0.4, burst: 0, burstPause: 0.25,
       losT: Math.random() * 0.2, los: false, canSee: false, vis: false, visA: 0, lastX: pos.x, lastY: pos.y, lostT: 0, huntT: 0,
       strafe: Math.random() < 0.5 ? 1 : -1, strafeT: 1, reactT: 0, alertT: 0, qT: 0, flash: 0, walk: Math.random() * 10, atkCd: 0,
-      special: null, specialT: 0, cdx: 0, cdy: 0, honkCd: 4, chargeCd: 6, nadeCd: 1.5 + Math.random() * 1.5, wanderT: Math.random() * 2, dead: false, kick: 0, hurtT: 0, chillT: 0,
+      special: null, specialT: 0, cdx: 0, cdy: 0, honkCd: 4, chargeCd: 6, nadeCd: 1.5 + Math.random() * 1.5, wanderT: Math.random() * 2, dead: false, kick: 0, hurtT: 0, chillT: 0, stunT: 0,
       phase: 0, skillPhase: 0, castCount: 0, castSkill: null,
     };
     this.enemies.push(e);
@@ -609,6 +625,8 @@ export class Game {
     this.updateEnemies(dt);
     this.updateBullets(dt);
     this.updateGrenades(dt);
+    this.updateSmokes(dt);
+    this.updateFires(dt);
     this.updateBooms(dt);
     this.updateFx(dt, rawDt);
     this.updateCamera(rawDt);
@@ -693,6 +711,7 @@ export class Game {
       p.healT -= dt;
       if (p.healT <= 0) this.finishHeal();
     }
+    if (inp.consume('throwableNext')) this.cycleThrowable();
     if (inp.consume('grenade')) this.bufNade = 0.35;
     this.bufNade -= dt;
     if (this.bufNade > 0 && p.rollT <= 0) { this.bufNade = 0; this.throwGrenade(); }
@@ -897,11 +916,36 @@ export class Game {
     this.sfx.play('heal');
   }
 
+  /** Cycle to the next throwable that is actually in the bag. */
+  cycleThrowable() {
+    const p = this.player;
+    if (!p.throwables[p.selectedThrowable]) this.selectedThrowableFallback();
+    const start = THROWABLE_IDS.indexOf(p.selectedThrowable);
+    for (let i = 1; i <= THROWABLE_IDS.length; i++) {
+      const id = THROWABLE_IDS[(start + i) % THROWABLE_IDS.length];
+      if (p.throwables[id] > 0) {
+        p.selectedThrowable = id;
+        this.msg(`切换至 ${THROWABLES[id].name} ×${p.throwables[id]}`, THROWABLES[id].color);
+        this.sfx.play('ui');
+        return;
+      }
+    }
+    this.msg('没有投掷物', '#aaa');
+  }
+
+  private selectedThrowableFallback() {
+    const p = this.player;
+    p.selectedThrowable = THROWABLE_IDS.find((id) => p.throwables[id] > 0) ?? 'grenade';
+  }
+
   private throwGrenade() {
     const p = this.player;
     if (p.rollT > 0) return;
-    if (p.grenades <= 0) { this.msg('没有手雷', '#aaa'); return; }
-    p.grenades--;
+    if (!p.throwables[p.selectedThrowable]) this.selectedThrowableFallback();
+    const kind = p.selectedThrowable;
+    if (p.throwables[kind] <= 0) { this.msg('没有投掷物', '#aaa'); return; }
+    p.throwables[kind]--;
+    const def = THROWABLES[kind];
     let tx: number, ty: number;
     if (!this.input.touchMode) {
       const w = this.screenToWorld(this.input.mouseX, this.input.mouseY);
@@ -914,7 +958,12 @@ export class Game {
     if (d < 60) { dx = Math.cos(p.aim) * 60; dy = Math.sin(p.aim) * 60; d = 60; }
     if (d > 480) { dx *= 480 / d; dy *= 480 / d; d = 480; }
     const T = 0.5 + d / 1500;
-    this.grenades.push({ x: p.x + Math.cos(p.aim) * 16, y: p.y + Math.sin(p.aim) * 16, z: 14, vx: (dx / T) * 0.9, vy: (dy / T) * 0.9, vz: (900 * T) / 2, fuse: 1.3, spin: 0 });
+    this.grenades.push({
+      x: p.x + Math.cos(p.aim) * 16, y: p.y + Math.sin(p.aim) * 16, z: 14,
+      vx: (dx / T) * 0.9, vy: (dy / T) * 0.9, vz: (900 * T) / 2,
+      fuse: def.fuse, spin: 0, kind,
+    });
+    this.msg(`投出 ${def.name}`, def.color);
     this.sfx.play('throw');
   }
 
@@ -926,7 +975,7 @@ export class Game {
     this.grenades.push({
       x: e.x + Math.cos(e.aim) * 14, y: e.y + Math.sin(e.aim) * 14,
       z: 12, vx: (dx / T) * 0.9, vy: (dy / T) * 0.9, vz: (820 * T) / 2,
-      fuse: 1.45, spin: 0, egg: true,
+      fuse: 1.45, spin: 0, kind: 'grenade', egg: true,
     });
     this.sfx.play('throw');
     this.text(e.x, e.y - 30, '鸡蛋！', '#ffe9a8', 14);
@@ -1279,9 +1328,16 @@ export class Game {
       case 'medkit':
         if (p.medkits < 3) { p.medkits++; note = '急救针 +1'; } else taken = this.toBackpack(it);
         break;
-      case 'grenade':
-        if (p.grenades < 4) { p.grenades++; note = '手雷 +1'; } else taken = this.toBackpack(it);
+      case 'grenade': {
+        const kind = d.throwable ?? 'grenade';
+        const cap = kind === 'grenade' ? 4 : 3;
+        if (p.throwables[kind] < cap) {
+          p.throwables[kind]++;
+          p.selectedThrowable = kind;
+          note = `${THROWABLES[kind].name} +1`;
+        } else taken = this.toBackpack(it);
         break;
+      }
       case 'armor': {
         const armor = characterArmor(p.character, d.armor ?? 0);
         if (armor > p.armorMax || p.armor < armor * 0.5) {
@@ -1530,6 +1586,15 @@ export class Game {
     const dv = this.dv;
     dv.x = 0; dv.y = 0;
     let faceA: number | null = null;
+    e.stunT = Math.max(0, e.stunT - dt);
+    if (e.stunT > 0) {
+      // Flash bang: vision and weapon handling are suppressed, but physics still runs.
+      e.canSee = false;
+      e.visA *= 0.88;
+      faceA = angTo + Math.sin(this.realT * 17 + e.id) * 0.9;
+      if (e.state === 'engage') { e.state = 'hunt'; e.huntT = Math.max(e.huntT, 2.5); }
+      if (e.special && e.special !== 'stun') { e.special = null; e.castSkill = null; }
+    } else {
     // Egg-laying hen: lobs grenades on a timer whenever it can see the player.
     if (def.thrower) {
       e.nadeCd -= dt;
@@ -1547,7 +1612,7 @@ export class Game {
       e.losT -= dt;
       if (e.losT <= 0) {
         e.losT = 0.09 + Math.random() * 0.07;
-        e.los = dist < 1150 && this.grid.los(e.x, e.y, p.x, p.y, F_SIGHT);
+        e.los = dist < 1150 && !this.segmentInSmoke(e.x, e.y, p.x, p.y) && this.grid.los(e.x, e.y, p.x, p.y, F_SIGHT);
         e.vis = e.los && dist < 1100;
         let cs = e.los && !p.dead && dist < def.vision;
         if (cs && e.state === 'idle' && dist > 140 && Math.abs(angDiff(e.aim, angTo)) > 1.9) cs = false;
@@ -1619,6 +1684,7 @@ export class Game {
           }
         }
       }
+    }
     }
 
     if (faceA !== null) e.aim = turnToward(e.aim, faceA, dt * (e.state === 'engage' ? 6.5 : 5));
@@ -1947,7 +2013,101 @@ export class Game {
         g.vx = (g.vx - 2 * dot * h.nx) * 0.5; g.vy = (g.vy - 2 * dot * h.ny) * 0.5;
         this.sfx.play('bounce', g.x, g.y);
       } else { g.x = nx; g.y = ny; }
-      if (g.fuse <= 0) { this.explode(g.x, g.y, g.egg ? 118 : 150, g.egg ? 60 : 135, !!g.egg); gs.splice(i, 1); }
+      if (g.fuse <= 0) { this.resolveThrowable(g); gs.splice(i, 1); }
+    }
+  }
+
+  private segmentInSmoke(x1: number, y1: number, x2: number, y2: number) {
+    const dx = x2 - x1, dy = y2 - y1;
+    for (const s of this.smokes) {
+      if (s.t < 0.25) continue;
+      if (segCircle(x1, y1, dx, dy, s.x, s.y, s.r * 0.85) >= 0) return true;
+    }
+    return false;
+  }
+
+  private resolveThrowable(g: Grenade) {
+    const def = THROWABLES[g.kind];
+    if (g.egg) { this.explode(g.x, g.y, 118, 60, true); return; }
+    switch (g.kind) {
+      case 'grenade':
+        this.explode(g.x, g.y, def.radius, def.damage);
+        break;
+      case 'smoke': {
+        this.smokes.push({ x: g.x, y: g.y, r: def.radius, t: 0, dur: 9, pulse: Math.random() * 6 });
+        for (let i = 0; i < 18; i++) {
+          const a = Math.random() * TAU, d = Math.random() * def.radius * 0.6;
+          const q = this.P(P_SMOKE, g.x + Math.cos(a) * d, g.y + Math.sin(a) * d, rand(-25, 25), rand(-25, 25), rand(0.6, 1.6), rand(18, 34), 'rgba(188,199,204,0.36)');
+          if (q) q.grow = 42;
+        }
+        this.text(g.x, g.y - 34, '烟雾展开！', def.color, 18, true);
+        this.sfx.play('throw', g.x, g.y, 0.6);
+        break;
+      }
+      case 'flash': {
+        let hits = 0;
+        for (const e of this.enemies) {
+          if (e.dead) continue;
+          const d = Math.hypot(e.x - g.x, e.y - g.y);
+          if (d > def.radius + e.r || !this.grid.los(g.x, g.y, e.x, e.y, F_SIGHT)) continue;
+          e.stunT = 2.6;
+          hits++;
+          this.text(e.x, e.y - 40, '目眩!', '#fff3b0', 18, true);
+          for (let i = 0; i < 8; i++) {
+            const q = this.P(P_STAR, e.x + rand(-12, 12), e.y - 26 + rand(-8, 8), rand(-40, 40), rand(-70, -20), rand(0.5, 1), 3 + Math.random() * 2, '#fff6b0');
+            if (q) q.vr = 5;
+          }
+        }
+        this.lights.push({ x: g.x, y: g.y, r: def.radius * 2.4, color: '#fffbe0', life: 0.35, max: 0.35 });
+        this.msg(hits ? `闪光命中 ${hits} 个目标，目眩 2.6 秒` : '闪光弹未命中目标', def.color);
+        this.sfx.play('explosion', g.x, g.y, 0.45);
+        break;
+      }
+      case 'fire': {
+        this.fires.push({ x: g.x, y: g.y, r: def.radius, t: 0, dur: 6, tick: 0 });
+        this.msg('燃烧区域形成，靠近会被灼烧', def.color);
+        this.sfx.play('explosion', g.x, g.y, 0.35);
+        break;
+      }
+    }
+  }
+
+  private updateSmokes(dt: number) {
+    for (let i = this.smokes.length - 1; i >= 0; i--) {
+      const s = this.smokes[i];
+      s.t += dt; s.pulse += dt;
+      if (Math.random() < dt * 14) {
+        const a = Math.random() * TAU, d = Math.random() * s.r * 0.8;
+        const q = this.P(P_SMOKE, s.x + Math.cos(a) * d, s.y + Math.sin(a) * d, rand(-18, 18), rand(-18, 18), rand(1.2, 2.4), rand(16, 30), 'rgba(190,200,205,0.28)');
+        if (q) q.grow = 36;
+      }
+      if (s.t >= s.dur) this.smokes.splice(i, 1);
+    }
+  }
+
+  private updateFires(dt: number) {
+    const p = this.player;
+    for (let i = this.fires.length - 1; i >= 0; i--) {
+      const f = this.fires[i];
+      f.t += dt;
+      f.tick -= dt;
+      if (Math.random() < dt * 30) {
+        const a = Math.random() * TAU, d = Math.random() * f.r;
+        const q = this.P(P_FIRE, f.x + Math.cos(a) * d, f.y + Math.sin(a) * d, rand(-20, 20), rand(-20, 20), rand(0.3, 0.7), rand(8, 18), Math.random() < 0.5 ? '#ff8a3c' : '#ffd166');
+        if (q) q.grow = -12;
+      }
+      if (f.tick <= 0) {
+        f.tick = 0.5;
+        const dmg = THROWABLES.fire.damage;
+        for (const e of this.enemies) {
+          if (e.dead || Math.hypot(e.x - f.x, e.y - f.y) > f.r + e.r) continue;
+          this.damageEnemy(e, dmg, e.x - f.x, e.y - f.y, false, e.x, e.y - 10, true);
+        }
+        if (!p.dead && this.mode === 'raid' && Math.hypot(p.x - f.x, p.y - f.y) < f.r + p.r) {
+          this.damagePlayer(dmg * 0.45, f.x, f.y);
+        }
+      }
+      if (f.t >= f.dur) this.fires.splice(i, 1);
     }
   }
 

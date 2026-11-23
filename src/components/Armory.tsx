@@ -1,24 +1,25 @@
 import { useState } from 'react';
 import {
-  UPGRADE_INFO, UPGRADE_MAX, WEAPONS, upgradePrice, upgradeValue,
+  ITEM_BANDAGE, ITEM_MEDKIT, THROWABLE_IDS, THROWABLES, UPGRADE_INFO, UPGRADE_MAX, WEAPONS, upgradePrice, upgradeValue,
   RARITY_COLORS, RARITY_NAMES, characterArmor, fmtMoney, getCharacter, weaponItem,
-  type UpgradeKey,
+  type ThrowableId, type UpgradeKey,
 } from '../game/data';
 import type { SaveData } from '../game/storage';
-import { TUNE_DESCS, TUNE_LABELS, TUNE_TYPES, gearDef, gearMod, sameGear, tuningPrice, type GearItem, type TuneType } from '../game/warehouse';
+import { CONSUMABLE_LIMITS, TUNE_DESCS, TUNE_LABELS, TUNE_TYPES, consumableCost, consumableCount, gearDef, gearMod, normalizeConsumables, sameGear, tuningPrice, type GearItem, type TuneType } from '../game/warehouse';
 import LobbyDialog from './LobbyDialog';
 import { cn } from '../utils/cn';
 import GearIcon from './GearIcon';
 
 export type WarehouseAction =
   | { type: 'select'; slot: 'weapon' | 'armor'; gear?: GearItem }
+  | { type: 'consumable'; key: 'bandages' | 'medkits' | ThrowableId; delta: number }
   | { type: 'buy'; id: string }
   | { type: 'tune'; id: string; mod: TuneType }
   | { type: 'upgrade'; key: UpgradeKey };
 
 const actionStyle = 'min-h-9 rounded-md border border-white/20 px-2.5 text-sm font-bold hover:bg-white/10 disabled:opacity-45';
 const catalog = Object.keys(WEAPONS).map(weaponItem).sort((a, b) => a.value - b.value);
-type Tab = 'owned' | 'shop' | 'upgrade';
+type Tab = 'owned' | 'supplies' | 'shop' | 'upgrade';
 const UPGRADE_KEYS: UpgradeKey[] = ['capacity', 'rollCd', 'speed'];
 
 export default function Armory({ save, onAction, onClose }: { save: SaveData; onAction: (action: WarehouseAction) => void; onClose: () => void }) {
@@ -28,8 +29,20 @@ export default function Armory({ save, onAction, onClose }: { save: SaveData; on
   const gun = items.find((item) => sameGear(selected.weapon, item));
   const armor = items.find((item) => sameGear(selected.armor, item));
   const equippedSlots = [{ slot: 'weapon' as const, item: gun }, { slot: 'armor' as const, item: armor }];
+  const supplies = normalizeConsumables(selected.consumables);
+  const throwableTotal = THROWABLE_IDS.reduce((sum, id) => sum + (supplies.throwables[id] ?? 0), 0);
+  const supplyRows: { key: 'bandages' | 'medkits' | ThrowableId; name: string; icon: string; count: number; max: number; price: number; desc: string }[] = [
+    { key: 'bandages', name: '绷带', icon: '🩹', count: supplies.bandages, max: CONSUMABLE_LIMITS.bandages, price: ITEM_BANDAGE.value, desc: '治疗 40 点生命' },
+    { key: 'medkits', name: '急救针', icon: '💉', count: supplies.medkits, max: CONSUMABLE_LIMITS.medkits, price: ITEM_MEDKIT.value, desc: '治疗 90 点生命' },
+    ...THROWABLE_IDS.map((id) => ({
+      key: id, name: THROWABLES[id].name, icon: THROWABLES[id].icon,
+      count: supplies.throwables[id] ?? 0, max: CONSUMABLE_LIMITS.perThrowable,
+      price: THROWABLES[id].value, desc: THROWABLES[id].desc,
+    })),
+  ];
   const tabs: { id: Tab; label: string }[] = [
     { id: 'owned', label: '拥有的装备' },
+    { id: 'supplies', label: '药品与投掷物' },
     { id: 'shop', label: '购买枪械' },
     { id: 'upgrade', label: '角色强化' },
   ];
@@ -43,7 +56,8 @@ export default function Armory({ save, onAction, onClose }: { save: SaveData; on
                 卸下{gearDef(item.id)?.name}{item.tuned ? ` · ${TUNE_LABELS[gearMod(item)]}` : ''}
               </button>
             ) : null)}
-            {!gun && !armor && <span className="text-sm text-white/65">选择拥有的枪或护甲，加入仓库配装。</span>}
+            {consumableCount(supplies) > 0 && <span className="text-xs font-bold text-[#9fe6ff]">药品/投掷物 ×{consumableCount(supplies)} · 装备费 ¥{fmtMoney(consumableCost(supplies))}</span>}
+            {!gun && !armor && !consumableCount(supplies) && <span className="text-sm text-white/65">选择拥有的枪或护甲，或在「药品与投掷物」里配置携带量。</span>}
           </div>
           <span className="font-num text-lg font-bold text-[#ffe183]" aria-label="可用余额">¥{fmtMoney(save.stash)}</span>
         </div>
@@ -54,7 +68,33 @@ export default function Armory({ save, onAction, onClose }: { save: SaveData; on
           ))}
         </div>
 
-        {tab === 'shop' ? (
+        {tab === 'supplies' ? (
+          <div className="space-y-2">
+            <p className="text-xs leading-relaxed text-white/65">自定义携带量与武器、护甲同时生效。按件计价，出击时先扣费，成功撤离后返还装备费；投掷物总数上限 {CONSUMABLE_LIMITS.totalThrowables}。</p>
+            <ul className="grid max-h-[46vh] gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+              {supplyRows.map((row) => {
+                const atMax = row.count >= row.max || (row.key !== 'bandages' && row.key !== 'medkits' && throwableTotal >= CONSUMABLE_LIMITS.totalThrowables);
+                return (
+                  <li key={row.key} className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/15 p-2.5">
+                    <span className="grid size-9 shrink-0 place-items-center rounded bg-white/5 text-xl">{row.icon}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-bold text-[#ffe183]">{row.name} <span className="font-num text-white/70">×{row.count}</span></span>
+                      <span className="block truncate text-[11px] text-white/60">{row.desc} · ¥{fmtMoney(row.price)}/件</span>
+                    </span>
+                    <span className="flex shrink-0 gap-1">
+                      <button type="button" aria-label={`减少${row.name}`} className={cn(actionStyle, 'min-h-8 px-2')} disabled={row.count <= 0} onClick={() => onAction({ type: 'consumable', key: row.key, delta: -1 })}>−</button>
+                      <button type="button" aria-label={`增加${row.name}`} className={cn(actionStyle, 'min-h-8 px-2')} disabled={atMax} onClick={() => onAction({ type: 'consumable', key: row.key, delta: 1 })}>+</button>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="flex items-center justify-between rounded-lg border border-[#ffcf4a]/30 bg-black/25 px-3 py-2 text-sm">
+              <span className="text-white/75">本次携带装备费</span>
+              <span className="font-num font-bold text-[#ffe183]">¥{fmtMoney(consumableCost(supplies))}</span>
+            </div>
+          </div>
+        ) : tab === 'shop' ? (
           <ul className="grid max-h-[52vh] gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
             {catalog.map((def) => (
               <li key={def.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/15 p-2.5">
@@ -134,7 +174,7 @@ export default function Armory({ save, onAction, onClose }: { save: SaveData; on
         ) : (
           <p className="rounded-lg border border-dashed border-white/20 px-3 py-6 text-center text-sm text-white/65">仓库还是空的。撤离时带回枪械和护甲，或在这里购买枪械。</p>
         )}
-        <p className="text-xs leading-relaxed text-white/60">改造一次生效一种：稳定散布 −20%、高伤害 +25%、高速弹 +30%、穿甲 +2。再次改造会替换原有改造。仓库配装出击无装备费，带入的装备在成功撤离后归还，行动失败或放弃时丢失。</p>
+        <p className="text-xs leading-relaxed text-white/60">改造一次生效一种：稳定散布 −20%、高伤害 +25%、高速弹 +30%、穿甲 +2，再次改造会替换原有改造。武器和护甲免费借用；药品与投掷物按携带量收费，成功撤离后返还装备费，行动失败或放弃时全部损失。</p>
       </div>
     </LobbyDialog>
   );

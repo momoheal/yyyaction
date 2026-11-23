@@ -240,7 +240,7 @@ function drawHelp(ctx: CanvasRenderingContext2D, W: number, H: number, hits: Hit
   const lines = [
     '左半屏拖动：移动',
     '右半屏拖动：瞄准并自动开火（吸附+预判）',
-    '右下按钮：翻滚 / 换弹 / 手雷 / 背包 / 治疗 / 切枪',
+    '右下按钮：翻滚 / 换弹 / 投掷 / 切雷 / 背包 / 治疗 / 切枪',
     '背包点枪/甲换装，点其他物品丢弃',
     '靠近容器点「搜索」搜刮物资',
     '进入绿色撤离区停留 6 秒撤离',
