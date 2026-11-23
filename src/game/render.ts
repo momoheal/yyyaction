@@ -1123,6 +1123,11 @@ export class Renderer {
     ctx.fillStyle = 'rgba(0,0,0,0.28)';
     ctx.fillRect(x + 3, y + 4, w, h);
     const done = c.revealed >= c.items.length;
+    const rounded = (rx: number, ry: number, rw: number, rh: number, radius: number, fill: string, stroke?: string, width = 1) => {
+      rr(ctx, rx, ry, rw, rh, radius);
+      ctx.fillStyle = fill; ctx.fill();
+      if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = width; ctx.stroke(); }
+    };
     switch (c.type) {
       case 'crate':
         ctx.fillStyle = '#a3723f'; ctx.fillRect(x, y, w, h);
@@ -1147,10 +1152,40 @@ export class Renderer {
         ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(x + 3, y + 3, w - 6, 3);
         break;
       case 'pc':
-        ctx.fillStyle = '#2c2f36'; ctx.fillRect(x, y, w, h);
-        ctx.fillStyle = '#41454e'; ctx.fillRect(x + 3, y + 3, w - 6, h - 6);
-        ctx.fillStyle = (Math.sin(t * 4 + c.id) > 0 && !done) ? '#4ad1ff' : '#1f6f8a'; ctx.fillRect(x + w / 2 - 2, y + 6, 4, 4);
+        rounded(x, y, w, h, 3, '#252a31', '#171b20', 1.2);
+        rounded(x + 3, y + 3, w - 6, h - 6, 2, '#414852');
+        for (let vent = 0; vent < 3; vent++) ctx.fillRect(x + 5, y + 12 + vent * 4, w * 0.42, 1.3);
+        ctx.fillStyle = (Math.sin(t * 4 + c.id) > 0 && !done) ? '#4ad1ff' : '#1f6f8a';
+        ctx.beginPath(); ctx.arc(x + w - 6, y + 7, 1.6, 0, TAU); ctx.fill();
         break;
+      case 'desktop': {
+        // Separate monitor and keyboard; the nearby searchable pc case completes the workstation.
+        const screenW = w * 0.78, screenH = h * 0.6;
+        rounded(x + 1, y + 1, screenW, screenH, 3, '#222831', '#11161b', 1.2);
+        rounded(x + 4, y + 4, screenW - 6, screenH - 7, 2, done ? '#27485b' : '#286f87');
+        ctx.fillStyle = 'rgba(173,242,255,0.75)';
+        ctx.fillRect(x + 6, y + 6, screenW * 0.25, 1.6);
+        ctx.fillRect(x + 6, y + 10, screenW * 0.48, 1.2);
+        ctx.fillStyle = '#69d8e8';
+        ctx.fillRect(x + screenW * 0.61, y + screenH * 0.54, screenW * 0.16, 2);
+        rounded(x + screenW * 0.36, y + screenH - 1, screenW * 0.18, h * 0.12, 1.5, '#6d7680');
+        rounded(x + screenW * 0.2, y + h * 0.69, screenW * 0.56, h * 0.11, 1.5, '#454c55', '#242930', 0.8);
+        for (let key = 0; key < 6; key++) ctx.fillRect(x + screenW * 0.23 + key * screenW * 0.075, y + h * 0.72, 1.5, 1.1);
+        break;
+      }
+      case 'laptop': {
+        rounded(x + 1, y + 1, w - 2, h - 2, 3, '#303943', '#171c21', 1.2);
+        rounded(x + 4, y + 3, w - 8, h * 0.43, 2, done ? '#253f4b' : '#28758d', '#1a272e', 0.8);
+        ctx.fillStyle = 'rgba(184,244,255,0.8)';
+        ctx.fillRect(x + 7, y + 6, w * 0.42, 1.4);
+        ctx.fillRect(x + 7, y + 9, w * 0.58, 1);
+        ctx.fillStyle = '#bac4ca';
+        for (let row = 0; row < 2; row++) for (let key = 0; key < 6; key++) {
+          ctx.fillRect(x + 5 + key * (w - 10) / 6, y + h * 0.59 + row * 3, 2.2, 1.3);
+        }
+        rounded(x + w * 0.38, y + h * 0.78, w * 0.24, h * 0.12, 1.2, '#697782');
+        break;
+      }
       case 'safe':
         ctx.fillStyle = '#6f7780'; ctx.fillRect(x, y, w, h);
         ctx.strokeStyle = '#454b52'; ctx.lineWidth = 3; ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);

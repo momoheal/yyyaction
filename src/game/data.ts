@@ -389,6 +389,8 @@ export const CONTAINER_DEFS: Record<string, ContainerDef> = {
   medbox: { name: '医疗箱', min: 2, max: 3, w: 30, h: 26, weights: [40, 40, 15, 5, 0, 0], special: 'med' },
   weaponcase: { name: '武器箱', min: 1, max: 2, w: 46, h: 22, weights: [0, 0, 0, 0, 0, 0], special: 'weapon' },
   pc: { name: '电脑机箱', min: 1, max: 3, w: 24, h: 32, weights: [8, 22, 40, 22, 6, 0.6] },
+  desktop: { name: '台式电脑', min: 1, max: 3, w: 44, h: 34, weights: [4, 16, 38, 28, 12, 2] },
+  laptop: { name: '笔记本电脑', min: 1, max: 2, w: 36, h: 26, weights: [3, 14, 36, 31, 14, 2] },
   safe: { name: '保险箱', min: 2, max: 3, w: 32, h: 32, weights: [0, 8, 28, 36, 22, 6] },
   duffel: { name: '旅行包', min: 2, max: 4, w: 36, h: 24, weights: [34, 34, 20, 9, 2.5, 0.35] },
   vending: { name: '贩卖机', min: 2, max: 3, w: 48, h: 58, weights: [0, 0, 0, 0, 0, 0], special: 'vending' },

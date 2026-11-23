@@ -368,22 +368,47 @@ function buildRooms(rooms: RoomDef[]): RoomResult {
     const blockers = cover.slice(roomCoverStart);
     const clear = (px: number, py: number) => !blockers.some((c) =>
       px > c[1] - 26 && px < c[1] + c[3] + 26 && py > c[2] - 26 && py < c[2] + c[4] + 26);
+    const spaced = (px: number, py: number, type: string) => {
+      const d = CONTAINER_DEFS[type];
+      return containers.every((other) => {
+        const od = CONTAINER_DEFS[other.type];
+        return Math.abs(px - other.x) >= (d.w + od.w) / 2 + 12
+          || Math.abs(py - other.y) >= (d.h + od.h) / 2 + 12;
+      });
+    };
+    const placeable = (px: number, py: number, type: string) => {
+      const d = CONTAINER_DEFS[type];
+      return px >= x + TH + d.w / 2 + 4 && px <= x + w - TH - d.w / 2 - 4
+        && py >= y + TH + d.h / 2 + 4 && py <= y + h - TH - d.h / 2 - 4
+        && clear(px, py) && spaced(px, py, type);
+    };
     for (const [type, fx, fy] of room.loot ?? []) {
       let lx = x + TH + (w - TH * 2) * fx;
       let ly = y + TH + (h - TH * 2) * fy;
-      // Search nearby grid points for a clear floor tile if the requested spot is blocked.
-      if (!clear(lx, ly)) {
+      // Search nearby floor tiles and keep every searchable object visibly separate.
+      if (!placeable(lx, ly, type)) {
         let found = false;
         for (let r = 1; r <= 6 && !found; r++) {
           for (let dx = -r; dx <= r && !found; dx++) {
             for (let dy = -r; dy <= r && !found; dy++) {
               const nx = lx + dx * 34, ny = ly + dy * 34;
-              if (nx < x + TH + 12 || nx > x + w - TH - 12 || ny < y + TH + 12 || ny > y + h - TH - 12) continue;
-              if (clear(nx, ny)) { lx = nx; ly = ny; found = true; }
+              if (placeable(nx, ny, type)) { lx = nx; ly = ny; found = true; }
             }
           }
         }
-        if (!found) { lx = x + TH + (w - TH * 2) * fx; ly = y + TH + (h - TH * 2) * fy; }
+        if (!found) {
+          const d = CONTAINER_DEFS[type];
+          const candidates: { x: number; y: number; distance: number }[] = [];
+          for (let py = y + TH + d.h / 2 + 4; py <= y + h - TH - d.h / 2 - 4; py += 24) {
+            for (let px = x + TH + d.w / 2 + 4; px <= x + w - TH - d.w / 2 - 4; px += 24) {
+              candidates.push({ x: px, y: py, distance: Math.hypot(px - lx, py - ly) });
+            }
+          }
+          candidates.sort((a, b) => a.distance - b.distance);
+          const spot = candidates.find((candidate) => placeable(candidate.x, candidate.y, type));
+          if (!spot) continue;
+          lx = spot.x; ly = spot.y;
+        }
       }
       containers.push({ type, x: Math.round(lx), y: Math.round(ly) });
     }
@@ -454,7 +479,7 @@ function buildHarbor(): GameMap {
   const rooms = buildRooms([
     { name: '北岸补给站', x: 210, y: 570, w: 274, h: 180, floor: 'wood', doors: [['s', 0.5], ['e', 0.6]], loot: [['crate', 0.24, 0.3], ['duffel', 0.7, 0.62], ['toolbox', 0.5, 0.75]] },
     { name: '南侧货棚', x: 682, y: 1270, w: 300, h: 186, floor: 'wood', doors: [['n', 0.45], ['w', 0.5]], parts: [['v', 862, 1300, 120, 16]], loot: [['toolbox', 0.3, 0.35], ['weaponcase', 0.75, 0.6], ['crate', 0.5, 0.8]] },
-    { name: '港区办公室', x: 1180, y: 560, w: 260, h: 190, floor: 'tile', doors: [['s', 0.55], ['w', 0.4]], parts: [['v', 1380, 580, 140, 16]], loot: [['pc', 0.12, 0.2], ['safe', 0.86, 0.9], ['medbox', 0.55, 0.9]] },
+    { name: '港区办公室', x: 1180, y: 560, w: 260, h: 190, floor: 'tile', doors: [['s', 0.55], ['w', 0.4]], parts: [['v', 1380, 580, 140, 16]], loot: [['pc', 0.12, 0.2], ['desktop', 0.38, 0.2], ['laptop', 0.35, 0.65], ['safe', 0.86, 0.9], ['medbox', 0.55, 0.9]] },
     { name: '船长仓储', x: 1640, y: 1180, w: 310, h: 210, floor: 'concrete', doors: [['n', 0.4], ['e', 0.5]], racks: [[1690, 1290, 170, 22], [1690, 1350, 170, 22]], loot: [['weaponcase', 0.22, 0.22], ['safe', 0.9, 0.15], ['duffel', 0.58, 0.16]] },
     { name: '码头仓库', x: 1080, y: 200, w: 270, h: 210, floor: 'concrete', doors: [['s', 0.5], ['e', 0.55]], parts: [['h', 1150, 300, 150, 16]], loot: [['toolbox', 0.2, 0.25], ['weaponcase', 0.85, 0.3], ['crate', 0.5, 0.8]] },
     { name: '南部堆场', x: 700, y: 1450, w: 320, h: 170, floor: 'concrete', doors: [['n', 0.5], ['e', 0.5]], racks: [[740, 1520, 200, 24], [740, 1570, 200, 24]], loot: [['crate', 0.2, 0.2], ['duffel', 0.9, 0.25], ['safe', 0.9, 0.85]] },
@@ -569,11 +594,11 @@ function buildFoundry(): GameMap {
     { name: '炉前控制室', x: 1140, y: 540, w: 570, h: 660, floor: 'concrete',
       doors: [['w', 0.5], ['e', 0.35], ['s', 0.5]],
       parts: [['v', 1400, 613, 270, 24], ['h', 1480, 1080, 200, 20]],
-      loot: [['pc', 0.16, 0.14], ['safe', 0.86, 0.22], ['medbox', 0.22, 0.6], ['weaponcase', 0.7, 0.52]] },
+      loot: [['pc', 0.16, 0.14], ['desktop', 0.31, 0.14], ['laptop', 0.24, 0.42], ['safe', 0.86, 0.22], ['medbox', 0.22, 0.6], ['weaponcase', 0.7, 0.52]] },
     { name: '主控室', x: 1980, y: 1020, w: 300, h: 250, floor: 'tile',
       doors: [['w', 0.45], ['n', 0.6]],
       parts: [['v', 2070, 1040, 80, 16]],
-      loot: [['pc', 0.12, 0.86], ['pc', 0.62, 0.86], ['safe', 0.94, 0.62]] },
+      loot: [['pc', 0.12, 0.86], ['pc', 0.62, 0.86], ['laptop', 0.37, 0.52], ['safe', 0.94, 0.62]] },
     { name: '铸模仓库', x: 1944, y: 480, w: 310, h: 240, floor: 'concrete',
       doors: [['s', 0.4], ['w', 0.6]],
       racks: [[2010, 540, 180, 26], [2110, 660, 130, 26]],
@@ -634,7 +659,7 @@ function buildFoundry(): GameMap {
       ...rooms.containers,
       { type: 'medbox', x: 312, y: 515 }, { type: 'crate', x: 379, y: 1197 },
       { type: 'weaponcase', x: 958, y: 1060 }, { type: 'medbox', x: 1250, y: 710 }, { type: 'safe', x: 1560, y: 1040 },
-      { type: 'weaponcase', x: 1995, y: 625 }, { type: 'crate', x: 2060, y: 1440 }, { type: 'duffel', x: 1780, y: 1400 },
+      { type: 'weaponcase', x: 2160, y: 850 }, { type: 'crate', x: 2060, y: 1440 }, { type: 'duffel', x: 1780, y: 1400 },
       { type: 'crate', x: 780, y: 250, fixedItem: 'ak' }, { type: 'toolbox', x: 1400, y: 220, fixedItem: 'dmr' }, { type: 'medbox', x: 2200, y: 230, fixedItem: 'minigun' },
       { type: 'crate', x: 560, y: 1580 }, { type: 'weaponcase', x: 1480, y: 1580, fixedItem: 'awmlegend' }, { type: 'safe', x: 2050, y: 1590, fixedItem: 'm4legend' },
       { type: 'vending', x: 2160, y: 1080 }, { type: 'treasure_chest', x: 900, y: 1540 }, { type: 'coin_pile', x: 1870, y: 1570 },
@@ -676,7 +701,7 @@ function buildHatchery(): GameMap {
     { name: '育雏大棚', x: 300, y: 250, w: 520, h: 360, floor: 'wood', doors: [['s', 0.5], ['e', 0.7]],
       parts: [['h', 340, 420, 240, 16]], loot: [['crate', 0.2, 0.25], ['toolbox', 0.75, 0.3], ['medbox', 0.5, 0.85]] },
     { name: '孵化控制室', x: 1060, y: 220, w: 340, h: 260, floor: 'tile', doors: [['s', 0.5], ['w', 0.5]],
-      loot: [['pc', 0.15, 0.2], ['safe', 0.85, 0.25], ['medbox', 0.25, 0.8]] },
+      loot: [['pc', 0.15, 0.2], ['desktop', 0.4, 0.2], ['laptop', 0.34, 0.64], ['safe', 0.85, 0.25], ['medbox', 0.25, 0.8]] },
     { name: '饲料仓', x: 1750, y: 280, w: 360, h: 260, floor: 'wood', doors: [['s', 0.45], ['w', 0.6]],
       racks: [[1800, 340, 170, 22], [1800, 400, 170, 22]], loot: [['crate', 0.2, 0.2], ['weaponcase', 0.8, 0.2], ['duffel', 0.5, 0.85]] },
     { name: '观察哨', x: 330, y: 1120, w: 280, h: 230, floor: 'wood', doors: [['n', 0.5], ['e', 0.5]],
@@ -720,7 +745,7 @@ function buildHatchery(): GameMap {
     containers: [
       ...rooms.containers,
       { type: 'crate', x: 780, y: 900 }, { type: 'medbox', x: 1120, y: 1060 }, { type: 'duffel', x: 1680, y: 1340 },
-      { type: 'crate', x: 1300, y: 300, fixedItem: 'minigun' },
+      { type: 'crate', x: 1000, y: 400, fixedItem: 'minigun' },
       { type: 'weaponcase', x: 1960, y: 1160, fixedItem: 'frostmp9' },
       { type: 'crate', x: 1280, y: 1300, fixedItem: 'rpg' },
       { type: 'treasure_chest', x: 1435, y: 960 },
@@ -763,13 +788,13 @@ function buildOutpost(): GameMap {
     { name: '冰封机库', x: 300, y: 300, w: 560, h: 380, floor: 'concrete', doors: [['s', 0.4], ['e', 0.6], ['n', 0.5]],
       racks: [[370, 360, 200, 24], [370, 430, 200, 24]], loot: [['crate', 0.15, 0.2], ['weaponcase', 0.8, 0.2], ['medbox', 0.5, 0.85]] },
     { name: '雷达站', x: 1100, y: 180, w: 380, h: 300, floor: 'tile', doors: [['s', 0.5], ['w', 0.5]],
-      loot: [['pc', 0.18, 0.2], ['safe', 0.85, 0.25], ['toolbox', 0.3, 0.85]] },
+      loot: [['pc', 0.18, 0.2], ['desktop', 0.38, 0.2], ['laptop', 0.55, 0.62], ['safe', 0.85, 0.25], ['toolbox', 0.3, 0.85]] },
     { name: '北兵营', x: 1750, y: 250, w: 420, h: 300, floor: 'wood', doors: [['s', 0.5], ['w', 0.6]],
       loot: [['duffel', 0.2, 0.25], ['crate', 0.8, 0.3], ['medbox', 0.5, 0.85]] },
     { name: '补给仓', x: 350, y: 1120, w: 380, h: 300, floor: 'concrete', doors: [['n', 0.5], ['e', 0.5]],
       racks: [[400, 1180, 180, 22], [400, 1250, 180, 22]], loot: [['weaponcase', 0.15, 0.2], ['safe', 0.85, 0.25], ['crate', 0.5, 0.85]] },
     { name: '指挥所', x: 1150, y: 1080, w: 440, h: 340, floor: 'concrete', doors: [['n', 0.4], ['w', 0.5], ['e', 0.5]],
-      parts: [['v', 1330, 1140, 160, 20]], loot: [['pc', 0.15, 0.2], ['pc', 0.55, 0.2], ['safe', 0.85, 0.8]] },
+      parts: [['v', 1330, 1140, 160, 20]], loot: [['pc', 0.15, 0.2], ['pc', 0.55, 0.2], ['laptop', 0.36, 0.62], ['safe', 0.85, 0.8]] },
     { name: '南机修库', x: 1900, y: 1150, w: 400, h: 300, floor: 'concrete', doors: [['n', 0.5], ['w', 0.5]],
       loot: [['weaponcase', 0.2, 0.2], ['crate', 0.8, 0.3], ['medbox', 0.5, 0.85]] },
   ]);
@@ -808,7 +833,7 @@ function buildOutpost(): GameMap {
     containers: [
       ...rooms.containers,
       { type: 'crate', x: 760, y: 1050 }, { type: 'medbox', x: 1300, y: 1400 }, { type: 'duffel', x: 2200, y: 1000 },
-      { type: 'weaponcase', x: 1300, y: 260, fixedItem: 'awmlegend' },
+      { type: 'weaponcase', x: 1360, y: 420, fixedItem: 'awmlegend' },
       { type: 'safe', x: 2100, y: 1270, fixedItem: 'm4legend' },
       { type: 'crate', x: 500, y: 1200, fixedItem: 'rpg' },
       { type: 'vending', x: 1780, y: 1450 }, { type: 'treasure_chest', x: 1220, y: 1450 }, { type: 'coin_pile', x: 900, y: 1460 },
@@ -899,14 +924,14 @@ function buildMausoleum(): GameMap {
     pads: [...rooms.pads, { type: 'platform', x: 2450, y: 1550, w: 250, h: 140 }, { type: 'base', x: 1000, y: 650, w: 800, h: 600 }],
     containers: [
       ...rooms.containers,
-      { type: 'medbox', x: 880, y: 1180 }, { type: 'crate', x: 2100, y: 1080 }, { type: 'duffel', x: 1650, y: 1500 },
+      { type: 'medbox', x: 880, y: 1180 }, { type: 'crate', x: 2100, y: 1080 },
       { type: 'weaponcase', x: 500, y: 450, fixedItem: 'rpg' },
       { type: 'safe', x: 2250, y: 500, fixedItem: 'awmlegend' },
       { type: 'weaponcase', x: 2100, y: 1400, fixedItem: 'm4legend' },
       { type: 'crate', x: 1550, y: 250, fixedItem: 'minigun' },
       { type: 'safe', x: 1500, y: 1490, fixedItem: 'frostmp9' },
       { type: 'vending', x: 2600, y: 1080 }, { type: 'treasure_chest', x: 800, y: 520 }, { type: 'coin_pile', x: 1960, y: 520 },
-      { type: 'treasure_chest', x: 2200, y: 1540 }, { type: 'coin_pile', x: 2340, y: 1540 },
+      { type: 'treasure_chest', x: 2000, y: 1540 }, { type: 'coin_pile', x: 2340, y: 1540 },
     ],
     spawns: [
       { x: 110, y: 600, chick: [620, 800] }, { x: 1350, y: 100, chick: [1400, 520] },
