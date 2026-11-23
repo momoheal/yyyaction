@@ -3,13 +3,15 @@ import { Game, type RaidResult } from '../game/game';
 import { Renderer } from '../game/render';
 import { Input } from '../game/input';
 import type { Sfx } from '../game/audio';
-import { RAID_TIME, type CharacterId } from '../game/data';
+import { trackFor, type Music } from '../game/music';
+import { RAID_TIME, type CharacterId, type CharacterUpgrades } from '../game/data';
 import type { RaidMapId } from '../game/map';
+import type { RaidGear } from '../game/warehouse';
 
 export type Screen = 'menu' | 'playing' | 'paused' | 'gameover';
 
 export interface GameHandle {
-  startRaid(kit: string, training: boolean, mapId: RaidMapId, characterId: CharacterId): void;
+  startRaid(kit: string, training: boolean, mapId: RaidMapId, characterId: CharacterId, gear: RaidGear, upgrades: CharacterUpgrades): void;
   toMenu(): void;
   stats(): { time: number; value: number; kills: number; items: number };
 }
@@ -17,6 +19,7 @@ export interface GameHandle {
 interface Props {
   screen: Screen;
   sfx: Sfx;
+  music: Music;
   onGameOver: (r: RaidResult) => void;
   onPause: () => void;
   onMute: () => void;
@@ -67,6 +70,8 @@ const GameView = forwardRef<GameHandle, Props>(function GameView(props, ref) {
 
     let raf = 0;
     let last = performance.now();
+    // Music stays in combat mode briefly after the last threat, so it doesn't flip-flop.
+    let combatHold = 0;
     const perf = { update: 0, render: 0, q: 2 };
     (window as unknown as { __duckPerf?: typeof perf }).__duckPerf = perf;
     const loop = (now: number) => {
@@ -81,10 +86,29 @@ const GameView = forwardRef<GameHandle, Props>(function GameView(props, ref) {
       if (scr === 'playing' || scr === 'gameover') game.update(step);
       else if (scr === 'menu') game.updateDemo(step);
       const t1 = performance.now();
+
+      // --- background music: react to the current scene ---
+      const music = propsRef.current.music;
+      music.update(dt);
+      if (scr === 'playing' || scr === 'gameover') {
+        const p = game.player;
+        const liveEnemies = game.enemies.filter((e) => !e.dead && e.state !== 'idle' && e.state !== 'search');
+        const nearbyThreat = liveEnemies.some((e) => Math.hypot(e.x - p.x, e.y - p.y) < 1100 && (e.canSee || e.alertT > 0));
+        if (nearbyThreat) combatHold = 3.2;
+        else combatHold = Math.max(0, combatHold - dt);
+        const extracting = (!!game.exZone && game.exProg > 0) || (game.ended && game.outcome === 'extract');
+        const bossType = game.boss && !game.boss.dead ? game.boss.type : null;
+        music.play(trackFor(game.mode, game.mapId, bossType, combatHold > 0, extracting));
+      } else if (scr === 'menu') {
+        music.play('menu');
+      }
+
       const player = game.player;
       input.hasHealing = player.bandages + player.medkits > 0;
       input.hasGrenade = player.grenades > 0;
       input.hasSecondWeapon = player.weapons.every(Boolean);
+      input.dropLowestEnabled = player.backpack.length > 0;
+      input.bagOpen = scr === 'playing' && game.bagOpen && !game.player.dead && !game.ended;
       renderer.render(game, input, scr, dt);
       const t2 = performance.now();
       perf.update = perf.update * 0.95 + (t1 - t0) * 0.05;
@@ -116,9 +140,9 @@ const GameView = forwardRef<GameHandle, Props>(function GameView(props, ref) {
   }, []);
 
   useImperativeHandle(ref, () => ({
-    startRaid: (kit: string, training: boolean, mapId: RaidMapId, characterId: CharacterId) => {
+    startRaid: (kit: string, training: boolean, mapId: RaidMapId, characterId: CharacterId, gear: RaidGear, upgrades: CharacterUpgrades) => {
       inputRef.current?.reset();
-      gameRef.current?.startRaid(kit, training, mapId, characterId);
+      gameRef.current?.startRaid(kit, training, mapId, characterId, gear, upgrades);
     },
     toMenu: () => gameRef.current?.startDemo(),
     stats: () => {

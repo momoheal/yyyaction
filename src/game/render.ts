@@ -1,7 +1,11 @@
-import { ENEMIES, EXTRACT_TIME, RARITY_COLORS, RARITY_RGB, SEARCH_TIME, fmtMoney, fmtTime, type CharacterId, type WeaponDef } from './data';
-import { F_SIGHT, type FloorType, type Solid } from './map';
-import { hudScale, type Input } from './input';
+import { ARMORS, ENEMIES, EXTRACT_TIME, RARITY_COLORS, RARITY_RGB, SEARCH_TIME, fmtMoney, fmtTime, type CharacterId, type WeaponDef } from './data';
+import { F_SIGHT, type FloorType, type GameMap, type RaidMapId, type Solid } from './map';
+import { bagUi, hudScale, type Input } from './input';
 import { P_CASING, P_DEBRIS, P_DUST, P_FEATHER, P_FIRE, P_MUZZLE, P_RING, P_SMOKE, P_SPARK, P_STAR, TAU, type Container, type Enemy, type Game } from './game';
+import { drawScenery } from './scenery';
+import { weaponIconDataUrl } from './gear-icons';
+
+const armorIconAtlasUrl = new URL('../assets/armor-icons.webp', import.meta.url).href;
 
 const FONT_NUM = 'Rajdhani, "Bahnschrift", "DIN Alternate", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif';
 const FONT_CN = '"PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif';
@@ -22,8 +26,14 @@ const STYLES: Record<Enemy['type'], DuckStyle> = {
   bandit: ST_BANDIT, elite: ST_ELITE, chicken: ST_CHICKEN, goose: ST_GOOSE,
   armored: { body: '#827887', wing: '#615464', head: '#b898a3', beak: '#ffb771', vest: '#48414e', helmet: '#59435b', visor: '#ff9273' },
   lookout: { body: '#d6b681', wing: '#9d784d', head: '#e5c796', beak: '#b86d32', vest: '#645039', band: '#e8b13b' },
+  shield: { body: '#7d8a99', wing: '#586572', head: '#a9b6c2', beak: '#ffb771', vest: '#3f4a57', helmet: '#4a5663', visor: '#8fd0ff' },
+  hen: { body: '#e8d5b0', wing: '#c4a878', head: '#f2e4c6', beak: '#e09a2c', vest: '#b98b4e', band: '#d94f3d' },
   harborBoss: { ...ST_GOOSE, body: '#accad1', wing: '#557d89', head: '#cee6e8', vest: '#27475f', band: '#b14638' },
   foundryBoss: { ...ST_GOOSE, body: '#b38e7b', wing: '#75554b', head: '#d9bc9d', vest: '#523840', helmet: '#574147', visor: '#ff8542' },
+  broodQueen: { body: '#e7e9c4', wing: '#a8bf72', head: '#f6f3d9', beak: '#ffb43b', vest: '#6c8247', band: '#ffd75e' },
+  frostMarshal: { body: '#d9f2fc', wing: '#87b9d4', head: '#eefaff', beak: '#7fd8ef', vest: '#3d6b85', helmet: '#9fdcf2', visor: '#d9f6ff' },
+  ironGuard: { body: '#aebac6', wing: '#6f7c8b', head: '#d6e0e9', beak: '#ffb771', vest: '#414b57', helmet: '#5b6876', visor: '#9cc8ff' },
+  duckKing: { body: '#ffdf7d', wing: '#d4a12e', head: '#fff1bd', beak: '#ff9a1f', vest: '#5b2d78', helmet: '#7a4a9e', band: '#ffd75e', visor: '#b56cff' },
 };
 
 function mk(w: number, h: number) {
@@ -61,6 +71,16 @@ function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: n
 function ell(ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, ry: number, rot = 0) {
   ctx.beginPath();
   ctx.ellipse(x, y, Math.max(0.01, rx), Math.max(0.01, ry), rot, 0, TAU);
+  ctx.fill();
+}
+
+function pg(ctx: CanvasRenderingContext2D, points: number[][], fill: string) {
+  if (!points.length) return;
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  ctx.moveTo(points[0][0], points[0][1]);
+  for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1]);
+  ctx.closePath();
   ctx.fill();
 }
 
@@ -184,6 +204,60 @@ export function drawDuck(
   ctx.restore();
 }
 
+function mapRoads(m: GameMap) {
+  const rp = new Path2D();
+  for (const r of m.roads) {
+    rp.moveTo(r[0], r[1]);
+    for (let i = 2; i < r.length; i += 2) rp.lineTo(r[i], r[i + 1]);
+  }
+  return rp;
+}
+
+export function drawMapThumbnail(c: HTMLCanvasElement, m: GameMap, markers = true, rp = mapRoads(m)) {
+  const g = c.getContext('2d');
+  if (!g) return;
+  g.save();
+  g.fillStyle = '#5e8743';
+  g.fillRect(0, 0, c.width, c.height);
+  g.scale(c.width / m.w, c.height / m.h);
+  g.fillStyle = '#7d7764';
+  for (const p of m.pads) if (p.type === 'base' || p.type === 'canopy' || p.type === 'parking' || p.type === 'platform') g.fillRect(p.x, p.y, p.w, p.h);
+  g.fillStyle = '#7a6040';
+  for (const p of m.pads) if (p.type === 'field') g.fillRect(p.x, p.y, p.w, p.h);
+  g.strokeStyle = '#b8995f';
+  g.lineWidth = 50;
+  g.lineJoin = 'round';
+  g.stroke(rp);
+  g.fillStyle = '#4b93b5';
+  for (const w of m.water) {
+    if (w.w && w.h) g.fillRect(w.x - w.w / 2, w.y - w.h / 2, w.w, w.h);
+    else { g.beginPath(); g.arc(w.x, w.y, w.r, 0, TAU); g.fill(); }
+  }
+  g.fillStyle = '#c4b393';
+  for (const f of m.floors) g.fillRect(f.x, f.y, f.w, f.h);
+  g.fillStyle = '#3a2f28';
+  for (const s of m.solids) if (s.f & F_SIGHT && s.kind !== 'bound') g.fillRect(s.x, s.y, s.w, s.h);
+  for (const t of m.trees) {
+    if (t.x < 0 || t.y < 0 || t.x > m.w || t.y > m.h) continue;
+    g.fillStyle = t.solid ? '#365d2b' : '#bad2d6';
+    g.beginPath(); g.arc(t.x, t.y, t.r * 0.8, 0, TAU); g.fill();
+  }
+  if (markers) {
+    for (const exit of m.extractions) {
+      g.fillStyle = '#8effbd';
+      ell(g, exit.x, exit.y, 34, 34);
+    }
+    for (const boss of m.enemySpots.filter((spot) => ENEMIES[spot.type].boss)) {
+      g.fillStyle = '#ff895d';
+      ell(g, boss.x, boss.y, 49, 49);
+      g.strokeStyle = '#4f271e';
+      g.lineWidth = 14;
+      g.stroke();
+    }
+  }
+  g.restore();
+}
+
 export class Renderer {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
@@ -193,11 +267,15 @@ export class Renderer {
   quality = 2;
   touchDevice: boolean;
   private grass!: CanvasPattern;
+  private groundPatterns: Partial<Record<RaidMapId, CanvasPattern>> = {};
   private floorPat: Record<FloorType, CanvasPattern> = {} as Record<FloorType, CanvasPattern>;
   private asphalt!: CanvasPattern;
   private glowCache = new Map<string, HTMLCanvasElement>();
   private iconCache = new Map<string, HTMLCanvasElement>();
+  private gearIconCache = new Map<string, HTMLImageElement>();
+  private armorIconAtlas = new Image();
   private canopies: HTMLCanvasElement[] = [];
+  private snowCanopies: HTMLCanvasElement[] = [];
   private scorch!: HTMLCanvasElement;
   private minimap: HTMLCanvasElement | null = null;
   private vignette: HTMLCanvasElement | null = null;
@@ -216,6 +294,7 @@ export class Renderer {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false })!;
     this.touchDevice = ('ontouchstart' in window || navigator.maxTouchPoints > 0) && !window.matchMedia('(pointer: fine)').matches;
+    this.armorIconAtlas.src = armorIconAtlasUrl;
     this.buildAssets();
   }
 
@@ -243,6 +322,24 @@ export class Renderer {
       }
       this.grass = this.ctx.createPattern(c, 'repeat')!;
     }
+    const makeGround = (base: string, light: string, shade: string, seed: number) => {
+      const tile = mk(192, 192), g = tile.getContext('2d')!, rand = seeded(seed);
+      g.fillStyle = base; g.fillRect(0, 0, 192, 192);
+      for (let i = 0; i < 430; i++) {
+        const x = rand() * 192, y = rand() * 192, rx = 1 + rand() * 4, ry = 1 + rand() * 3;
+        const color = rand() < 0.5 ? light : shade;
+        g.fillStyle = color;
+        for (const ox of [-192, 0, 192]) for (const oy of [-192, 0, 192]) ell(g, x + ox, y + oy, rx, ry, rand() * TAU);
+      }
+      return this.ctx.createPattern(tile, 'repeat')!;
+    };
+    this.groundPatterns = {
+      harbor: makeGround('#748174', 'rgba(208,198,166,0.13)', 'rgba(39,52,52,0.15)', 3201),
+      foundry: makeGround('#6b675d', 'rgba(205,178,127,0.1)', 'rgba(28,29,28,0.18)', 3202),
+      hatchery: makeGround('#657449', 'rgba(177,185,112,0.14)', 'rgba(39,48,30,0.17)', 3203),
+      outpost: makeGround('#aabdc3', 'rgba(239,249,249,0.45)', 'rgba(76,112,127,0.14)', 3204),
+      mausoleum: makeGround('#7d7966', 'rgba(203,187,145,0.13)', 'rgba(48,48,43,0.16)', 3205),
+    };
     // wood floor
     {
       const c = mk(96, 64), g = c.getContext('2d')!;
@@ -319,6 +416,25 @@ export class Renderer {
       }
       this.canopies.push(c);
     }
+    const pinePals = [
+      ['#173f48', '#21545d', '#2f6a72', '#dcebed'],
+      ['#1b3d4c', '#265568', '#387589', '#e6f1f2'],
+      ['#17433f', '#205a53', '#32796d', '#e5f0e9'],
+    ];
+    for (let v = 0; v < 3; v++) {
+      const c = mk(220, 220), g = c.getContext('2d')!, p = pinePals[v];
+      const outline = [[110, 15], [128, 66], [164, 46], [145, 86], [190, 94], [148, 113], [174, 151], [128, 137], [110, 204], [92, 137], [46, 151], [72, 113], [30, 94], [75, 86], [56, 46], [92, 66]];
+      pg(g, outline, '#102a31');
+      const canopy = [[110, 23], [124, 68], [155, 51], [139, 88], [178, 95], [142, 113], [163, 145], [124, 133], [110, 190], [96, 133], [57, 145], [78, 113], [42, 95], [81, 88], [65, 51], [96, 68]];
+      pg(g, canopy, p[0]);
+      pg(g, [[110, 34], [124, 75], [149, 61], [134, 91], [165, 97], [137, 113], [153, 136], [120, 128], [110, 174], [100, 128], [67, 136], [83, 113], [55, 97], [86, 91], [71, 61], [96, 75]], p[1]);
+      pg(g, [[108, 54], [121, 83], [139, 72], [130, 95], [150, 99], [130, 111], [140, 128], [116, 121], [108, 153], [101, 121], [79, 128], [88, 111], [69, 99], [88, 95], [78, 72], [96, 83]], p[2]);
+      g.fillStyle = 'rgba(244,252,252,0.9)';
+      for (const [x, y, rx, ry] of [[93, 64, 16, 7], [131, 88, 18, 7], [83, 105, 17, 6], [140, 128, 15, 6], [99, 143, 18, 7], [112, 48, 12, 5]] as [number, number, number, number][]) ell(g, x, y, rx, ry, -0.25);
+      g.fillStyle = 'rgba(255,255,255,0.82)';
+      for (let i = 0; i < 13; i++) ell(g, 44 + ((i * 47 + v * 19) % 132), 45 + ((i * 61 + v * 13) % 128), 1.2 + (i % 3), 1 + (i % 2));
+      this.snowCanopies.push(c);
+    }
     // scorch
     {
       const c = mk(128, 128), g = c.getContext('2d')!;
@@ -382,6 +498,32 @@ export class Renderer {
   }
 
   drawIcon(icon: string, x: number, y: number, size: number) {
+    if (icon.startsWith('gear:')) {
+      const id = icon.slice(5);
+      if (id.startsWith('w_')) {
+        let img = this.gearIconCache.get(id);
+        if (!img) {
+          img = new Image();
+          img.src = weaponIconDataUrl(id.slice(2));
+          this.gearIconCache.set(id, img);
+        }
+        if (img.complete && img.naturalWidth > 0) {
+          const iconHeight = size * 88 / 144;
+          this.ctx.drawImage(img, x - size / 2, y - iconHeight / 2, size, iconHeight);
+          return;
+        }
+        this.ctx.drawImage(this.emoji('GUN'), x - size / 2, y - size / 2, size, size);
+        return;
+      }
+      const armorIndex = ARMORS.findIndex((armor) => armor.id === id);
+      if (armorIndex >= 0 && this.armorIconAtlas.complete && this.armorIconAtlas.naturalWidth > 0) {
+        const cell = this.armorIconAtlas.naturalWidth / ARMORS.length;
+        this.ctx.drawImage(this.armorIconAtlas, armorIndex * cell, 0, cell, this.armorIconAtlas.naturalHeight, x - size / 2, y - size / 2, size, size);
+        return;
+      }
+      this.ctx.drawImage(this.emoji('🦺'), x - size / 2, y - size / 2, size, size);
+      return;
+    }
     this.ctx.drawImage(this.emoji(icon), x - size / 2, y - size / 2, size, size);
   }
 
@@ -412,40 +554,17 @@ export class Renderer {
     const m = game.map;
     this.tall = m.solids.filter((s) => (s.f & F_SIGHT) && s.kind !== 'bound');
     this.low = m.solids.filter((s) => !(s.f & F_SIGHT) && s.kind !== 'water' && s.kind !== 'container' && s.kind !== 'bound');
-    const rp = new Path2D();
-    for (const r of m.roads) {
-      rp.moveTo(r[0], r[1]);
-      for (let i = 2; i < r.length; i += 2) rp.lineTo(r[i], r[i + 1]);
-    }
-    this.roadPath = rp;
+    this.roadPath = mapRoads(m);
     const rnd = seeded(5);
-    for (const w of m.water) for (let i = 0; i < 2; i++) {
-      const a = rnd() * TAU, d = rnd() * (w.r - 40);
-      this.lily.push({ x: w.x + Math.cos(a) * d, y: w.y + Math.sin(a) * d, r: 7 + rnd() * 6 });
+    for (const w of m.water) {
+      if (w.w && w.h) continue; // open sea / harbour water has no pond lilies
+      for (let i = 0; i < 2; i++) {
+        const a = rnd() * TAU, d = rnd() * Math.max(1, w.r - 40);
+        this.lily.push({ x: w.x + Math.cos(a) * d, y: w.y + Math.sin(a) * d, r: 7 + rnd() * 6 });
+      }
     }
-    // minimap
-    const sc = 0.1;
-    const c = mk(m.w * sc, m.h * sc), g = c.getContext('2d')!;
-    g.fillStyle = '#5e8743';
-    g.fillRect(0, 0, c.width, c.height);
-    g.scale(sc, sc);
-    g.fillStyle = '#7d7764';
-    for (const p of m.pads) if (p.type === 'base' || p.type === 'canopy' || p.type === 'parking' || p.type === 'platform') g.fillRect(p.x, p.y, p.w, p.h);
-    g.fillStyle = '#7a6040';
-    for (const p of m.pads) if (p.type === 'field') g.fillRect(p.x, p.y, p.w, p.h);
-    g.strokeStyle = '#b8995f';
-    g.lineWidth = 50;
-    g.lineJoin = 'round';
-    g.stroke(rp);
-    g.fillStyle = '#4b93b5';
-    for (const w of m.water) { g.beginPath(); g.arc(w.x, w.y, w.r, 0, TAU); g.fill(); }
-    g.fillStyle = '#c4b393';
-    for (const f of m.floors) g.fillRect(f.x, f.y, f.w, f.h);
-    g.fillStyle = '#3a2f28';
-    for (const s of this.tall) g.fillRect(s.x, s.y, s.w, s.h);
-    g.fillStyle = '#365d2b';
-    for (const t of m.trees) if (t.solid) { g.beginPath(); g.arc(t.x, t.y, t.r * 0.8, 0, TAU); g.fill(); }
-    this.minimap = c;
+    this.minimap = mk(m.w / 10, m.h / 10);
+    drawMapThumbnail(this.minimap, m, false, this.roadPath);
   }
 
   private trackPerf(dt: number, game: Game) {
@@ -476,9 +595,9 @@ export class Renderer {
     ctx.setTransform(dpr * z, 0, 0, dpr * z, dpr * (W / 2 + c.sx - camX * z), dpr * (H / 2 + c.sy - camY * z));
     const v = this.v;
     v.l = camX - W / 2 / z - 70; v.r = camX + W / 2 / z + 70; v.t = camY - H / 2 / z - 70; v.b = camY + H / 2 / z + 70;
-    ctx.fillStyle = '#2a4224';
+    ctx.fillStyle = g.mapId === 'outpost' ? '#586e78' : '#2a4224';
     ctx.fillRect(v.l, v.t, v.r - v.l, v.b - v.t);
-    ctx.fillStyle = this.grass;
+    ctx.fillStyle = this.groundPatterns[g.mapId] ?? this.grass;
     ctx.fillRect(Math.max(0, v.l), Math.max(0, v.t), Math.min(g.map.w, v.r) - Math.max(0, v.l), Math.min(g.map.h, v.b) - Math.max(0, v.t));
     const raid = g.mode === 'raid';
     this.drawPads(g);
@@ -489,6 +608,7 @@ export class Renderer {
     this.drawExtractGround(g);
     this.drawDecals(g);
     this.drawGroundShadows(g);
+    this.drawScenery(g);
     this.drawContainers(g);
     this.drawLow();
     this.drawParticles(g, 0);
@@ -507,6 +627,50 @@ export class Renderer {
       this.drawScreenFx(g);
       if (mode !== 'menu') this.drawHUD(g, inp, mode);
     }
+    if (g.bagOpen) this.drawBag(g);
+  }
+
+  private drawBag(g: Game) {
+    const ctx = this.ctx, W = this.W, H = this.H;
+    const u = hudScale(W, H, true);
+    const ui = bagUi(W, H, u);
+    ctx.save();
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    ctx.fillStyle = 'rgba(0,0,0,0.72)';
+    ctx.fillRect(0, 0, W, H);
+    this.panel(ui.x, ui.y, ui.w, ui.h, 12);
+    this.txt('背包 · 点枪/甲装备 · 点其他丢弃', ui.x + 14 * u, ui.y + 17 * u, 13 * u, '#ffd23f', 'left', 800);
+    const total = g.lootValue;
+    this.txt(`¥${fmtMoney(total)} · ${g.player.backpack.length}/${g.player.capacity}`, ui.x + ui.w - 14 * u, ui.y + 17 * u, 12 * u, '#ffcf4a', 'right', 700, FONT_NUM);
+    for (const s of ui.slots) {
+      const it = g.player.backpack[s.index];
+      ctx.fillStyle = it ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.025)';
+      ctx.strokeStyle = it ? RARITY_COLORS[it.def.rarity] : 'rgba(255,255,255,0.09)';
+      ctx.lineWidth = it && it.def.rarity >= 4 ? 2.5 : 1.2;
+      rr(ctx, s.x, s.y, s.w, s.h, 7);
+      ctx.fill();
+      ctx.stroke();
+      if (!it) continue;
+      this.drawIcon(it.def.icon, s.x + s.w / 2, s.y + s.h * 0.36, s.h * 0.44);
+      // Equippable gear gets a corner pip so players know a tap will equip it.
+      if (it.def.kind === 'weapon' || it.def.kind === 'armor') {
+        ctx.fillStyle = '#8dffbb';
+        ctx.beginPath(); ctx.arc(s.x + s.w - 9 * u, s.y + 9 * u, 4 * u, 0, TAU); ctx.fill();
+      }
+      const nm = it.def.name.length > 5 ? it.def.name.slice(0, 5) : it.def.name;
+      this.txt(nm, s.x + s.w / 2, s.y + s.h * 0.72, Math.max(9, 10 * u), '#f2efe6', 'center', 700);
+      this.txt(`¥${fmtMoney(it.def.value)}`, s.x + s.w / 2, s.y + s.h * 0.88, Math.max(8, 9 * u), '#ffcf4a', 'center', 700, FONT_NUM);
+    }
+    const b = ui.dropLowest, c = ui.close;
+    ctx.fillStyle = 'rgba(255,120,90,0.16)';
+    ctx.strokeStyle = '#ff8a5c'; ctx.lineWidth = 1.4;
+    rr(ctx, b.x, b.y, b.w, b.h, 7); ctx.fill(); ctx.stroke();
+    this.txt('丢弃最低价值', b.x + b.w / 2, b.y + b.h / 2, 12 * u, '#ffb08a', 'center', 800);
+    ctx.fillStyle = 'rgba(255,255,255,0.07)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)'; ctx.lineWidth = 1;
+    rr(ctx, c.x, c.y, c.w, c.h, 7); ctx.fill(); ctx.stroke();
+    this.txt('关闭', c.x + c.w / 2, c.y + c.h / 2, 12 * u, '#ddd', 'center', 800);
+    ctx.restore();
   }
 
   private inView(x: number, y: number, m: number) {
@@ -598,50 +762,116 @@ export class Renderer {
     const ctx = this.ctx;
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
-    ctx.strokeStyle = '#97794c';
-    ctx.lineWidth = 66;
+    const palette: Record<RaidMapId, { shoulder: string; base: string; crown: string; mark: string; dash: number[] }> = {
+      island: { shoulder: '#97794c', base: '#b39563', crown: 'rgba(120,92,58,0.35)', mark: 'rgba(120,92,58,0.35)', dash: [26, 20] },
+      harbor: { shoulder: '#454b4c', base: '#747b78', crown: 'rgba(210,200,164,0.54)', mark: 'rgba(216,207,177,0.7)', dash: [18, 24] },
+      foundry: { shoulder: '#3b3c3b', base: '#5c5c56', crown: 'rgba(180,145,91,0.28)', mark: 'rgba(219,177,99,0.72)', dash: [24, 18] },
+      hatchery: { shoulder: '#4e4934', base: '#786543', crown: 'rgba(157,131,78,0.34)', mark: 'rgba(194,172,119,0.58)', dash: [9, 25] },
+      outpost: { shoulder: '#718b95', base: '#d9e5e7', crown: 'rgba(116,148,159,0.5)', mark: 'rgba(239,249,249,0.82)', dash: [20, 21] },
+      mausoleum: { shoulder: '#51534d', base: '#928972', crown: 'rgba(204,189,152,0.45)', mark: 'rgba(215,204,172,0.7)', dash: [11, 17] },
+    };
+    const style = palette[g.mapId];
+    ctx.strokeStyle = style.shoulder;
+    ctx.lineWidth = g.mapId === 'island' ? 66 : 80;
     ctx.stroke(this.roadPath);
-    ctx.strokeStyle = '#b39563';
-    ctx.lineWidth = 54;
+    ctx.strokeStyle = style.base;
+    ctx.lineWidth = g.mapId === 'island' ? 54 : 62;
     ctx.stroke(this.roadPath);
-    ctx.strokeStyle = 'rgba(120,92,58,0.35)';
-    ctx.lineWidth = 6;
-    ctx.setLineDash([26, 20]);
+    if (g.mapId === 'outpost') {
+      // Packed snow lane with two subtle vehicle ruts.
+      ctx.strokeStyle = 'rgba(91,126,139,0.42)';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([28, 20]);
+      ctx.stroke(this.roadPath);
+      ctx.strokeStyle = 'rgba(250,255,255,0.72)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([15, 33]);
+    } else if (g.mapId === 'mausoleum') {
+      // Small joints make the pale road read as fitted stone slabs.
+      ctx.strokeStyle = 'rgba(67,67,59,0.28)';
+      ctx.lineWidth = 7;
+      ctx.setLineDash([3, 21]);
+      ctx.stroke(this.roadPath);
+      ctx.strokeStyle = style.mark;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([2, 20]);
+    } else {
+      ctx.strokeStyle = style.crown;
+      ctx.lineWidth = g.mapId === 'island' ? 6 : g.mapId === 'harbor' || g.mapId === 'foundry' ? 2.2 : 5;
+      ctx.setLineDash(style.dash);
+    }
     ctx.stroke(this.roadPath);
     ctx.setLineDash([]);
-    void g;
   }
 
   private drawWater(g: Game) {
     const ctx = this.ctx, w = g.map.water;
-    if (!w.some((pool) => this.inView(pool.x, pool.y, pool.r + 22))) return;
-    ctx.fillStyle = '#cdb88a';
-    ctx.beginPath();
-    for (const c of w) { ctx.moveTo(c.x + c.r + 22, c.y); ctx.arc(c.x, c.y, c.r + 22, 0, TAU); }
-    ctx.fill();
-    ctx.fillStyle = '#4b93b5';
-    ctx.beginPath();
-    for (const c of w) { ctx.moveTo(c.x + c.r, c.y); ctx.arc(c.x, c.y, c.r, 0, TAU); }
-    ctx.fill();
-    ctx.fillStyle = '#3f84a6';
-    ctx.beginPath();
-    for (const c of w) { ctx.moveTo(c.x + c.r - 42, c.y); ctx.arc(c.x, c.y, Math.max(5, c.r - 42), 0, TAU); }
-    ctx.fill();
+    if (!w.some((pool) => this.inView(pool.x, pool.y, (pool.w || pool.r * 2) + 40))) return;
+    const frozen = g.mapId === 'outpost';
+    const ext = (c: typeof w[number], pad: number) => c.w && c.h
+      ? { x: c.x - c.w / 2 - pad, y: c.y - c.h / 2 - pad, w: c.w + pad * 2, h: c.h + pad * 2 }
+      : null;
+    // shoreline halo
+    ctx.fillStyle = frozen ? '#d0dce0' : '#cdb88a';
+    for (const c of w) {
+      const r = ext(c, 22);
+      if (r) ctx.fillRect(r.x, r.y, r.w, r.h);
+      else { ctx.beginPath(); ctx.arc(c.x, c.y, c.r + 22, 0, TAU); ctx.fill(); }
+    }
+    // water body
+    ctx.fillStyle = frozen ? '#8bb1bc' : '#4b93b5';
+    for (const c of w) {
+      if (c.w && c.h) ctx.fillRect(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h);
+      else { ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, TAU); ctx.fill(); }
+    }
+    // darker inner tone
+    ctx.fillStyle = frozen ? '#719ba8' : '#3f84a6';
+    for (const c of w) {
+      if (c.w && c.h) { const i = ext(c, -42)!; ctx.fillRect(i.x, i.y, i.w, i.h); }
+      else { ctx.beginPath(); ctx.arc(c.x, c.y, Math.max(5, c.r - 42), 0, TAU); ctx.fill(); }
+    }
     const t = g.realT;
-    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.strokeStyle = frozen ? 'rgba(235,250,252,0.42)' : 'rgba(255,255,255,0.22)';
     ctx.lineWidth = 2;
     for (let i = 0; i < w.length; i++) {
       const c = w[i];
+      const rw = c.w || c.r * 2;
       for (let k = 0; k < 2; k++) {
         const ph = (t * 0.35 + i * 0.3 + k * 0.5) % 1;
         ctx.globalAlpha = 1 - ph;
+        const wx = c.x + Math.sin(i * 3 + k) * rw * 0.14;
+        const wy = c.y + Math.cos(i * 2 + k) * (c.h || c.r * 2) * 0.1;
         ctx.beginPath();
-        ctx.ellipse(c.x + Math.sin(i * 3 + k) * 30, c.y + Math.cos(i * 2 + k) * 25, 10 + ph * 40, 5 + ph * 18, 0, 0, TAU);
+        ctx.ellipse(wx, wy, 10 + ph * 40, 5 + ph * 18, 0, 0, TAU);
         ctx.stroke();
       }
     }
+    if (frozen) {
+      ctx.save();
+      ctx.beginPath();
+      for (const pool of w) {
+        if (pool.w && pool.h) ctx.rect(pool.x - pool.w / 2, pool.y - pool.h / 2, pool.w, pool.h);
+      }
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(235,250,252,0.23)';
+      ctx.lineWidth = 2;
+      for (const [i, pool] of w.entries()) {
+        if (!pool.w || !pool.h) continue;
+        for (let crack = 0; crack < 3; crack++) {
+          const sx = pool.x - pool.w * 0.4 + ((i * 47 + crack * 89) % Math.max(1, pool.w * 0.8));
+          const sy = pool.y - pool.h * 0.35 + ((i * 29 + crack * 31) % Math.max(1, pool.h * 0.7));
+          ctx.beginPath();
+          ctx.moveTo(sx, sy);
+          ctx.lineTo(sx + 14, sy + 7);
+          ctx.lineTo(sx + 28, sy + 4);
+          ctx.lineTo(sx + 41, sy + 13);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
     ctx.globalAlpha = 1;
-    ctx.fillStyle = '#5d9a46';
+    ctx.fillStyle = frozen ? '#c1d5d8' : '#5d9a46';
     for (const l of this.lily) {
       ctx.beginPath();
       ctx.arc(l.x, l.y, l.r, 0.4, TAU - 0.1);
@@ -665,23 +895,34 @@ export class Renderer {
   private drawDecor(g: Game) {
     const ctx = this.ctx, v = this.v;
     const d = g.map.decor;
+    const cold = g.mapId === 'outpost', swamp = g.mapId === 'hatchery', crypt = g.mapId === 'mausoleum';
     const vis: number[] = [];
     for (let i = 0; i < d.length; i++) {
       const o = d[i];
       if (o.x > v.l && o.x < v.r && o.y > v.t && o.y < v.b) vis.push(i);
     }
     // bushes
-    ctx.fillStyle = '#3f6a2e';
+    ctx.fillStyle = swamp ? '#536b39' : crypt ? '#586244' : '#3f6a2e';
     ctx.beginPath();
     for (const i of vis) { const o = d[i]; if (o.t !== 3) continue; ctx.moveTo(o.x + o.s, o.y); ctx.arc(o.x, o.y, o.s, 0, TAU); ctx.moveTo(o.x + o.s * 0.9 + o.s * 0.6, o.y + 4); ctx.arc(o.x + o.s * 0.6, o.y + 4, o.s * 0.9, 0, TAU); }
     ctx.fill();
-    ctx.fillStyle = '#548a3c';
+    ctx.fillStyle = swamp ? '#82954f' : crypt ? '#7d8150' : '#548a3c';
     ctx.beginPath();
     for (const i of vis) { const o = d[i]; if (o.t !== 3) continue; ctx.moveTo(o.x - 3 + o.s * 0.6, o.y - 3); ctx.arc(o.x - 3, o.y - 3, o.s * 0.6, 0, TAU); }
     ctx.fill();
+    if (swamp || crypt) {
+      ctx.fillStyle = swamp ? 'rgba(207,205,128,0.68)' : 'rgba(220,204,151,0.58)';
+      ctx.beginPath();
+      for (const i of vis) {
+        const o = d[i]; if (o.t !== 3) continue;
+        ctx.moveTo(o.x + o.s * 0.65, o.y - o.s * 0.5);
+        ctx.arc(o.x + o.s * 0.52, o.y - o.s * 0.56, Math.max(1.3, o.s * 0.13), 0, TAU);
+      }
+      ctx.fill();
+    }
     // tufts
-    ctx.strokeStyle = '#4f7836';
-    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = cold ? '#e8f2f2' : swamp ? '#9aa75b' : crypt ? '#9a9869' : g.mapId === 'foundry' ? '#9a8058' : '#4f7836';
+    ctx.lineWidth = cold ? 1.35 : 1.6;
     ctx.lineCap = 'round';
     ctx.beginPath();
     for (const i of vis) {
@@ -698,17 +939,67 @@ export class Renderer {
     for (const i of vis) { const o = d[i]; if (o.t !== 4) continue; ctx.moveTo(o.x + o.s, o.y); ctx.ellipse(o.x, o.y, o.s, o.s * 0.45, o.rot, 0, TAU); ctx.moveTo(o.x + o.s * 0.45, o.y); ctx.ellipse(o.x, o.y, o.s * 0.45, o.s, o.rot, 0, TAU); }
     ctx.fill();
     // pebbles
-    ctx.fillStyle = '#a19c90';
+    ctx.fillStyle = cold ? '#d6e4e6' : g.mapId === 'foundry' ? '#85847b' : '#a19c90';
     ctx.beginPath();
     for (const i of vis) { const o = d[i]; if (o.t !== 2) continue; ctx.moveTo(o.x + o.s, o.y); ctx.ellipse(o.x, o.y, o.s, o.s * 0.7, o.rot, 0, TAU); }
     ctx.fill();
     // flowers
-    const fc = ['#f4e8a0', '#f2a7c3', '#ffffff', '#c9a7f2'];
-    for (let k = 0; k < 4; k++) {
-      ctx.fillStyle = fc[k];
-      ctx.beginPath();
-      for (const i of vis) { const o = d[i]; if (o.t !== 1 || o.c !== k) continue; ctx.moveTo(o.x + o.s, o.y); ctx.arc(o.x, o.y, o.s, 0, TAU); }
-      ctx.fill();
+    const fc = cold ? ['#eff8f8', '#b7dfeb', '#ffffff', '#d8e2eb']
+      : swamp ? ['#f1e59c', '#ef9fba', '#f4f0d9', '#cbb3e5']
+        : crypt ? ['#e9d18b', '#dfbdc2', '#f2e6ba', '#cfc4a7']
+          : ['#f4e8a0', '#f2a7c3', '#ffffff', '#c9a7f2'];
+    const flowerDecor = vis.map((i) => d[i]).filter((o) => o.t === 1);
+    for (const o of flowerDecor) {
+      ctx.save();
+      ctx.translate(o.x, o.y);
+      ctx.rotate(o.rot);
+      if (!cold && !swamp && !crypt && g.mapId !== 'harbor') {
+        ctx.fillStyle = fc[o.c % fc.length];
+        ctx.beginPath(); ctx.arc(0, 0, o.s, 0, TAU); ctx.fill();
+        ctx.restore();
+        continue;
+      }
+      if (!cold && (swamp || crypt || g.mapId === 'harbor')) {
+        ctx.strokeStyle = swamp ? '#6d8746' : '#687b4b';
+        ctx.lineWidth = Math.max(1, o.s * 0.22);
+        ctx.beginPath(); ctx.moveTo(0, o.s * 0.18); ctx.lineTo(0, o.s * 1.8); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, o.s * 1.05); ctx.lineTo(-o.s * 0.75, o.s * 0.78); ctx.moveTo(0, o.s * 1.35); ctx.lineTo(o.s * 0.68, o.s * 1.08); ctx.stroke();
+      }
+      ctx.fillStyle = fc[o.c % fc.length];
+      if (cold) {
+        for (let petal = 0; petal < 5; petal++) {
+          const a = petal * TAU / 5;
+          ctx.beginPath(); ctx.ellipse(Math.cos(a) * o.s * 0.55, Math.sin(a) * o.s * 0.55, Math.max(1.2, o.s * 0.35), Math.max(1, o.s * 0.23), a, 0, TAU); ctx.fill();
+        }
+        ctx.fillStyle = '#96bbc5';
+      } else {
+        for (let petal = 0; petal < 5; petal++) {
+          const a = petal * TAU / 5;
+          ctx.beginPath(); ctx.ellipse(Math.cos(a) * o.s * 0.52, Math.sin(a) * o.s * 0.52, Math.max(1, o.s * 0.36), Math.max(0.8, o.s * 0.22), a, 0, TAU); ctx.fill();
+        }
+        ctx.fillStyle = '#e4bd58';
+      }
+      ctx.beginPath(); ctx.arc(0, 0, Math.max(1.2, o.s * 0.24), 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+    // Marsh reeds and harbor-edge grass use a different, taller silhouette than lawn tufts.
+    if (swamp || g.mapId === 'harbor') {
+      ctx.lineCap = 'round';
+      for (const i of vis) {
+        const o = d[i]; if (o.t !== 5) continue;
+        ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o.rot);
+        for (let blade = -2; blade <= 2; blade++) {
+          const bx = blade * o.s * 0.22, lean = blade * o.s * 0.2;
+          ctx.strokeStyle = blade % 2 ? '#78904b' : swamp ? '#657b3f' : '#81916a';
+          ctx.lineWidth = Math.max(1.2, o.s * 0.13);
+          ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(bx + lean * 0.4, -o.s * 0.55, bx + lean, -o.s * (1.2 + (Math.abs(blade) % 2) * 0.18)); ctx.stroke();
+          if (blade === 0 || blade === 2) {
+            ctx.fillStyle = '#c4a76a';
+            ctx.beginPath(); ctx.ellipse(bx + lean, -o.s * 1.2, o.s * 0.13, o.s * 0.32, -0.15, 0, TAU); ctx.fill();
+          }
+        }
+        ctx.restore();
+      }
     }
   }
 
@@ -769,6 +1060,17 @@ export class Renderer {
       ctx.rect(s.x + 6, s.y + 8, s.w, s.h);
     }
     ctx.fill();
+  }
+
+  /** 俯视角场景道具（载具/小船/码头设施），程序化绘制，带视口剔除。 */
+  private drawScenery(g: Game) {
+    const props = g.map.props;
+    if (!props || props.length === 0) return;
+    const ctx = this.ctx;
+    for (const p of props) {
+      if (!this.inView(p.x, p.y, 80 * p.scale)) continue;
+      drawScenery(ctx, p);
+    }
   }
 
   private drawContainers(g: Game) {
@@ -992,9 +1294,13 @@ export class Renderer {
     for (const gr of g.grenades) {
       ctx.fillStyle = 'rgba(0,0,0,0.3)';
       ell(ctx, gr.x + 2, gr.y + 3, 5, 3.5);
-      ctx.fillStyle = '#3d4a2c';
-      ell(ctx, gr.x, gr.y - gr.z, 6, 6);
-      ctx.fillStyle = (gr.fuse < 0.6 ? Math.sin(g.realT * 40) > 0 : Math.sin(g.realT * 14) > 0) ? '#ff4040' : '#5a2020';
+      ctx.fillStyle = gr.egg ? '#f4edda' : '#3d4a2c';
+      ell(ctx, gr.x, gr.y - gr.z, gr.egg ? 5 : 6, gr.egg ? 6.5 : 6);
+      if (gr.egg) {
+        ctx.fillStyle = '#d9c9a4';
+        ell(ctx, gr.x - 1.5, gr.y - gr.z - 1.5, 2, 2.5);
+      }
+      ctx.fillStyle = (gr.fuse < 0.6 ? Math.sin(g.realT * 40) > 0 : Math.sin(g.realT * 14) > 0) ? '#ff4040' : (gr.egg ? '#b98b4e' : '#5a2020');
       ell(ctx, gr.x + Math.cos(gr.spin) * 2, gr.y - gr.z + Math.sin(gr.spin) * 2, 2, 2);
       if (gr.z < 4) {
         ctx.strokeStyle = `rgba(255,70,50,${0.25 + 0.35 * (1 - gr.fuse / 1.3)})`;
@@ -1018,34 +1324,78 @@ export class Renderer {
       const kind = e.type === 'chicken' ? 1 : e.def.boss ? 2 : 0;
       let ang = e.aim;
       if (e.special === 'stun') ang += Math.sin(g.realT * 20) * 0.3;
-      if (e.special === 'honkWind' || e.special === 'chargeWind') {
+      if (e.special === 'honkWind' || e.special === 'chargeWind' || e.special === 'summonWind') {
         const s = 1 + Math.sin(g.realT * 40) * 0.04;
         ctx.save(); ctx.translate(e.x, e.y); ctx.scale(s, s); ctx.translate(-e.x, -e.y);
         drawDuck(ctx, e.x, e.y, ang, e.r, STYLES[e.type], e.walk, e.flash > 0, e.weapon, e.kick, kind);
         ctx.restore();
       } else drawDuck(ctx, e.x, e.y, ang, e.r, STYLES[e.type], e.walk, e.flash > 0, e.weapon, e.kick, kind);
+      if (e.chillT > 0) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(0.85, e.chillT * 0.5) * (raid ? e.visA : 1);
+        ctx.strokeStyle = '#9fe6ff';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 4, 0, TAU); ctx.stroke();
+        for (let i = 0; i < 3; i++) {
+          const a = g.realT * 1.6 + i * 2.1;
+          ctx.beginPath();
+          ctx.moveTo(e.x + Math.cos(a) * (e.r + 9), e.y + Math.sin(a) * (e.r + 9));
+          ctx.lineTo(e.x + Math.cos(a) * (e.r + 15), e.y + Math.sin(a) * (e.r + 15));
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+      // Shield duck carries a kite shield on its facing side — signal where to aim.
+      if (e.type === 'shield' && e.armor > 0) {
+        ctx.save();
+        ctx.translate(e.x, e.y);
+        ctx.rotate(ang);
+        const sr = e.r;
+        ctx.fillStyle = e.armor / e.armorMax > 0.5 ? '#5b7590' : '#4a4f58';
+        ctx.strokeStyle = '#a8c8e8';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(sr * 0.35, -sr * 0.95);
+        ctx.lineTo(sr * 0.95, -sr * 0.7);
+        ctx.lineTo(sr * 1.05, 0);
+        ctx.lineTo(sr * 0.95, sr * 0.7);
+        ctx.lineTo(sr * 0.35, sr * 0.95);
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#d9e6f2';
+        ctx.fillRect(sr * 0.62, -sr * 0.12, sr * 0.2, sr * 0.24);
+        ctx.restore();
+      }
     }
     ctx.globalAlpha = 1;
   }
 
   private drawBossWindup(e: Enemy, range: number, time: number) {
-    if (e.special !== 'chargeWind' && e.special !== 'honkWind') return;
+    if (e.special !== 'chargeWind' && e.special !== 'honkWind' && e.special !== 'summonWind') return;
     const ctx = this.ctx;
     ctx.save();
     ctx.globalAlpha *= 0.72 + 0.2 * Math.sin(time * 20);
     ctx.beginPath();
+    const tint = e.def.encounter?.ringColor;
+    const soft = (a: number, fallback: string) => tint?.startsWith('rgba') ? tint.replace(/[\d.]+\)$/, `${a})`) : fallback;
     if (e.special === 'chargeWind') {
       ctx.moveTo(e.x, e.y);
       ctx.lineTo(e.x + e.cdx * range, e.y + e.cdy * range);
       ctx.lineWidth = e.r * 2;
-      ctx.strokeStyle = 'rgba(255,70,56,0.3)';
+      ctx.strokeStyle = soft(0.3, 'rgba(255,70,56,0.3)');
       ctx.stroke();
-      ctx.strokeStyle = '#ff5546';
+      ctx.strokeStyle = tint ?? '#ff5546';
+    } else if (e.special === 'summonWind') {
+      // Dashed nesting circle: step out of the hatch zone before minions appear.
+      ctx.arc(e.x, e.y, Math.min(260, range * 0.42), 0, TAU);
+      ctx.fillStyle = soft(0.12, 'rgba(150,240,120,0.12)');
+      ctx.fill();
+      ctx.strokeStyle = tint ?? '#b4ff8c';
     } else {
       ctx.arc(e.x, e.y, range, 0, TAU);
-      ctx.fillStyle = 'rgba(255,141,50,0.14)';
+      ctx.fillStyle = soft(0.14, 'rgba(255,141,50,0.14)');
       ctx.fill();
-      ctx.strokeStyle = '#ffa94f';
+      ctx.strokeStyle = tint ?? '#ffa94f';
     }
     ctx.setLineDash([14, 9]);
     ctx.lineWidth = 4;
@@ -1074,7 +1424,8 @@ export class Renderer {
       const under = g.mode === 'raid' && Math.hypot(p.x - tr.x, p.y - tr.y) < tr.r * 0.95;
       ctx.globalAlpha = under ? 0.38 : 0.95;
       const s = tr.r * 2.3 + Math.sin(t * 1.3 + tr.x * 0.01) * 1.5;
-      ctx.drawImage(this.canopies[tr.v], tr.x - s / 2, tr.y - s / 2, s, s);
+      const canopy = g.mapId === 'outpost' ? this.snowCanopies[tr.v] : this.canopies[tr.v];
+      ctx.drawImage(canopy, tr.x - s / 2, tr.y - s / 2, s, s);
     }
     ctx.globalAlpha = 1;
   }
@@ -1192,6 +1543,9 @@ export class Renderer {
         for (const b of g.bullets) {
           if (b.from !== from) continue;
           if (!this.inView(b.x, b.y, 60)) continue;
+          if (b.chill) ctx.strokeStyle = pass === 0 ? 'rgba(120,210,255,0.35)' : '#bff0ff';
+          else if (b.explosive) ctx.strokeStyle = pass === 0 ? 'rgba(255,120,50,0.35)' : '#ffd08a';
+          else ctx.strokeStyle = from === 0 ? (pass === 0 ? 'rgba(255,220,140,0.25)' : '#fff6cf') : (pass === 0 ? 'rgba(255,110,60,0.3)' : '#ffb08a');
           const sp = Math.hypot(b.vx, b.vy) || 1;
           const tail = Math.min(Math.hypot(b.x - b.ox, b.y - b.oy), sp * (from === 0 ? 0.034 : 0.032));
           ctx.lineWidth = pass === 0 ? b.w * 3 : b.w;
@@ -1498,17 +1852,25 @@ export class Renderer {
     const narrow = W < 640;
     const topY = narrow ? 12 + ph + 30 * u : 14;
     let msgY = topY;
-    if (g.boss && !g.boss.dead) {
-      const b = g.boss, bw = Math.min(420 * u, W * (narrow ? 0.8 : 0.5)), bx = W / 2 - bw / 2, by = topY + 4;
-      this.txt(`👑 ${b.def.name}${b.def.encounter ? ` · 阶段 ${b.phase + 1}` : ''}`, W / 2, by + 2, 14 * u, '#ffb37a', 'center', 800);
+    // Dual-boss encounters show every surviving boss, stacked after each other.
+    const activeBosses = g.enemies.filter((e) => e.def.boss && !e.dead).slice(0, 3);
+    const barStep = (narrow ? 27 : 33) * u;
+    const skillLabels: Record<string, string> = { charge: '冲撞', slam: '震地', pulse: '冲击', summon: '召唤' };
+    for (const [i, b] of activeBosses.entries()) {
+      const bw = Math.min(420 * u, W * (narrow ? 0.8 : 0.5)), bx = W / 2 - bw / 2, by = topY + 4 + i * barStep;
+      const enc = b.def.encounter;
+      const skill = enc?.skillCycle?.[b.castCount % enc.skillCycle.length] ?? enc?.skill;
+      const skillTag = skill ? skillLabels[skill] : '';
+      const bossTint = enc?.ringColor ?? '#ffb37a';
+      this.txt(`👑 ${b.def.name}${enc?.skillName ? ` · ${enc.skillName}` : skillTag ? ` · ${skillTag}` : ''}${enc ? ` · 阶段 ${b.phase + 1}` : ''}`, W / 2, by + 2, (narrow ? 12 : 14) * u, bossTint, 'center', 800);
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(bx - 2, by + 12 * u, bw + 4, 12 * u + 4);
       ctx.fillStyle = '#e8463a';
       ctx.fillRect(bx, by + 12 * u + 2, bw * Math.max(0, b.hp / b.maxHp), 8 * u);
       ctx.fillStyle = '#7fb2ff';
       ctx.fillRect(bx, by + 20 * u + 2, bw * Math.max(0, b.armor / b.armorMax), 4 * u);
-      msgY = by + 40 * u;
     }
+    if (activeBosses.length) msgY = topY + 4 + activeBosses.length * barStep + 4 * u;
     // --- messages
     for (let i = 0; i < g.msgs.length; i++) {
       const m = g.msgs[i];
@@ -1605,15 +1967,29 @@ export class Renderer {
 
     // --- training objective
     if (g.training && mode === 'playing' && !g.ended) {
-      const stage = !p.backpack.length ? 0 : !g.stats.kills ? 1 : 2;
-      const steps = touch
-        ? ['拖动左半屏，靠近木箱后点「搜索」', '向小鸡拖动右半屏，自动开火', '进入绿色撤离区，停留 6 秒']
-        : ['用 WASD 靠近木箱，按 E 搜索', '用鼠标瞄准小鸡，按左键射击', '进入绿色撤离区，停留 6 秒'];
-      const width = Math.min(W - 24, 310 * u);
+      const stage = Math.min(6, g.tutorialStage);
+      const steps = touch ? [
+        '击退挡路的小鸡（右半屏拖动开火）',
+        '向右走进军械室，点「搜索」拾取冲锋枪',
+        '击退军械室的 2 名鸭匪',
+        '搜第二个补给箱 · 点背包可换上掉落的枪',
+        '前往绿色撤离点',
+        '撤离点遭伏击！击退 2 名鸭匪',
+        '留在撤离区内坚守 6 秒',
+      ] : [
+        '击退挡路的小鸡（鼠标瞄准射击）',
+        '向右走进军械室，按 E 拾取冲锋枪',
+        '击退军械室的 2 名鸭匪',
+        '搜第二个补给箱 · 点背包装备掉落的枪',
+        '前往绿色撤离点',
+        '撤离点遭伏击！击退 2 名鸭匪',
+        '留在撤离区内坚守 6 秒',
+      ];
+      const width = Math.min(W - 24, 380 * u);
       const y = touch && W >= 700 ? 12 : 24 + Math.max(ph, mmH);
       this.panel((W - width) / 2, y, width, 48 * u);
-      this.txt(`新手行动  ·  ${stage + 1}/3`, W / 2, y + 13 * u, 11 * u, '#ffd23f', 'center', 800);
-      this.txt(steps[stage], W / 2, y + 32 * u, 14 * u, '#f2efe6', 'center', 700);
+      this.txt(`新手行动  ·  ${stage + 1}/7`, W / 2, y + 13 * u, 11 * u, '#ffd23f', 'center', 800);
+      this.txt(steps[stage], W / 2, y + 32 * u, 11.5 * u, '#f2efe6', 'center', 700);
     }
 
     // --- tutorial
@@ -1621,8 +1997,8 @@ export class Renderer {
       const a = Math.min(1, g.tutorialT) * Math.min(1, (7.6 - g.tutorialT) * 3);
       ctx.globalAlpha = Math.max(0, a);
       const lines = touch
-        ? ['左半屏拖动 移动 · 右半屏拖动 瞄准并自动开火', '靠近容器点「搜索」 · 翻滚可闪避子弹', '目标：搜刮高价值物资，前往绿色撤离点']
-        : ['WASD 移动 · 鼠标 瞄准/射击 · 空格 翻滚闪避', 'E 搜索 · R 换弹 · G 手雷 · H 治疗 · Q 切枪 · Esc 暂停', '目标：搜刮高价值物资，前往绿色撤离点撤离'];
+        ? ['左半屏拖动 移动 · 右半屏拖动 瞄准并自动开火', '靠近容器点「搜索」 · 翻滚可闪避子弹', '目标：拾取武器 → 击退鸭匪 → 搜刮 → 安全撤离']
+        : ['WASD 移动 · 鼠标 瞄准/射击 · 空格 翻滚闪避', 'E 搜索 · R 换弹 · G 手雷 · H 治疗 · Q 切枪 · Esc 暂停', '目标：拾取武器 → 击退鸭匪 → 搜刮 → 安全撤离'];
       const tw = Math.min(W - 40, 470 * u), th = 76 * u;
       const c = g.cam;
       const psy = H / 2 + (p.y - c.y - c.ky) * c.zoom;

@@ -2,10 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import GameView, { type GameHandle, type Screen } from './components/GameView';
 import { GameOverScreen, PauseMenu, StartScreen, type GameOverData } from './components/Menus';
 import { Sfx } from './game/audio';
-import { LOADOUTS } from './game/data';
+import { Music } from './game/music';
+import { LOADOUTS, UPGRADE_MAX, upgradePrice } from './game/data';
 import type { RaidResult } from './game/game';
 import { getRaidMap, type RaidMapId } from './game/map';
 import { insertScore, loadSave, writeSave, type SaveData, type ScoreEntry } from './game/storage';
+import { availableGear, changeStock, gearDef, raidGearItems, sameGear, tuningPrice, warehouseLoadout, WAREHOUSE_KIT, type RaidGear } from './game/warehouse';
+import type { WarehouseAction } from './components/Armory';
 
 function affordableLoadout(id: string, stash: number) {
   return LOADOUTS.find((loadout) => loadout.id === id && loadout.cost <= stash) ?? LOADOUTS[0];
@@ -13,11 +16,12 @@ function affordableLoadout(id: string, stash: number) {
 
 export default function App() {
   const sfx = useMemo(() => new Sfx(), []);
+  const music = useMemo(() => new Music(), []);
   const [save, setSave] = useState<SaveData>(() => loadSave());
   const saveRef = useRef(save);
   const [screen, setScreen] = useState<Screen>('menu');
   const screenRef = useRef<Screen>('menu');
-  const [kit, setKit] = useState(() => affordableLoadout(save.kit, save.stash).id);
+  const [kit, setKit] = useState(() => save.kit === WAREHOUSE_KIT ? save.kit : affordableLoadout(save.kit, save.stash).id);
   const [mapId, setMapId] = useState<RaidMapId>('island');
   const [over, setOver] = useState<GameOverData | null>(null);
   const [pauseStats, setPauseStats] = useState({ time: 0, value: 0, kills: 0, items: 0 });
@@ -38,12 +42,69 @@ export default function App() {
 
   useEffect(() => {
     sfx.setMuted(save.muted);
-  }, [sfx, save.muted]);
+    music.setMuted(save.muted);
+  }, [sfx, music, save.muted]);
+
+  // Browsers only allow audio after a user gesture. Start the lobby theme on first interaction.
+  useEffect(() => {
+    const start = () => {
+      music.unlock();
+      music.play('menu');
+    };
+    window.addEventListener('pointerdown', start, { once: true });
+    window.addEventListener('keydown', start, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', start);
+      window.removeEventListener('keydown', start);
+    };
+  }, [music]);
 
   const toggleMute = useCallback(() => {
     const s = saveRef.current;
     commit({ ...s, muted: !s.muted });
   }, [commit]);
+
+  const changeWarehouse = (action: WarehouseAction) => {
+    const s = saveRef.current;
+    const { items, selected } = s.warehouse;
+    if (action.type === 'select') {
+      const next: RaidGear = {
+        weapon: items.find((item) => sameGear(selected.weapon, item)),
+        armor: items.find((item) => sameGear(selected.armor, item)),
+      };
+      const item = action.gear;
+      if (item && (gearDef(item.id)?.kind !== action.slot || !items.some((row) => sameGear(item, row)))) return;
+      next[action.slot] = item && { id: item.id, tuned: item.tuned };
+      const nextKit = raidGearItems(next).length ? WAREHOUSE_KIT : LOADOUTS[0].id;
+      setKit(nextKit);
+      commit({ ...s, kit: nextKit, warehouse: { items, selected: next } });
+      return;
+    }
+    if (action.type === 'upgrade') {
+      const level = s.upgrades[action.key];
+      if (level >= UPGRADE_MAX) return;
+      const cost = upgradePrice(action.key, level);
+      if (s.stash < cost) return;
+      commit({ ...s, stash: s.stash - cost, upgrades: { ...s.upgrades, [action.key]: level + 1 } });
+      return;
+    }
+    const def = gearDef(action.id);
+    if (!def || def.kind !== 'weapon') return;
+    const gear = { id: action.id, tuned: false };
+    if (action.type === 'buy') {
+      if (s.stash < def.value) return;
+      commit({ ...s, stash: s.stash - def.value, warehouse: { items: changeStock(items, gear, 1), selected } });
+    } else {
+      const cost = tuningPrice(def);
+      const source = items.find((item) => item.id === gear.id && (!item.tuned || (item.mod ?? 'stable') !== action.mod)) ?? items.find((item) => sameGear(gear, item));
+      if (s.stash < cost || !source) return;
+      const tuned = { id: action.id, tuned: true, mod: action.mod };
+      commit({ ...s, stash: s.stash - cost, warehouse: {
+        items: changeStock(changeStock(items, source, -1), tuned, 1),
+        selected: sameGear(selected.weapon, source) ? { ...selected, weapon: tuned } : selected,
+      } });
+    }
+  };
 
   const deploy = useCallback((kitId: string, training = false) => {
     const game = gameRef.current;
@@ -51,6 +112,7 @@ export default function App() {
     const s = saveRef.current;
     if (!training && getRaidMap(mapId).requiredExtracts > s.extracts) return;
     sfx.unlock();
+    music.unlock();
     try {
       const de = document.documentElement;
       if (window.matchMedia('(pointer: coarse)').matches && !document.fullscreenElement && de.requestFullscreen) void de.requestFullscreen().catch(() => {});
@@ -59,38 +121,45 @@ export default function App() {
       const nav = navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<unknown> } };
       if (nav.wakeLock) void nav.wakeLock.request('screen').catch(() => {});
     } catch { /* wake lock unsupported */ }
-    const k = affordableLoadout(kitId, s.stash);
+    const gear = !training && kitId === WAREHOUSE_KIT ? availableGear(s.warehouse) : {};
+    const equipped = raidGearItems(gear);
+    const k = equipped.length ? warehouseLoadout(gear) : affordableLoadout(kitId, s.stash);
     trainingRef.current = training;
     if (!training) {
-      commit({ ...s, stash: s.stash - k.cost, kit: k.id, raids: s.raids + 1, firstRun: false });
+      const items = equipped.reduce((stock, item) => changeStock(stock, item, -1), s.warehouse.items);
+      commit({ ...s, stash: s.stash - k.cost, kit: k.id, raids: s.raids + 1, firstRun: false, warehouse: { ...s.warehouse, items } });
       setKit(k.id);
     }
     setOver(null);
-    game.startRaid(k.id, training, mapId, s.characterId);
+    game.startRaid(k.id, training, mapId, s.characterId, gear, s.upgrades);
     transition('playing');
-  }, [commit, mapId, sfx, transition]);
+  }, [commit, mapId, sfx, music, transition]);
 
   const pause = useCallback(() => {
     if (screenRef.current !== 'playing') return;
     const st = gameRef.current?.stats();
     if (st) setPauseStats(st);
     sfx.play('ui');
+    music.setPaused(true);
     transition('paused');
-  }, [sfx, transition]);
+  }, [sfx, music, transition]);
 
   const resume = useCallback(() => {
     sfx.unlock();
+    music.setPaused(false);
     sfx.play('ui');
     transition('playing');
-  }, [sfx, transition]);
+  }, [sfx, music, transition]);
 
   const toMenu = useCallback(() => {
     gameRef.current?.toMenu();
+    music.setPaused(false);
     setOver(null);
     transition('menu');
-  }, [transition]);
+  }, [music, transition]);
 
   const onGameOver = useCallback((r: RaidResult) => {
+    if (screenRef.current === 'gameover') return;
     transition('gameover');
     const s = saveRef.current;
     const ok = r.outcome === 'extract';
@@ -101,7 +170,9 @@ export default function App() {
       overAt.current = performance.now();
       return;
     }
-    const stash = s.stash + (ok ? r.value + r.kitCost : 0);
+    const stash = s.stash + (ok ? r.cashValue + r.kitCost : 0);
+    const gear = ok ? [...r.usedGear, ...r.foundGear] : [];
+    const stock = gear.reduce((items, item) => changeStock(items, item, 1), s.warehouse.items);
     let list = s.scores;
     let rank = -1;
     if (r.score > 0) {
@@ -114,14 +185,14 @@ export default function App() {
       list = res.list;
       rank = res.rank;
     }
-    commit({ ...s, stash, scores: list, extracts: s.extracts + (ok ? 1 : 0), bestValue: Math.max(s.bestValue, ok ? r.value : 0) });
+    commit({ ...s, stash, scores: list, extracts: s.extracts + (ok ? 1 : 0), bestValue: Math.max(s.bestValue, ok ? r.value : 0), warehouse: { ...s.warehouse, items: stock } });
     setOver({ r, rank, stashBefore: s.stash, stashAfter: stash });
     overAt.current = performance.now();
   }, [commit, transition]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.repeat || e.defaultPrevented) return;
+      if (e.repeat || e.defaultPrevented || document.activeElement?.closest('dialog[open]')) return;
       const c = e.code;
       if ((c === 'Enter' || c === 'Space') && e.target instanceof HTMLElement && e.target.closest('button, select')) return;
       const current = screenRef.current;
@@ -141,17 +212,20 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [kit, deploy, pause, resume, toMenu, over]);
 
-  const kitObj = LOADOUTS.find((l) => l.id === kit) ?? LOADOUTS[0];
+  const gear = availableGear(save.warehouse);
+  const kitObj = kit === WAREHOUSE_KIT && raidGearItems(gear).length ? warehouseLoadout(gear) : affordableLoadout(kit, save.stash);
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-[#0d0f12] text-white">
-      <GameView ref={gameRef} screen={screen} sfx={sfx} onGameOver={onGameOver} onPause={pause} onMute={toggleMute} />
+      <GameView ref={gameRef} screen={screen} sfx={sfx} music={music} onGameOver={onGameOver} onPause={pause} onMute={toggleMute} />
       {screen === 'menu' && (
         <StartScreen
           save={save}
-          kit={affordableLoadout(kit, save.stash).id}
+          kit={kitObj}
           mapId={mapId}
           onMap={setMapId}
+          onWarehouse={changeWarehouse}
+          onUseWarehouse={() => { setKit(WAREHOUSE_KIT); commit({ ...saveRef.current, kit: WAREHOUSE_KIT }); }}
           onCharacter={(characterId) => { sfx.unlock(); sfx.play('ui'); commit({ ...saveRef.current, characterId }); }}
           onKit={(k) => { sfx.unlock(); sfx.play('ui'); setKit(k); }}
           onDeploy={() => deploy(kit)}
@@ -178,7 +252,7 @@ export default function App() {
         />
       )}
       {screen === 'gameover' && over && (
-        <GameOverScreen data={over} scores={save.scores} onRetry={() => deploy(kit, over.r.training && over.r.outcome !== 'extract')} onMenu={toMenu} canRetryKit={save.stash >= kitObj.cost} />
+        <GameOverScreen data={over} scores={save.scores} onRetry={() => deploy(kit, over.r.training && over.r.outcome !== 'extract')} onMenu={toMenu} canRetryKit={kitObj.id === kit} />
       )}
     </div>
   );

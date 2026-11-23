@@ -1,0 +1,22 @@
+{
+  "appid": "REPLACE_WITH_YOUR_APPID",
+  "projectname": "鸭鸭鸭行动",
+  "description": "搜刮物资、挑战首领、看广告复活，在倒计时结束前活着撤离。",
+  "setting": {
+    "urlCheck": false,
+    "es6": false,
+    "postcss": false,
+    "minified": false,
+    "newFeature": true,
+    "bigPackageSizeSupport": false
+  },
+  "compileType": "game",
+  "libVersion": "3.5.5",
+  "srcMiniprogramRoot": "./",
+  "miniprogramRoot": "./",
+  "packOptions": {
+    "ignore": [
+      { "type": "file", "value": "README.md" }
+    ]
+  }
+}

@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react';
 import { cn } from '../utils/cn';
-import { CHARACTERS, ENEMIES, LOADOUTS, RARITY_COLORS, RARITY_NAMES, RARITY_RGB, characterArmor, fmtMoney, fmtTime, getCharacter, type CharacterId } from '../game/data';
-import { RAID_MAPS, getRaidMap, type RaidMapId } from '../game/map';
+import { CHARACTERS, ENEMIES, LOADOUTS, RARITY_COLORS, RARITY_NAMES, RARITY_RGB, characterArmor, fmtMoney, fmtTime, getCharacter, type CharacterId, type Loadout } from '../game/data';
+import { getRaidMap, type RaidMapId } from '../game/map';
+import { TUNE_LABELS, availableGear, gearDef, gearMod, raidGearItems, WAREHOUSE_KIT } from '../game/warehouse';
 import type { ScoreEntry, SaveData } from '../game/storage';
 import type { RaidResult } from '../game/game';
+import Armory, { type WarehouseAction } from './Armory';
+import LevelPicker from './LevelPicker';
+import LobbyDialog from './LobbyDialog';
+import Portrait from './Portrait';
+import GearIcon from './GearIcon';
 
 const OUTCOME: Record<string, { label: string; cls: string }> = {
   extract: { label: '撤离', cls: 'bg-emerald-400/15 text-emerald-300 ring-emerald-400/30' },
@@ -54,7 +60,7 @@ export function ScoreTable({ scores, highlight = -1, compact = false }: { scores
                 {s.mapId && getRaidMap(s.mapId).name}{s.mapId && s.characterId && ' · '}{s.characterId && getCharacter(s.characterId).name}
               </span>}
             <span className="block truncate text-[11px] text-white/45">
-              {s.best ? <span style={{ color: RARITY_COLORS[s.bestR ?? 0] }}>{s.bestIcon === 'GUN' ? '🔫' : s.bestIcon} {s.best}</span> : '—'}
+              {s.best ? <span style={{ color: RARITY_COLORS[s.bestR ?? 0] }}>{s.bestIcon?.startsWith('gear:') ? <GearIcon id={s.bestIcon.slice(5)} className="mr-1 inline-block size-4 align-middle" /> : s.bestIcon === 'GUN' ? '🔫' : s.bestIcon} {s.best}</span> : '—'}
               <span className="ml-2">{s.kills}杀 · {fmtTime(s.time)}</span>
             </span>
           </span>
@@ -83,6 +89,7 @@ function Help() {
     [<><Key>E</Key></>, '搜索容器 / 尸体'],
     [<><Key>R</Key><Key>G</Key><Key>H</Key></>, '换弹 · 手雷 · 治疗'],
     [<><Key>Q</Key><Key>1</Key><Key>2</Key></>, '切换武器'],
+    [<><Key>B</Key><Key>V</Key></>, '背包 · 丢弃最低价值'],
     [<><Key>Esc</Key><Key>M</Key></>, '暂停 · 静音'],
   ];
   return (
@@ -95,13 +102,13 @@ function Help() {
       </div>
       <div>
         <div className="mb-1 text-xs font-bold tracking-widest text-[#ffd23f]">触屏操作</div>
-        <p className="leading-relaxed">左半屏拖动移动；右半屏拖动瞄准并<b className="text-white">自动开火</b>（带辅助瞄准）；右下按钮翻滚 / 换弹 / 手雷 / 治疗 / 切枪；靠近容器点击「搜索」。</p>
+        <p className="leading-relaxed">左半屏拖动移动；右半屏拖动瞄准并<b className="text-white">自动开火</b>（带吸附、预判和子弹微调）；右下按钮翻滚 / 换弹 / 手雷 / 背包 / 治疗 / 切枪；靠近容器点击「搜索」。</p>
       </div>
       <div>
         <div className="mb-1 text-xs font-bold tracking-widest text-[#ffd23f]">规则</div>
         <ul className="list-disc space-y-1 pl-4 leading-relaxed">
-          <li>搜刮物资放入背包（20 格，满了自动替换低价值物品）。</li>
-          <li>进入<b className="text-emerald-300">绿色撤离点</b>停留 6 秒即可撤离，带出价值计入得分与仓库。</li>
+          <li>搜刮物资放入背包（默认 20 格，可在仓库强化扩容）。捡到更好的枪械/护甲会立即自动装备；点「背包」可查看物资，点带绿点的枪/甲可直接换装，点其他物品则丢弃，也能一键丢弃最低价值物品。</li>
+          <li>进入<b className="text-emerald-300">绿色撤离点</b>停留 6 秒即可撤离。带出的枪械、护甲入库，其余物资折现。</li>
           <li>阵亡或 6 分钟超时：背包物资与出击装备<b className="text-red-300">全部丢失</b>。</li>
           <li>鹅老大镇守军事基地，击败它可获得顶级物资。</li>
         </ul>
@@ -111,46 +118,49 @@ function Help() {
   );
 }
 
-export function StartScreen({ save, kit, mapId, onMap, onCharacter, onKit, onDeploy, onTraining, muted, onMute }: {
-  save: SaveData; kit: string; mapId: RaidMapId; onMap: (id: RaidMapId) => void;
+export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWarehouse, onCharacter, onKit, onDeploy, onTraining, muted, onMute }: {
+  save: SaveData; kit: Loadout; mapId: RaidMapId; onMap: (id: RaidMapId) => void;
+  onWarehouse: (action: WarehouseAction) => void; onUseWarehouse: () => void;
   onCharacter: (id: CharacterId) => void; onKit: (k: string) => void;
   onDeploy: () => void; onTraining: () => void; muted: boolean; onMute: () => void;
 }) {
   const [tab, setTab] = useState<'rank' | 'help'>(save.firstRun ? 'help' : 'rank');
+  const [panel, setPanel] = useState<'warehouse' | 'maps' | 'rank' | 'help' | null>(null);
   const rate = save.raids ? Math.round((save.extracts / save.raids) * 100) : 0;
-  const sel = LOADOUTS.find((l) => l.id === kit) ?? LOADOUTS[0];
   const map = getRaidMap(mapId);
+  const prepared = raidGearItems(availableGear(save.warehouse));
+  const stockCount = save.warehouse.items.reduce((count, item) => count + item.count, 0);
   return (
     <div className="scroll-y absolute inset-0 z-10">
       <div className="pointer-events-none fixed inset-0 bg-gradient-to-r from-[#0b0d10]/95 via-[#0b0d10]/75 to-[#0b0d10]/30" />
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(255,210,63,0.12),transparent_55%)]" />
       <div className="fixed right-4 top-4 z-20"><MuteButton muted={muted} onMute={onMute} /></div>
-      <div className="relative mx-auto flex min-h-full max-w-6xl flex-col gap-6 px-5 py-8 sm:px-8 lg:flex-row lg:items-center lg:gap-12 short:flex-row short:items-center short:gap-5 short:py-3">
+      <div className="relative mx-auto flex min-h-full max-w-6xl flex-col gap-3 px-4 py-4 sm:gap-6 sm:px-8 sm:py-8 lg:flex-row lg:items-center lg:gap-12 short:flex-row short:items-center short:gap-5 short:py-3">
         <div className="anim-rise flex-1">
           <div className="inline-flex items-center gap-2 rounded-full border border-[#ffd23f]/30 bg-[#ffd23f]/10 px-3 py-1 font-num text-xs font-bold tracking-[0.25em] text-[#ffd23f]">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#ffd23f]" /> 搜 · 打 · 撤
           </div>
-          <h1 className="title-font mt-3 text-[64px] leading-none text-[#ffd23f] sm:text-[96px] short:mt-1.5 short:text-[46px]">鸭鸭鸭行动</h1>
-          <p className="mt-3 max-w-md text-[15px] leading-relaxed text-white/70 short:hidden">
+          <h1 className="title-font mt-1.5 text-[44px] leading-none text-[#ffd23f] sm:mt-3 sm:text-[96px] short:mt-1.5 short:text-[46px]">鸭鸭鸭行动</h1>
+          <p className="mt-3 hidden max-w-md text-[15px] leading-relaxed text-white/70 sm:block short:hidden">
             搜刮物资，挑战各战区的首领，在倒计时结束前<span className="font-bold text-emerald-300">活着撤离</span>。带回的物资会存入仓库。
           </p>
 
-          <div className="mt-5 flex flex-wrap items-stretch gap-3 short:hidden">
-            <div className="rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 backdrop-blur">
-              <div className="text-[11px] tracking-widest text-white/45">仓库资产</div>
-              <div className="font-num text-2xl font-bold text-[#ffcf4a]">¥{fmtMoney(save.stash)}</div>
+          <div className="mt-2 flex flex-wrap items-stretch gap-2 sm:mt-5 sm:gap-3 short:hidden">
+            <div className="min-w-[30%] flex-1 rounded-lg border border-white/10 bg-black/40 px-2.5 py-1.5 backdrop-blur sm:rounded-xl sm:px-4 sm:py-2.5">
+              <div className="text-[10px] tracking-widest text-white/45 sm:text-[11px]">仓库余额</div>
+              <div className="font-num text-base font-bold text-[#ffcf4a] sm:text-2xl">¥{fmtMoney(save.stash)}</div>
             </div>
-            <div className="rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 backdrop-blur">
-              <div className="text-[11px] tracking-widest text-white/45">出击 / 撤离率</div>
-              <div className="font-num text-2xl font-bold text-white">{save.raids}<span className="ml-2 text-base text-emerald-300">{rate}%</span></div>
+            <div className="min-w-[30%] flex-1 rounded-lg border border-white/10 bg-black/40 px-2.5 py-1.5 backdrop-blur sm:rounded-xl sm:px-4 sm:py-2.5">
+              <div className="text-[10px] tracking-widest text-white/45 sm:text-[11px]">出击/撤离</div>
+              <div className="font-num text-base font-bold text-white sm:text-2xl">{save.raids}<span className="ml-1.5 text-xs text-emerald-300 sm:ml-2 sm:text-base">{rate}%</span></div>
             </div>
-            <div className="rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 backdrop-blur">
-              <div className="text-[11px] tracking-widest text-white/45">最高得分</div>
-              <div className="font-num text-2xl font-bold text-white">{fmtMoney(save.scores[0]?.score ?? 0)}</div>
+            <div className="min-w-[30%] flex-1 rounded-lg border border-white/10 bg-black/40 px-2.5 py-1.5 backdrop-blur sm:rounded-xl sm:px-4 sm:py-2.5">
+              <div className="text-[10px] tracking-widest text-white/45 sm:text-[11px]">最高分</div>
+              <div className="font-num text-base font-bold text-white sm:text-2xl">{fmtMoney(save.scores[0]?.score ?? 0)}</div>
             </div>
           </div>
 
-          <div role="group" aria-labelledby="character-label" className="mt-5 max-w-xl short:mt-2">
+          <div role="group" aria-labelledby="character-label" className="mt-3 max-w-xl sm:mt-5 short:mt-2">
             <div id="character-label" className="mb-1.5 text-xs font-bold tracking-widest text-white/60">选择角色</div>
             <div className="grid grid-cols-3 gap-2">
               {CHARACTERS.map((character) => {
@@ -161,18 +171,24 @@ export function StartScreen({ save, kit, mapId, onMap, onCharacter, onKit, onDep
                     type="button"
                     aria-pressed={selected}
                     onClick={() => onCharacter(character.id)}
-                    className={cn('min-h-12 rounded-lg border px-2.5 py-1.5 text-left', selected ? 'border-[#ffd23f] bg-[#ffd23f]/12' : 'border-white/15 bg-black/40 hover:bg-white/10')}
+                    className={cn('flex min-w-0 flex-col items-center gap-1.5 rounded-lg border px-1.5 py-1.5 text-center sm:flex-row sm:text-left short:flex-row short:text-left', selected ? 'border-[#ffd23f] bg-[#ffd23f]/12' : 'border-white/15 bg-black/40 hover:bg-white/10')}
                   >
-                    <span className="block text-sm font-black" style={{ color: character.feathers[0] }}>{character.name} <span className="text-xs text-white/65">{character.role}</span></span>
-                    <span className="block text-[11px] leading-snug text-white/75">移速 {Math.round(100 * character.speed / CHARACTERS[0].speed)}%<br className="sm:hidden" /><span className="hidden sm:inline"> · </span>护甲 {characterArmor(character, sel.armor)}</span>
+                    <Portrait id={character.id} className="pointer-events-none size-10 shrink-0 short:size-9" />
+                    <span className="min-w-0">
+                      <span className="block whitespace-nowrap text-sm font-black leading-tight" style={{ color: character.feathers[0] }}>{character.name} <span className="text-[11px] font-normal text-white/60">{character.role}</span></span>
+                      <span className="block whitespace-nowrap text-[11px] leading-snug text-white/75">移速 {Math.round(100 * character.speed / CHARACTERS[0].speed)}% · 甲 {characterArmor(character, sel.armor)}</span>
+                    </span>
                   </button>
                 );
               })}
             </div>
           </div>
 
-          <div className="mt-5 short:mt-2">
-            <div className="mb-2 text-xs font-bold tracking-widest text-white/50 short:mb-1.5">选择出击装备 · 撤离成功可带回<span className="ml-2 hidden font-num text-[#ffcf4a] short:inline">仓库 ¥{fmtMoney(save.stash)}</span></div>
+          <div className="mt-3 sm:mt-5 short:mt-2">
+            <div className="mb-1.5 flex max-w-xl items-center justify-between gap-2 sm:mb-2 short:mb-1.5">
+              <span className="text-xs font-bold tracking-widest text-white/60">选择出击装备</span>
+              <button type="button" onClick={() => setPanel('warehouse')} className="min-h-9 rounded-md border border-[#ffcf4a]/35 bg-black/35 px-2.5 text-sm font-bold text-[#ffe183] hover:bg-white/10">仓库 · {stockCount} 件</button>
+            </div>
             <div className="grid max-w-xl grid-cols-3 gap-2">
               {LOADOUTS.map((l) => {
                 const locked = save.stash < l.cost;
@@ -183,7 +199,7 @@ export function StartScreen({ save, kit, mapId, onMap, onCharacter, onKit, onDep
                     disabled={locked}
                     onClick={() => onKit(l.id)}
                     className={cn(
-                      'rounded-xl border p-2.5 text-left transition active:scale-[0.98] sm:p-3 short:py-1.5',
+                      'rounded-lg border p-2 text-left transition active:scale-[0.98] sm:rounded-xl sm:p-3 short:py-1.5',
                       selected ? 'border-[#ffd23f] bg-[#ffd23f]/12 shadow-[0_0_24px_-6px_rgba(255,210,63,0.6)]' : 'border-white/10 bg-black/40 hover:border-white/25 hover:bg-white/5',
                       locked && 'cursor-not-allowed opacity-40',
                     )}
@@ -198,46 +214,41 @@ export function StartScreen({ save, kit, mapId, onMap, onCharacter, onKit, onDep
                 );
               })}
             </div>
+            {!!prepared.length && (
+              <button type="button" onClick={onUseWarehouse} aria-pressed={sel.id === WAREHOUSE_KIT} className={cn('mt-2 block w-full max-w-xl rounded-md border px-2.5 py-1.5 text-left text-xs font-bold', sel.id === WAREHOUSE_KIT ? 'border-[#ffd23f] bg-[#ffd23f]/12 text-[#ffe183]' : 'border-white/20 bg-black/40 text-white/85')}>
+                仓库配装 · {prepared.map((gear) => `${gearDef(gear.id)?.name}${gear.tuned ? `（${TUNE_LABELS[gearMod(gear)]}）` : ''}`).join(' · ')}
+              </button>
+            )}
           </div>
 
-          <div className="mt-4 max-w-xl short:mt-2">
-            <label htmlFor="raid-map" className="mb-1 block text-xs font-bold tracking-widest text-white/60">选择战区</label>
-            <select
-              id="raid-map"
-              value={mapId}
-              onChange={(event) => {
-                const next = RAID_MAPS.find((option) => option.id === event.target.value);
-                if (next && next.requiredExtracts <= save.extracts) onMap(next.id);
-              }}
-              className="min-h-10 w-full rounded-lg border border-white/20 bg-[#1b1e23] px-3 text-sm font-bold text-white"
-            >
-              {RAID_MAPS.map((option) => {
-                const locked = option.requiredExtracts > save.extracts;
-                return <option key={option.id} value={option.id} disabled={locked}>
-                  {option.name}{locked ? `（正式撤离 ${option.requiredExtracts} 次解锁）` : ''}
-                </option>;
-              })}
-            </select>
-            <p className="mt-1 text-xs leading-relaxed text-white/65">{map.theme} · 首领 {ENEMIES[map.boss].name}</p>
-            <p className="text-xs leading-relaxed text-white/65 short:hidden">物资 {map.loot}</p>
+          <div className="mt-2.5 max-w-xl sm:mt-4 short:mt-2">
+            <button type="button" onClick={() => setPanel('maps')} className="flex min-h-10 w-full items-center justify-between gap-2 rounded-lg border border-white/20 bg-[#1b1e23] px-2.5 py-1.5 text-left text-sm font-bold text-white hover:border-white/45">
+              <span className="flex items-center gap-2"><Portrait id={map.boss} className="size-8" /><span>{map.name}<span className="ml-2 text-xs font-normal text-white/65">{ENEMIES[map.boss].name}</span></span></span>
+              <span className="shrink-0 text-[#ffe183]">选择战区</span>
+            </button>
+            <p className="mt-1 text-xs leading-relaxed text-white/65 short:hidden">物资 {map.loot}</p>
           </div>
 
           <button
             onClick={save.trainingCompleted ? onDeploy : onTraining}
-            className="deploy-btn group mt-6 flex w-full max-w-xl items-center justify-between rounded-2xl px-6 py-4 text-left transition active:scale-[0.98] short:mt-3 short:py-2.5"
+            className="deploy-btn group mt-3 flex w-full max-w-xl items-center justify-between rounded-2xl px-5 py-3 text-left transition active:scale-[0.98] sm:mt-6 sm:px-6 sm:py-4 short:mt-3 short:py-2.5"
           >
             <span>
               <span className="block text-2xl font-black tracking-wide text-[#1d1500] sm:text-3xl short:text-xl">{save.trainingCompleted ? '开始行动' : '新手行动'}</span>
-              <span className="block text-xs font-bold text-[#1d1500]/70">{save.trainingCompleted ? (sel.cost ? `装备费 ¥${fmtMoney(sel.cost)}` : '免费部署') : '免费训练 · 搜箱、射击、撤离'}</span>
+              <span className="block text-xs font-bold text-[#1d1500]/70">{save.trainingCompleted ? (sel.id === WAREHOUSE_KIT ? '仓库配装 · 无装备费' : sel.cost ? `装备费 ¥${fmtMoney(sel.cost)}` : '免费部署') : '免费训练 · 搜箱、射击、撤离'}</span>
             </span>
             <span className="text-4xl transition group-hover:translate-x-1">🦆</span>
           </button>
           <button onClick={save.trainingCompleted ? onTraining : onDeploy} className="mt-2 min-h-10 rounded-lg border border-white/20 bg-black/40 px-4 text-sm font-bold text-white/85 active:scale-[0.98]">
             {save.trainingCompleted ? '重玩新手行动' : '直接开始正式行动'}
           </button>
+          <div className="mt-2 grid grid-cols-2 gap-2 lg:hidden">
+            <button type="button" onClick={() => { setTab('rank'); setPanel('rank'); }} className="min-h-10 rounded-lg border border-white/20 bg-black/40 text-sm font-bold text-white/85 active:scale-[0.98]">🏆 排行榜</button>
+            <button type="button" onClick={() => { setTab('help'); setPanel('help'); }} className="min-h-10 rounded-lg border border-white/20 bg-black/40 text-sm font-bold text-white/85 active:scale-[0.98]">🎮 操作与规则</button>
+          </div>
         </div>
 
-        <div className="anim-rise w-full overflow-hidden rounded-2xl border border-white/10 bg-black/55 backdrop-blur-md lg:w-[390px] short:w-[300px] short:shrink-0" style={{ animationDelay: '120ms' }}>
+        <div className="anim-rise hidden w-full overflow-hidden rounded-2xl border border-white/10 bg-black/55 backdrop-blur-md lg:block lg:w-[390px] short:block short:w-[300px] short:shrink-0" style={{ animationDelay: '120ms' }}>
           <div className="flex border-b border-white/10">
             {(['rank', 'help'] as const).map((t) => (
               <button key={t} onClick={() => setTab(t)} className={cn('flex-1 py-3 text-sm font-bold transition', tab === t ? 'bg-white/5 text-[#ffd23f]' : 'text-white/50 hover:text-white/80')}>
@@ -248,6 +259,13 @@ export function StartScreen({ save, kit, mapId, onMap, onCharacter, onKit, onDep
           <div className="max-h-[52vh] overflow-y-auto scroll-y short:max-h-[70vh]">{tab === 'rank' ? <ScoreTable scores={save.scores} /> : <Help />}</div>
         </div>
       </div>
+      {panel === 'warehouse' && <Armory save={save} onAction={onWarehouse} onClose={() => setPanel(null)} />}
+      {panel === 'maps' && <LevelPicker selected={mapId} extracts={save.extracts} onPick={onMap} onClose={() => setPanel(null)} />}
+      {(panel === 'rank' || panel === 'help') && (
+        <LobbyDialog title={tab === 'rank' ? '🏆 本地排行榜' : '🎮 操作与规则'} onClose={() => setPanel(null)}>
+          <div className="scroll-y max-h-[70vh] overflow-y-auto">{tab === 'rank' ? <ScoreTable scores={save.scores} /> : <Help />}</div>
+        </LobbyDialog>
+      )}
     </div>
   );
 }
@@ -312,7 +330,7 @@ export function GameOverScreen({ data, scores, onRetry, onMenu, canRetryKit }: {
     );
   }
   const title = ok ? '撤离成功' : r.outcome === 'dead' ? '行动失败 · 阵亡' : '行动失败 · 失踪';
-  const kitName = LOADOUTS.find((l) => l.id === r.kit)?.name ?? '跑刀';
+  const kitName = r.kit === WAREHOUSE_KIT ? '仓库配装' : LOADOUTS.find((l) => l.id === r.kit)?.name ?? '跑刀';
   const counts = [0, 0, 0, 0, 0, 0];
   for (const it of r.items) counts[it.rarity]++;
   return (
@@ -323,7 +341,7 @@ export function GameOverScreen({ data, scores, onRetry, onMenu, canRetryKit }: {
             <div>
               <div className={cn('font-num text-xs font-bold tracking-[0.3em]', ok ? 'text-emerald-300' : 'text-red-300')}>{ok ? 'EXTRACTED' : r.outcome === 'dead' ? 'KILLED IN ACTION' : 'MISSING IN ACTION'}</div>
               <h2 className={cn('title-font text-5xl sm:text-6xl short:text-4xl', ok ? 'text-emerald-300' : 'text-red-300')}>{title}</h2>
-              <div className="mt-1 text-sm text-white/60">{getRaidMap(r.mapId).name} · {getCharacter(r.characterId).name} · 存活 {fmtTime(r.time)} · 击杀 {r.kills} · 装备「{kitName}」{ok ? '已带回' : r.kitCost ? '已丢失' : ''}</div>
+              <div className="mt-1 text-sm text-white/60">{getRaidMap(r.mapId).name} · {getCharacter(r.characterId).name} · 存活 {fmtTime(r.time)} · 击杀 {r.kills} · 装备「{kitName}」{ok ? '已带回' : r.kitCost || r.usedGear.length ? '已丢失' : ''}</div>
             </div>
             <div className="text-right">
               <div className="text-xs tracking-widest text-white/50">本局得分</div>
@@ -338,7 +356,7 @@ export function GameOverScreen({ data, scores, onRetry, onMenu, canRetryKit }: {
               ['带出物资', ok ? `¥${fmtMoney(value)}` : `¥0`, ok ? 'text-[#ffcf4a]' : 'text-white/40'],
               ['击杀奖励', `+${fmtMoney(ok ? r.killScore : Math.floor(r.killScore * 0.3))}`, 'text-white'],
               ['损失物资', ok ? '¥0' : `¥${fmtMoney(r.value)}`, ok ? 'text-white/40' : 'text-red-300'],
-              ['仓库资产', `¥${fmtMoney(data.stashAfter)}`, 'text-emerald-200'],
+              ['仓库余额', `¥${fmtMoney(data.stashAfter)}`, 'text-emerald-200'],
             ].map(([k, v, c]) => (
               <div key={k} className="rounded-xl bg-black/30 px-3 py-2">
                 <div className="text-[11px] text-white/45">{k}</div>
@@ -348,6 +366,7 @@ export function GameOverScreen({ data, scores, onRetry, onMenu, canRetryKit }: {
           </div>
 
           <div className="mt-4">
+            {ok && !!r.foundGear.length && <p className="mb-2 text-sm font-bold text-emerald-200">{r.foundGear.length} 件枪械或护甲已入库 · 其余物资折现 ¥{fmtMoney(r.cashValue)}</p>}
             <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-white/50">
               <span className="font-bold tracking-widest">{ok ? '带出物资' : '丢失物资'} · {r.items.length} 件</span>
               {counts.map((n, i) => n > 0 && i >= 2 ? <span key={i} className="rounded px-1.5 py-0.5 font-bold" style={{ color: RARITY_COLORS[i], background: `rgba(${RARITY_RGB[i]},0.15)` }}>{RARITY_NAMES[i]}×{n}</span> : null)}
@@ -356,7 +375,7 @@ export function GameOverScreen({ data, scores, onRetry, onMenu, canRetryKit }: {
               <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-10">
                 {r.items.map((it, i) => (
                   <div key={i} className="anim-pop relative flex flex-col items-center rounded-lg border px-1 py-1.5" style={{ borderColor: RARITY_COLORS[it.rarity], background: `linear-gradient(180deg, rgba(${RARITY_RGB[it.rarity]},0.06), rgba(${RARITY_RGB[it.rarity]},0.35))`, animationDelay: `${300 + i * 45}ms` }}>
-                    <span className="text-2xl leading-none">{it.icon === 'GUN' ? '🔫' : it.icon}</span>
+                    {it.icon.startsWith('gear:') ? <GearIcon id={it.icon.slice(5)} className="size-12" /> : <span className="text-2xl leading-none">{it.icon === 'GUN' ? '🔫' : it.icon}</span>}
                     <span className="mt-1 w-full truncate text-center text-[10px] text-white/85">{it.name}</span>
                     <span className="font-num text-[10px] font-bold text-[#ffcf4a]">{it.value >= 10000 ? `${(it.value / 10000).toFixed(1)}万` : fmtMoney(it.value)}</span>
                     {!ok && <div className="absolute inset-0 grid place-items-center rounded-lg bg-black/60 text-[10px] font-black text-red-300">已丢失</div>}

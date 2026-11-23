@@ -1,6 +1,33 @@
-export type Action = 'reload' | 'interact' | 'grenade' | 'heal' | 'swap' | 'roll' | 'slot1' | 'slot2';
+export type Action = 'reload' | 'interact' | 'grenade' | 'heal' | 'swap' | 'roll' | 'slot1' | 'slot2' | 'bag' | 'dropLowest';
 
 export interface Btn { id: string; x: number; y: number; r: number; label: string }
+
+export interface BagSlot { x: number; y: number; w: number; h: number; index: number }
+export interface BagUi {
+  x: number; y: number; w: number; h: number;
+  slots: BagSlot[];
+  dropLowest: { x: number; y: number; w: number; h: number };
+  close: { x: number; y: number; w: number; h: number };
+}
+
+/** Shared geometry so the renderer and input hit-testing agree on bag panel positions. */
+export function bagUi(W: number, H: number, u: number): BagUi {
+  const cols = 5, rows = 4, gap = 6 * u;
+  const cell = Math.min(58 * u, (W - 44) / cols - gap);
+  const gridW = cols * cell + (cols - 1) * gap;
+  const gridH = rows * cell + (rows - 1) * gap;
+  const w = Math.min(W - 24, gridW + 28 * u);
+  const h = Math.min(H - 24, gridH + 92 * u);
+  const x = (W - w) / 2, y = (H - h) / 2;
+  const gx = x + (w - gridW) / 2, gy = y + 34 * u;
+  const slots: BagSlot[] = [];
+  for (let i = 0; i < 20; i++) {
+    const c = i % cols, r = Math.floor(i / cols);
+    slots.push({ x: gx + c * (cell + gap), y: gy + r * (cell + gap), w: cell, h: cell, index: i });
+  }
+  const by = gy + gridH + 10 * u, bw = (gridW - gap) / 2, bh = 32 * u;
+  return { x, y, w, h, slots, dropLowest: { x: gx, y: by, w: bw, h: bh }, close: { x: gx + bw + gap, y: by, w: bw, h: bh } };
+}
 
 export interface TouchLayout {
   u: number;
@@ -24,22 +51,26 @@ export function touchLayout(W: number, H: number): TouchLayout {
   const button = (id: string, label: string, x: number, y: number, r: number): Btn =>
     ({ id, label, x: W - inset - x * u, y: H - inset - y * u, r: r * u });
   const mm = Math.round(132 * u);
+  // LOLM-style cluster: action buttons form a spaced arc around the aim stick.
+  // The bag sits high on the right edge, far from the firing thumb, to avoid
+  // accidental opens mid-fire. Distances are from the bottom-right corner in `u`.
   return {
     u,
-    stickR: 50 * u,
+    stickR: 48 * u,
     btns: [
-      button('roll', '翻滚', 38, 43, 29),
-      button('reload', '换弹', 32, 109, 22),
-      button('heal', '治疗', 32, 164, 21),
-      button('grenade', '手雷', 85, 170, 20),
-      button('swap', '切枪', 135, 158, 20),
+      button('roll', '翻滚', 26, 50, 25),      // bottom-left of aim stick, within thumb reach
+      button('reload', '换弹', 150, 30, 21),   // bottom-right corner
+      button('heal', '治疗', 96, 196, 21),     // directly above aim stick
+      button('grenade', '手雷', 170, 148, 20), // right column, mid — clear of aim stick
+      button('swap', '切枪', 170, 220, 20),    // right column, high
+      button('bag', '背包', 96, 268, 21),      // top, far from firing thumb
     ],
-    interact: button('interact', '搜索', 111, 39, 28),
+    interact: button('interact', '搜索', 214, 78, 25),
     pause: W >= 600
       ? { id: 'pause', label: 'II', x: W - 14 - mm - 30 * u, y: 14 + 20 * u, r: 18 * u }
       : { id: 'pause', label: 'II', x: W - 14 - 24 * u, y: 14 + mm * 0.75 + 30 * u, r: 18 * u },
-    moveHint: { x: 90 * u, y: H - 98 * u },
-    aimHint: { x: W - inset - 100 * u, y: H - inset - 101 * u },
+    moveHint: { x: 92 * u, y: H - 100 * u },
+    aimHint: { x: W - inset - 92 * u, y: H - inset - 104 * u },
     mm,
   };
 }
@@ -65,8 +96,13 @@ export class Input {
   hasGrenade = false;
   hasSecondWeapon = false;
   enabled = false;
+  bagOpen = false;
+  dropLowestEnabled = false;
   onPause: () => void = () => {};
   onMute: () => void = () => {};
+  onBagDrop: (index: number) => void = () => {};
+  onBagDropLowest: () => void = () => {};
+  onBagClose: () => void = () => {};
   private el: HTMLElement;
   private cleanup: (() => void)[] = [];
 
@@ -127,6 +163,8 @@ export class Input {
         case 'KeyG': this.press('grenade'); break;
         case 'KeyH': case 'KeyX': this.press('heal'); break;
         case 'KeyQ': this.press('swap'); break;
+        case 'KeyB': this.press('bag'); break;
+        case 'KeyV': this.press('dropLowest'); break;
         case 'Digit1': this.press('slot1'); break;
         case 'Digit2': this.press('slot2'); break;
         case 'Space': case 'ShiftLeft': case 'ShiftRight': this.press('roll'); break;
@@ -140,6 +178,7 @@ export class Input {
     if (id === 'heal') return this.hasHealing;
     if (id === 'grenade') return this.hasGrenade;
     if (id === 'swap') return this.hasSecondWeapon;
+    if (id === 'dropLowest') return this.dropLowestEnabled;
     return true;
   }
 
@@ -152,6 +191,20 @@ export class Input {
   }
 
   private onDown(e: PointerEvent) {
+    if (this.bagOpen) {
+      if (e.cancelable) e.preventDefault();
+      const x = e.clientX, y = e.clientY;
+      const ui = bagUi(this.W, this.H, this.layout.u);
+      const inRect = (r: { x: number; y: number; w: number; h: number }) =>
+        x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+      if (inRect(ui.dropLowest)) this.onBagDropLowest();
+      else if (inRect(ui.close) || !inRect(ui)) this.onBagClose();
+      else {
+        const slot = ui.slots.find(inRect);
+        if (slot) this.onBagDrop(slot.index);
+      }
+      return;
+    }
     if (e.pointerType === 'mouse') {
       this.touchMode = false;
       this.mouseX = e.clientX; this.mouseY = e.clientY;
@@ -167,7 +220,9 @@ export class Input {
     if (b) {
       this.btnPointers.set(e.pointerId, b);
       this.held.add(b);
-      if (b === 'pause') { if (this.enabled) this.onPause(); } else this.press(b);
+      if (b === 'pause') { if (this.enabled) this.onPause(); }
+      else if (b === 'bag') { if (this.enabled) this.press('bag'); }
+      else this.press(b);
       return;
     }
     if (x < this.W * 0.5) {

@@ -3,3 +3,6 @@ dist/
 .env
 .env.*
 !.env.example
+.workbuddy/
+.wbapp_*.genie
+.playwright-cli/
