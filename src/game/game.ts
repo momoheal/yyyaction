@@ -1,5 +1,5 @@
 import {
-  ARMORS, CHILL_WEAPONS, CONTAINER_DEFS, ENEMIES, EXPLOSIVE_WEAPONS, EXTRACT_TIME, ITEM_BANDAGE, ITEM_FIRE, ITEM_FLASH, ITEM_GRENADE, ITEM_MEDKIT, ITEM_SMOKE,
+  ARMORS, CHILL_WEAPONS, CONTAINER_DEFS, ENEMIES, EXPLOSIVE_WEAPONS, EXTRACT_TIME, ITEM_BANDAGE, ITEM_FIRE, ITEM_FLASH, ITEM_GRENADE, ITEM_MEDKIT, ITEM_SMOKE, VENDING_LOOT,
   LOADOUTS, LOOT, LOOT_BY_RARITY, RAID_TIME, RARITY_COLORS, RARITY_NAMES, SEARCH_TIME, THROWABLE_IDS, THROWABLES, WEAPONS, characterArmor, fmtMoney, getCharacter, weaponItem,
   type BossSkillKind, type CharacterDef, type CharacterId, type CharacterUpgrades, type EnemyDef, type EnemyType, type ItemDef, type Loadout, type ThrowableId, type WeaponDef,
 } from './data';
@@ -410,6 +410,16 @@ export class Game {
       if (Math.random() < 0.65) out.push(Math.random() < 0.5 ? ITEM_MEDKIT : ITEM_BANDAGE);
       if (Math.random() < 0.3) out.push(this.rollThrowable());
       if (Math.random() < 0.5) out.push(this.rollLoot([30, 40, 22, 7, 1, 0]));
+    } else if (d.special === 'vending') {
+      const count = randInt(d.min, d.max);
+      for (let i = 0; i < count; i++) out.push(VENDING_LOOT[randInt(0, VENDING_LOOT.length - 1)]);
+    } else if (d.special === 'treasure') {
+      const count = randInt(d.min, d.max);
+      for (let i = 0; i < count; i++) out.push(this.rollLoot(d.weights));
+      if (Math.random() < 0.35) out.push(this.rollThrowable());
+    } else if (d.special === 'coins') {
+      out.push(LOOT.find((item) => item.id === 'gold')!);
+      if (Math.random() < 0.45) out.push(this.rollLoot([0, 18, 36, 28, 14, 4]));
     } else {
       const n = randInt(d.min, d.max);
       for (let i = 0; i < n; i++) {

@@ -1071,6 +1071,13 @@ export class Renderer {
     for (const p of props) {
       if (!this.inView(p.x, p.y, 80 * p.scale)) continue;
       drawScenery(ctx, p);
+      if (p.kind === 'vending_machine') {
+        const stock = g.containers.find((c) => c.type === 'vending' && c.x === p.x && c.y === p.y);
+        if (stock && stock.revealed >= stock.items.length) {
+          ctx.fillStyle = 'rgba(10,18,20,0.48)';
+          ctx.fillRect(p.x - 18 * p.scale, p.y - 44 * p.scale, 28 * p.scale, 54 * p.scale);
+        }
+      }
     }
   }
 
@@ -1085,7 +1092,7 @@ export class Renderer {
         ctx.globalAlpha = 0.92;
         drawDuck(ctx, c.x, c.y, c.angle, c.w / 2, st, 0, false, null, 0, type === 'chicken' ? 1 : def.boss ? 2 : 0, true);
         ctx.globalAlpha = 1;
-      } else this.drawCrate(c, t);
+      } else if (c.type !== 'vending') this.drawCrate(c, t);
       if (!done) {
         const by = c.y - (c.body ? 22 : c.h / 2 + 12) + Math.sin(t * 3 + c.id) * 3;
         ctx.fillStyle = c.revealed > 0 ? '#ffe9a0' : '#fff6cf';
@@ -1155,6 +1162,29 @@ export class Renderer {
         ctx.fillStyle = '#3e4a27'; ctx.fillRect(x + w * 0.28, y, 4, h); ctx.fillRect(x + w * 0.66, y, 4, h);
         ctx.strokeStyle = '#2b331b'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x + 6, y + h / 2); ctx.lineTo(x + w - 6, y + h / 2); ctx.stroke();
         break;
+      case 'treasure_chest':
+        ctx.fillStyle = '#493321'; rr(ctx, x, y + h * 0.18, w, h * 0.78, 4); ctx.fill();
+        ctx.fillStyle = '#9a6533'; rr(ctx, x + 2, y + h * 0.2, w - 4, h * 0.7, 3); ctx.fill();
+        ctx.fillStyle = '#b77d3d'; rr(ctx, x + 3, y + 2, w - 6, h * 0.42, 5); ctx.fill();
+        ctx.strokeStyle = '#5e3d22'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.fillStyle = '#e3b953'; ctx.fillRect(x + 4, y + h * 0.43, w - 8, 3);
+        ctx.fillRect(x + w * 0.17, y + 3, 3, h - 6); ctx.fillRect(x + w * 0.78, y + 3, 3, h - 6);
+        ctx.fillStyle = '#f2d477'; rr(ctx, x + w * 0.43, y + h * 0.38, w * 0.16, h * 0.28, 2); ctx.fill();
+        ctx.fillStyle = '#815526'; ctx.beginPath(); ctx.arc(x + w / 2, y + h * 0.52, 1.4, 0, TAU); ctx.fill();
+        break;
+      case 'coin_pile': {
+        const coins = [
+          [x + w * 0.28, y + h * 0.55, 5], [x + w * 0.52, y + h * 0.68, 5.5], [x + w * 0.72, y + h * 0.48, 4.5],
+          [x + w * 0.4, y + h * 0.35, 4], [x + w * 0.66, y + h * 0.28, 4.4], [x + w * 0.52, y + h * 0.48, 5.5],
+        ] as const;
+        for (const [cx, cy, radius] of coins) {
+          ctx.fillStyle = '#b67e22'; ctx.beginPath(); ctx.ellipse(cx + 1, cy + 2, radius, radius * 0.68, 0, 0, TAU); ctx.fill();
+          ctx.fillStyle = '#efc34e'; ctx.beginPath(); ctx.ellipse(cx, cy, radius, radius * 0.68, 0, 0, TAU); ctx.fill();
+          ctx.strokeStyle = '#a46c1b'; ctx.lineWidth = 1; ctx.stroke();
+          ctx.fillStyle = 'rgba(255,245,183,0.8)'; ctx.fillRect(cx - radius * 0.42, cy - 0.7, radius * 0.7, 1);
+        }
+        break;
+      }
     }
     if (c.open > 0 && c.type !== 'duffel') {
       ctx.fillStyle = 'rgba(15,12,8,0.55)';

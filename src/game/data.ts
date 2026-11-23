@@ -68,6 +68,16 @@ export const LOOT: ItemDef[] = [
 
 export const LOOT_BY_RARITY: ItemDef[][] = [0, 1, 2, 3, 4, 5].map((r) => LOOT.filter((i) => i.rarity === r));
 
+/** Special everyday items sold by the searchable vending machines. */
+export const VENDING_LOOT: ItemDef[] = [
+  L('duck_soda', '鸭力汽水', '🥤', 1, 2600),
+  L('orange_soda', '柑橘汽水', '🧃', 1, 2400),
+  L('water_bottle', '瓶装水', '💧', 0, 1200),
+  L('chips', '盐味薯片', '🍟', 0, 900),
+  L('coffee_can', '罐装咖啡', '☕', 1, 3200),
+  L('battery_pack', '备用电池组', '🔋', 1, 4200),
+];
+
 export type ThrowableId = 'grenade' | 'smoke' | 'flash' | 'fire';
 
 export const ITEM_BANDAGE: ItemDef = { id: 'bandage', name: '绷带', icon: '🩹', rarity: 0, value: 1500, kind: 'bandage' };
@@ -339,7 +349,7 @@ export interface ContainerDef {
   w: number;
   h: number;
   weights: number[];
-  special?: 'med' | 'weapon';
+  special?: 'med' | 'weapon' | 'vending' | 'treasure' | 'coins';
 }
 
 export const CONTAINER_DEFS: Record<string, ContainerDef> = {
@@ -350,6 +360,9 @@ export const CONTAINER_DEFS: Record<string, ContainerDef> = {
   pc: { name: '电脑机箱', min: 1, max: 3, w: 24, h: 32, weights: [8, 22, 40, 22, 6, 0.6] },
   safe: { name: '保险箱', min: 2, max: 3, w: 32, h: 32, weights: [0, 8, 28, 36, 22, 6] },
   duffel: { name: '旅行包', min: 2, max: 4, w: 36, h: 24, weights: [34, 34, 20, 9, 2.5, 0.35] },
+  vending: { name: '贩卖机', min: 2, max: 3, w: 48, h: 58, weights: [0, 0, 0, 0, 0, 0], special: 'vending' },
+  treasure_chest: { name: '宝箱', min: 2, max: 3, w: 42, h: 32, weights: [0, 8, 28, 34, 22, 8], special: 'treasure' },
+  coin_pile: { name: '金币堆', min: 1, max: 2, w: 36, h: 28, weights: [0, 0, 0, 0, 0, 0], special: 'coins' },
 };
 
 export type CharacterId = 'duck' | 'tank' | 'scout';

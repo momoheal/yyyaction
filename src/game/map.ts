@@ -35,7 +35,10 @@ export interface Zone { name: string; x: number; y: number; w: number; h: number
 export interface SceneryProp {
   kind: 'delivery_truck' | 'pickup_truck' | 'dump_truck' | 'container_truck'
       | 'rowboat' | 'fishing_boat' | 'speedboat' | 'flatbed'
-      | 'barrels' | 'bollard' | 'crane';
+      | 'barrels' | 'bollard' | 'crane'
+      | 'fountain' | 'duck_king_statue' | 'billboard' | 'vending_machine'
+      | 'bed' | 'table_map_cup' | 'table_field_kit' | 'wood_chair'
+      | 'bedside_cabinet' | 'potted_flower';
   x: number;
   y: number;
   rot: number;
@@ -463,6 +466,9 @@ function buildHarbor(): GameMap {
     { kind: 'bollard', x: 1117, y: 150, scale: 1.0, rot: 0 },
     { kind: 'bollard', x: 2118, y: 192, scale: 1.0, rot: 0 },
     { kind: 'crane', x: 2220, y: 1190, scale: 1.1, rot: 0 },
+    { kind: 'vending_machine', x: 430, y: 480, rot: 0, scale: 0.8 },
+    { kind: 'billboard', x: 850, y: 470, rot: 0, scale: 0.85 },
+    { kind: 'table_field_kit', x: 1320, y: 610, rot: 0, scale: 0.75 },
   ];
   return withBiomeArt({
     w, h, water, props,
@@ -502,6 +508,7 @@ function buildHarbor(): GameMap {
       { type: 'crate', x: 2090, y: 547 }, { type: 'duffel', x: 2050, y: 1330 }, { type: 'toolbox', x: 1480, y: 1380 },
       { type: 'crate', x: 380, y: 280 }, { type: 'toolbox', x: 1050, y: 240, fixedItem: 'dmr' }, { type: 'duffel', x: 1840, y: 260, fixedItem: 'ak' },
       { type: 'crate', x: 420, y: 1560 }, { type: 'weaponcase', x: 1480, y: 1530, fixedItem: 'awmlegend' }, { type: 'safe', x: 1880, y: 1550, fixedItem: 'm4legend' },
+      { type: 'vending', x: 430, y: 480 }, { type: 'treasure_chest', x: 1480, y: 1460 }, { type: 'coin_pile', x: 400, y: 1450 },
     ],
     spawns: [
       { x: 144, y: 470, chick: [676, 910] }, { x: 144, y: 1248, chick: [676, 1160] },
@@ -577,6 +584,7 @@ function buildFoundry(): GameMap {
     { kind: 'barrels', x: 1022, y: 543, scale: 1.0, rot: 0 },
     { kind: 'barrels', x: 1960, y: 943, scale: 1.0, rot: 0 },
     { kind: 'crane', x: 409, y: 371, scale: 1.1, rot: 0 },
+    { kind: 'vending_machine', x: 2160, y: 1080, rot: 0, scale: 0.8 },
   ];
   return withBiomeArt({
     w, h, props,
@@ -606,6 +614,7 @@ function buildFoundry(): GameMap {
       { type: 'weaponcase', x: 1995, y: 625 }, { type: 'crate', x: 2060, y: 1440 }, { type: 'duffel', x: 1780, y: 1400 },
       { type: 'crate', x: 780, y: 250, fixedItem: 'ak' }, { type: 'toolbox', x: 1400, y: 220, fixedItem: 'dmr' }, { type: 'medbox', x: 2200, y: 230, fixedItem: 'minigun' },
       { type: 'crate', x: 560, y: 1580 }, { type: 'weaponcase', x: 1480, y: 1580, fixedItem: 'awmlegend' }, { type: 'safe', x: 2050, y: 1590, fixedItem: 'm4legend' },
+      { type: 'vending', x: 2160, y: 1080 }, { type: 'treasure_chest', x: 900, y: 1540 }, { type: 'coin_pile', x: 1870, y: 1570 },
     ],
     spawns: [
       { x: 144, y: 490, chick: [630, 840] }, { x: 144, y: 1260, chick: [650, 1235] },
@@ -667,6 +676,10 @@ function buildHatchery(): GameMap {
     { kind: 'rowboat', x: 760, y: 92, rot: 0, scale: 0.9 },
     { kind: 'barrels', x: 1010, y: 1120, scale: 1.0, rot: 0 },
     { kind: 'crane', x: 2040, y: 900, scale: 1.05, rot: 0 },
+    { kind: 'vending_machine', x: 1260, y: 390, rot: 0, scale: 0.8 },
+    { kind: 'bed', x: 700, y: 500, rot: 0, scale: 0.8 },
+    { kind: 'bedside_cabinet', x: 760, y: 420, rot: 0, scale: 0.55 },
+    { kind: 'potted_flower', x: 355, y: 520, rot: 0, scale: 0.75 },
   ];
   return withBiomeArt({
     w, h, water, props,
@@ -685,6 +698,7 @@ function buildHatchery(): GameMap {
       { type: 'crate', x: 1300, y: 300, fixedItem: 'minigun' },
       { type: 'weaponcase', x: 1960, y: 1160, fixedItem: 'frostmp9' },
       { type: 'crate', x: 1280, y: 1300, fixedItem: 'rpg' },
+      { type: 'vending', x: 1260, y: 390 }, { type: 'treasure_chest', x: 900, y: 1460 }, { type: 'coin_pile', x: 1900, y: 1450 },
     ],
     spawns: [
       { x: 110, y: 430, chick: [560, 760] }, { x: 1120, y: 120, chick: [1200, 600] },
@@ -745,6 +759,8 @@ function buildOutpost(): GameMap {
     { kind: 'rowboat', x: 880, y: 820, rot: 0, scale: 0.9 },
     { kind: 'barrels', x: 1180, y: 700, scale: 1.0, rot: 0 },
     { kind: 'crane', x: 2350, y: 1350, scale: 1.1, rot: 0 },
+    { kind: 'vending_machine', x: 1780, y: 1450, rot: 0, scale: 0.8 },
+    { kind: 'bed', x: 730, y: 560, rot: 0, scale: 0.78 },
   ];
   return withBiomeArt({
     w, h, water, props,
@@ -764,6 +780,7 @@ function buildOutpost(): GameMap {
       { type: 'weaponcase', x: 1300, y: 260, fixedItem: 'awmlegend' },
       { type: 'safe', x: 2100, y: 1270, fixedItem: 'm4legend' },
       { type: 'crate', x: 500, y: 1200, fixedItem: 'rpg' },
+      { type: 'vending', x: 1780, y: 1450 }, { type: 'treasure_chest', x: 1220, y: 1450 }, { type: 'coin_pile', x: 900, y: 1460 },
     ],
     spawns: [
       { x: 110, y: 520, chick: [700, 800] }, { x: 1200, y: 100, chick: [1300, 600] },
@@ -829,6 +846,11 @@ function buildMausoleum(): GameMap {
     { kind: 'flatbed', x: 1600, y: 1650, rot: Math.PI / 2, scale: 1.0 },
     { kind: 'barrels', x: 900, y: 700, scale: 1.0, rot: 0 },
     { kind: 'crane', x: 2450, y: 250, scale: 1.1, rot: 0 },
+    { kind: 'duck_king_statue', x: 1400, y: 500, rot: 0, scale: 1.0 },
+    { kind: 'fountain', x: 1610, y: 500, rot: 0, scale: 0.95 },
+    { kind: 'table_map_cup', x: 1320, y: 320, rot: 0, scale: 0.9 },
+    { kind: 'wood_chair', x: 1320, y: 386, rot: 0, scale: 0.78 },
+    { kind: 'vending_machine', x: 2180, y: 1480, rot: 0, scale: 0.8 },
   ];
   return withBiomeArt({
     w, h, water, props,
@@ -849,6 +871,7 @@ function buildMausoleum(): GameMap {
       { type: 'weaponcase', x: 2100, y: 1400, fixedItem: 'm4legend' },
       { type: 'crate', x: 1550, y: 250, fixedItem: 'minigun' },
       { type: 'safe', x: 1500, y: 1490, fixedItem: 'frostmp9' },
+      { type: 'vending', x: 2180, y: 1480 }, { type: 'treasure_chest', x: 800, y: 520 }, { type: 'coin_pile', x: 1960, y: 520 },
     ],
     spawns: [
       { x: 110, y: 600, chick: [620, 800] }, { x: 1350, y: 100, chick: [1400, 520] },
@@ -939,6 +962,7 @@ export function buildMap(): GameMap {
     for (const [type, ax, ay] of b.abs || []) containers.push({ type, x: ax, y: ay });
   }
   for (const [type, ax, ay] of OPEN_CONTAINERS) containers.push({ type, x: ax, y: ay });
+  containers.push({ type: 'vending', x: 2690, y: 340 });
   for (const c of containers) {
     const d = CONTAINER_DEFS[c.type];
     addRect(c.x - d.w / 2, c.y - d.h / 2, d.w, d.h, F_MOVE, 'container');
@@ -1142,6 +1166,13 @@ export function buildMap(): GameMap {
     { kind: 'flatbed', x: 555, y: 1316, rot: Math.PI / 2, scale: 1.0 },
     // 农场区：湖畔小木船（水塘边，装饰）
     { kind: 'rowboat', x: 540, y: 400, rot: 0, scale: 0.9 },
+    { kind: 'fountain', x: 1080, y: 1150, rot: 0, scale: 0.9 },
+    { kind: 'billboard', x: 2240, y: 900, rot: 0, scale: 0.85 },
+    { kind: 'vending_machine', x: 2690, y: 340, rot: 0, scale: 0.8 },
+    { kind: 'bedside_cabinet', x: 900, y: 300, rot: 0, scale: 0.7 },
+    { kind: 'table_map_cup', x: 1830, y: 290, rot: 0, scale: 0.85 },
+    { kind: 'wood_chair', x: 1830, y: 355, rot: 0, scale: 0.75 },
+    { kind: 'potted_flower', x: 1070, y: 280, rot: 0, scale: 0.75 },
   ];
   return {
     w: MAP_W, h: MAP_H, solids, floors, decor, trees, water, roads, pads, containers,
