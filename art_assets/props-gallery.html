@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>鸭鸭鸭行动 · 程序化场景道具预览</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 28px 32px 40px; background: #eef1f3; color: #1d2a30;
+    font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  }
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
+  h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: .5px; }
+  p.sub { margin: 0; font-size: 13px; line-height: 1.7; color: #52646c; }
+  .tag { display: inline-block; padding: 2px 8px; margin-left: 6px; border-radius: 999px; background: #d6e4ea; color: #2c5566; font-size: 11px; font-weight: 700; vertical-align: 2px; }
+  button {
+    border: 0; border-radius: 8px; padding: 10px 18px; background: #243138; color: #fff;
+    font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+  button:hover { background: #35505c; }
+  .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin-top: 26px; }
+  .cell {
+    background: #fff; border: 1px solid #dbe2e6; border-radius: 12px; padding: 10px 10px 12px;
+    box-shadow: 0 2px 6px rgba(28, 46, 54, .06);
+  }
+  .frame {
+    position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 8px; overflow: hidden;
+    background-image:
+      linear-gradient(45deg, #e4e9ec 25%, transparent 25%, transparent 75%, #e4e9ec 75%),
+      linear-gradient(45deg, #e4e9ec 25%, transparent 25%, transparent 75%, #e4e9ec 75%);
+    background-size: 24px 24px; background-position: 0 0, 12px 12px; background-color: #f7f9fa;
+  }
+  .frame canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .name { margin-top: 8px; font-size: 13px; font-weight: 800; }
+  .id { margin-top: 2px; font-size: 11px; color: #71848c; font-family: ui-monospace, Consolas, monospace; }
+  .badge { float: right; font-size: 10px; font-weight: 700; color: #2f6f4f; background: #dff0e5; border-radius: 6px; padding: 1px 6px; }
+  footer { margin-top: 24px; font-size: 12px; color: #5c6f77; line-height: 1.8; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>程序化场景道具预览 <span class="tag">Canvas 2D · 无外部贴图</span></h1>
+    <p class="sub">
+      全部由 <code>src/game/scenery.ts</code> 实时绘制，正俯视、扁平卡通风格，与游戏内画面一致。<br />
+      绿色 NEW 标记为本次新增的 12 件道具；点右侧按钮可把它们导出成透明底 PNG。
+    </p>
+  </div>
+  <button id="export">导出新增道具 PNG</button>
+</header>
+<div class="grid" id="grid"></div>
+<footer>
+  命名与摆放：木桌 / 长凳 / 高脚凳 / 金属工作台 / 石阶 / 木阶 / 鸭王王座 / 蛋巢群 / 浆果丛 / 荆棘丛 / 木箱堆 / 干草捆。<br />
+  坐标约定：每件资产画在 128×128 的逻辑画布内，以中心为原点，调用方通过 rot 旋转、scale 缩放。
+</footer>
+<script src="./props-bundle.js"></script>
+<script>
+const LABELS = {
+  delivery_truck: '厢式货车', pickup_truck: '皮卡', dump_truck: '自卸卡车', container_truck: '集装箱卡车',
+  flatbed: '平板拖车', rowboat: '小木船', fishing_boat: '渔船', speedboat: '快艇',
+  barrels: '油桶组', bollard: '系缆桩', crane: '起重机', crate_stack: '木箱堆', hay_bale: '干草捆',
+  fountain: '喷泉', duck_king_statue: '鸭王雕像', billboard: '广告牌', vending_machine: '售货机',
+  ice_beacon: '冰晶信标', king_vault_gate: '王陵金库门',
+  wood_table: '木餐桌', wood_bench: '木长凳', bar_stool: '高脚凳', metal_workbench: '金属工作台',
+  stone_steps: '石阶', wood_steps: '木阶', duck_throne: '鸭王王座', nest_cluster: '蛋巢群',
+  egg_nest: '蛋巢', berry_bush: '浆果丛', thorn_bush: '荆棘丛', potted_flower: '盆栽',
+  bed: '木床', table_map_cup: '地图桌', table_field_kit: '野战桌', wood_chair: '木椅', bedside_cabinet: '床头柜',
+};
+const NEW = new Set(['wood_table', 'wood_bench', 'bar_stool', 'metal_workbench', 'stone_steps', 'wood_steps',
+  'duck_throne', 'nest_cluster', 'berry_bush', 'thorn_bush', 'crate_stack', 'hay_bale']);
+const grids = document.getElementById('grid');
+
+for (const kind of window.SCENERY_KINDS) {
+  const cell = document.createElement('div');
+  cell.className = 'cell';
+  const frame = document.createElement('div');
+  frame.className = 'frame';
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 256;
+  frame.appendChild(canvas);
+  const name = document.createElement('div');
+  name.className = 'name';
+  name.innerHTML = (LABELS[kind] || kind) + (NEW.has(kind) ? '<span class="badge">NEW</span>' : '');
+  const id = document.createElement('div');
+  id.className = 'id';
+  id.textContent = kind;
+  cell.append(frame, name, id);
+  grids.appendChild(cell);
+
+  const ctx = canvas.getContext('2d');
+  // 画布 256：把 128 逻辑单位放大 2 倍，居中。
+  ctx.save();
+  ctx.scale(2, 2);
+  window.drawScenery(ctx, { kind, x: 64, y: 64, rot: 0, scale: 1 });
+  ctx.restore();
+}
+
+window.__exportNew = () => {
+  const out = {};
+  for (const kind of window.SCENERY_KINDS) {
+    if (!NEW.has(kind)) continue;
+    const c = document.createElement('canvas');
+    c.width = 320; c.height = 320;
+    const ctx = c.getContext('2d');
+    ctx.save();
+    ctx.scale(2.5, 2.5);
+    window.drawScenery(ctx, { kind, x: 64, y: 64, rot: 0, scale: 1 });
+    ctx.restore();
+    out[kind] = c.toDataURL('image/png');
+  }
+  return out;
+};
+</script>
+</body>
+</html>

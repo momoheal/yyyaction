@@ -39,6 +39,9 @@ export interface SceneryProp {
       | 'fountain' | 'duck_king_statue' | 'billboard' | 'vending_machine'
       | 'bed' | 'table_map_cup' | 'table_field_kit' | 'wood_chair'
       | 'bedside_cabinet' | 'potted_flower' | 'egg_nest' | 'ice_beacon'
+      | 'wood_table' | 'wood_bench' | 'bar_stool' | 'metal_workbench'
+      | 'stone_steps' | 'wood_steps' | 'duck_throne' | 'nest_cluster'
+      | 'berry_bush' | 'thorn_bush' | 'crate_stack' | 'hay_bale'
       | 'king_vault_gate';
   x: number;
   y: number;
@@ -517,6 +520,13 @@ function buildHarbor(): GameMap {
     { kind: 'vending_machine', x: 430, y: 480, rot: 0, scale: 0.8 },
     { kind: 'billboard', x: 850, y: 470, rot: 0, scale: 0.85 },
     { kind: 'table_field_kit', x: 1320, y: 610, rot: 0, scale: 0.75 },
+    // 码头休息角与货场杂物
+    { kind: 'wood_table', x: 1516, y: 636, rot: 0, scale: 0.9 },
+    { kind: 'bar_stool', x: 1600, y: 590, rot: 0, scale: 0.95 },
+    { kind: 'bar_stool', x: 1578, y: 690, rot: 0, scale: 0.95 },
+    { kind: 'wood_bench', x: 1520, y: 540, rot: 0, scale: 0.86 },
+    { kind: 'crate_stack', x: 762, y: 902, rot: 0, scale: 0.95 },
+    { kind: 'wood_steps', x: 1150, y: 516, rot: 0, scale: 0.85 },
   ];
   return withBiomeArt({
     w, h, water, props,
@@ -633,6 +643,10 @@ function buildFoundry(): GameMap {
     { kind: 'barrels', x: 1960, y: 943, scale: 1.0, rot: 0 },
     { kind: 'crane', x: 409, y: 371, scale: 1.1, rot: 0 },
     { kind: 'vending_machine', x: 2160, y: 1080, rot: 0, scale: 0.8 },
+    // 车间外的工作台、石阶与料箱堆
+    { kind: 'metal_workbench', x: 1004, y: 302, rot: 0, scale: 0.85 },
+    { kind: 'stone_steps', x: 1240, y: 1392, rot: 0, scale: 0.9 },
+    { kind: 'crate_stack', x: 1782, y: 1180, rot: 0, scale: 0.95 },
   ];
   return withBiomeArt({
     w, h, props,
@@ -729,6 +743,12 @@ function buildHatchery(): GameMap {
     { kind: 'bed', x: 700, y: 500, rot: 0, scale: 0.8 },
     { kind: 'bedside_cabinet', x: 760, y: 420, rot: 0, scale: 0.55 },
     { kind: 'potted_flower', x: 355, y: 520, rot: 0, scale: 0.75 },
+    // 腐叶区植被与孵化杂物
+    { kind: 'nest_cluster', x: 1452, y: 642, rot: 0, scale: 1.05 },
+    { kind: 'berry_bush', x: 830, y: 690, rot: 0, scale: 0.95 },
+    { kind: 'berry_bush', x: 1652, y: 1186, rot: 0, scale: 1.0 },
+    { kind: 'thorn_bush', x: 986, y: 1180, rot: 0, scale: 1.0 },
+    { kind: 'crate_stack', x: 1836, y: 902, rot: 0, scale: 0.95 },
   ];
   return withBiomeArt(reframeMap({
     w, h, water, props,
@@ -815,6 +835,11 @@ function buildOutpost(): GameMap {
     { kind: 'ice_beacon', x: 850, y: 520, rot: 0, scale: 1.15 },
     { kind: 'ice_beacon', x: 2060, y: 1080, rot: Math.PI / 4, scale: 1.1 },
     { kind: 'bed', x: 730, y: 560, rot: 0, scale: 0.78 },
+    // 冻土广场的休整点、石阶与料箱
+    { kind: 'stone_steps', x: 1260, y: 1010, rot: 0, scale: 0.9 },
+    { kind: 'crate_stack', x: 1660, y: 1304, rot: 0, scale: 0.95 },
+    { kind: 'metal_workbench', x: 1660, y: 1410, rot: Math.PI / 2, scale: 0.85 },
+    { kind: 'wood_bench', x: 842, y: 1062, rot: 0, scale: 0.86 },
   ];
   return withBiomeArt(reframeMap({
     w, h, water, props,
@@ -909,6 +934,11 @@ function buildMausoleum(): GameMap {
     { kind: 'table_map_cup', x: 1320, y: 320, rot: 0, scale: 0.9 },
     { kind: 'wood_chair', x: 1320, y: 386, rot: 0, scale: 0.78 },
     { kind: 'vending_machine', x: 2600, y: 1080, rot: 0, scale: 0.8 },
+    // 王座大厅：鸭王宝座、神道石阶与侧厅陈设
+    { kind: 'duck_throne', x: 1450, y: 758, rot: 0, scale: 1.18 },
+    { kind: 'stone_steps', x: 1400, y: 598, rot: 0, scale: 0.9 },
+    { kind: 'wood_table', x: 1156, y: 826, rot: 0, scale: 0.9 },
+    { kind: 'crate_stack', x: 2058, y: 1602, rot: 0, scale: 0.95 },
   ];
   return withBiomeArt(reframeMap({
     w, h, water, props,
@@ -1235,6 +1265,13 @@ export function buildMap(): GameMap {
     { kind: 'table_map_cup', x: 1830, y: 290, rot: 0, scale: 0.85 },
     { kind: 'wood_chair', x: 1830, y: 355, rot: 0, scale: 0.75 },
     { kind: 'potted_flower', x: 1070, y: 280, rot: 0, scale: 0.75 },
+    // 农舍外的院子：餐桌、长凳、草捆与浆果丛，补足生活气息
+    { kind: 'wood_table', x: 1862, y: 476, rot: 0, scale: 0.92 },
+    { kind: 'wood_bench', x: 1782, y: 546, rot: 0, scale: 0.86 },
+    { kind: 'berry_bush', x: 1650, y: 500, rot: 0, scale: 0.95 },
+    { kind: 'hay_bale', x: 2050, y: 480, rot: Math.PI / 2, scale: 0.9 },
+    { kind: 'crate_stack', x: 1210, y: 640, rot: 0, scale: 0.95 },
+    { kind: 'nest_cluster', x: 1120, y: 780, rot: 0, scale: 0.9 },
   ];
   return {
     w: MAP_W, h: MAP_H, solids, floors, decor, trees, water, roads, pads, containers,

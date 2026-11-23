@@ -348,8 +348,231 @@ function drawAsset(ctx: CanvasRenderingContext2D, kind: SceneryProp['kind']) {
       el(ctx, 64, 64, 4, 4, '#c67a43', '#7c4e32', 1);
       break;
     }
+    case 'wood_table': {
+      // Round canteen table: legs peeking past the top, ring grain, stew + bread + mug.
+      for (const [x, y] of [[31, 37], [97, 37], [31, 91], [97, 91]] as const) rr(ctx, x - 6, y - 6, 12, 12, 3, '#4a3626', '#2a211a', 1);
+      el(ctx, 64, 67, 51, 42, '#5c4126', '#33271d', 2);
+      el(ctx, 64, 63, 46, 38, '#a3835a', '#6b4d31', 1.6);
+      el(ctx, 64, 61, 41, 33, '#c4ad7e');
+      ctx.strokeStyle = 'rgba(122,88,54,0.4)'; ctx.lineWidth = 1.4;
+      for (const [rx, ry] of [[29, 23], [21, 16], [12, 9]] as const) {
+        ctx.beginPath(); ctx.ellipse(64, 61, rx, ry, 0, Math.PI * 1.06, Math.PI * 1.94); ctx.stroke();
+      }
+      // Stew bowl (upper right), bread plate (lower left) and a tin mug.
+      el(ctx, 79, 49, 12, 10, '#e8e2d4', '#8b7a5c', 1.2);
+      el(ctx, 79, 48, 9, 7.2, '#b9563c', '#7d3a28', 0.8);
+      el(ctx, 76, 45, 2.6, 1.7, 'rgba(255,240,210,0.5)');
+      el(ctx, 45, 73, 13, 10, '#e8e2d4', '#a3937a', 1.2);
+      el(ctx, 45, 72, 10, 7.4, '#d9d2bf');
+      rr(ctx, 39, 68, 8, 4.5, 2, '#c99a5a', '#8c6a3c', 0.6);
+      rr(ctx, 45, 70.5, 8, 4.5, 2, '#d8ab6b', '#8c6a3c', 0.6);
+      el(ctx, 58, 45, 6, 5, '#cfc9b8', '#7c7461', 1);
+      el(ctx, 58, 44.5, 4.2, 3.4, '#6c4934');
+      rr(ctx, 63, 42, 3, 5, 1.5, '#b9b1a0', '#7c7461', 0.8);
+      break;
+    }
+    case 'metal_workbench': {
+      // Industrial bench: bolted top, hazard strip, a vise, a wrench and a parts tray.
+      rr(ctx, 16, 22, 96, 84, 7, '#3f464c', '#252b2f', 2);
+      rr(ctx, 21, 27, 86, 74, 5, METAL, '#5b666f', 1.4);
+      rr(ctx, 25, 31, 78, 66, 3, '#939ca5');
+      ctx.strokeStyle = 'rgba(46,56,62,0.26)'; ctx.lineWidth = 1;
+      for (let x = 33; x <= 97; x += 12) { ctx.beginPath(); ctx.moveTo(x, 33); ctx.lineTo(x, 95); ctx.stroke(); }
+      for (let i = 0; i < 6; i++) rr(ctx, 97, 33 + i * 11, 7, 8, 2, i % 2 ? '#3a3f44' : YELLOW);
+      rr(ctx, 28, 36, 14, 20, 3, '#5f6a73', '#333c42', 1.2);
+      rr(ctx, 31, 41, 8, 9, 2, '#8f98a1', '#4a535a', 1);
+      el(ctx, 35, 58, 5, 3, '#4a535a');
+      ln(ctx, [[56, 44], [82, 59]], '#cfd6da', 4.5);
+      el(ctx, 54, 42, 4.6, 4.6, '#cfd6da'); el(ctx, 84, 61, 4.6, 4.6, '#cfd6da');
+      el(ctx, 54, 42, 2, 2, '#5b666f'); el(ctx, 84, 61, 2, 2, '#5b666f');
+      rr(ctx, 56, 72, 30, 18, 3, '#2f3a40', '#1f272b', 1.2);
+      rr(ctx, 59, 75, 24, 12, 2, '#8f98a1');
+      for (const [x, y] of [[64, 79], [69, 83], [74, 78], [78, 84]] as const) el(ctx, x, y, 1.6, 1.6, '#4a535a');
+      break;
+    }
+    case 'bar_stool': {
+      // Tall stool from above: splayed legs, worn metal ring, red cushioned seat.
+      for (const a of [0.6, 2.1, 3.7, 5.2]) {
+        el(ctx, 64 + Math.cos(a) * 27, 64 + Math.sin(a) * 26, 5.5, 4.8, '#3a3f44', '#24282c', 1);
+      }
+      el(ctx, 64, 64, 26, 23, '#3a3f44', '#23272b', 2);
+      el(ctx, 64, 62, 24, 21, '#b5563f', '#7d3325', 1.6);
+      el(ctx, 64, 60, 18, 15, '#c96e51');
+      el(ctx, 60, 57, 6, 4.5, 'rgba(255,232,220,0.22)');
+      ctx.strokeStyle = 'rgba(120,48,34,0.55)'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.ellipse(64, 62, 15, 12, 0, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
+      el(ctx, 64, 62, 2.2, 2.2, '#7d3325');
+      break;
+    }
+    case 'wood_bench': {
+      // Slatted bench: backrest band, two plank seat and peg legs.
+      for (const x of [30, 98]) rr(ctx, x - 5, 80, 10, 12, 2, '#443223', '#291f18', 1);
+      rr(ctx, 14, 26, 100, 18, 5, '#5c4126', '#30251d', 2);
+      rr(ctx, 19, 29, 90, 12, 3, '#a3835a', '#6b4d31', 1);
+      for (const x of [34, 64, 94]) rr(ctx, x - 3, 25, 6, 19, 1.5, '#4a3626');
+      rr(ctx, 16, 45, 96, 34, 5, '#60442d', '#30251d', 2);
+      rr(ctx, 21, 48, 86, 28, 3.5, '#b58a59', '#755334', 1.2);
+      ln(ctx, [[24, 62], [104, 62]], '#8d6a43', 1.4);
+      ln(ctx, [[24, 55], [104, 55]], 'rgba(210,173,122,0.5)', 1);
+      for (const [x, y] of [[27, 51], [101, 51], [27, 73], [101, 73]] as const) el(ctx, x, y, 1.4, 1.4, '#d0aa70');
+      break;
+    }
+    case 'stone_steps': {
+      // Four shallow stone steps receding upward, each with a lighter front lip.
+      const steps: [number, number, number, string, string][] = [
+        [12, 88, 104, '#8b887b', '#5d5d54'],
+        [18, 68, 92, '#a09d90', '#6a6a60'],
+        [24, 48, 80, '#b0ac9d', '#75756a'],
+        [30, 28, 68, '#bcb8a9', '#808076'],
+      ];
+      for (const [x, y, w, fill, line] of steps) {
+        rr(ctx, x, y, w, 23, 4, line);
+        rr(ctx, x, y, w, 19, 4, fill);
+        rr(ctx, x + 4, y + 2, w - 8, 4, 2, 'rgba(255,255,255,0.22)');
+      }
+      for (const [x, y] of [[40, 96], [70, 76], [96, 58], [52, 56], [84, 38]] as const) el(ctx, x, y, 2.2, 1.6, 'rgba(96,96,88,0.45)');
+      break;
+    }
+    case 'wood_steps': {
+      // Pier steps: two stringers plus three nail-fastened plank treads.
+      rr(ctx, 10, 18, 9, 96, 3, WOOD_D, '#31241a', 1.5);
+      rr(ctx, 109, 18, 9, 96, 3, WOOD_D, '#31241a', 1.5);
+      const treads: [number, number, string][] = [[18, 86, '#8a6a44'], [18, 60, '#997a4c'], [18, 34, '#a8885a']];
+      for (const [x, y, fill] of treads) {
+        rr(ctx, x, y, 92, 24, 3, '#4a3626');
+        rr(ctx, x + 2, y + 2, 88, 20, 2.5, fill);
+        ln(ctx, [[x + 6, y + 9], [x + 86, y + 9]], 'rgba(74,54,38,0.32)', 1.2);
+        for (const nx of [x + 8, x + 82]) { el(ctx, nx, y + 6, 1.4, 1.4, '#d8cdb4'); el(ctx, nx, y + 18, 1.4, 1.4, '#d8cdb4'); }
+      }
+      break;
+    }
+    case 'berry_bush': {
+      // Layered shrub with red berries and a few purple ones for silhouette depth.
+      el(ctx, 64, 74, 50, 34, '#26382c', '#1c2a21', 2);
+      const blobs: [number, number, number, number, string][] = [
+        [42, 62, 20, 16, '#3b573f'], [64, 52, 24, 18, '#446248'], [88, 64, 20, 16, '#3b573f'],
+        [52, 78, 22, 15, '#4c6b4d'], [80, 80, 20, 14, '#456346'], [64, 72, 22, 16, '#52714f'],
+      ];
+      for (const [x, y, rx, ry, fill] of blobs) el(ctx, x, y, rx, ry, fill, 'rgba(32,46,34,0.7)', 1);
+      for (const [x, y, rx, ry] of [[38, 56, 8, 5], [58, 44, 9, 5], [92, 56, 7, 5], [46, 72, 8, 5], [76, 62, 8, 4.5]] as const) {
+        el(ctx, x, y, rx, ry, '#6f8f5e', 'rgba(60,84,54,0.5)', 0.8);
+      }
+      const berries: [number, number, string][] = [
+        [46, 58, '#c0392b'], [55, 66, '#d1493a'], [62, 48, '#b8342a'], [70, 58, '#cf4436'],
+        [78, 66, '#b8342a'], [54, 80, '#d1493a'], [68, 78, '#c0392b'], [84, 76, '#a83227'],
+        [40, 70, '#6b3d6a'], [74, 46, '#6b3d6a'],
+      ];
+      for (const [x, y, fill] of berries) {
+        el(ctx, x, y, 3.6, 3.2, fill, 'rgba(60,22,18,0.45)', 0.8);
+        el(ctx, x - 1.1, y - 1.2, 1.2, 0.9, 'rgba(255,214,200,0.6)');
+      }
+      break;
+    }
+    case 'thorn_bush': {
+      // Dry bramble: angular dark mass, pale thorns, sparse purple fruit.
+      pg(ctx, [[20, 82], [30, 56], [50, 40], [66, 30], [86, 42], [104, 62], [100, 88], [78, 98], [46, 96]], '#2f4433');
+      pg(ctx, [[28, 80], [38, 60], [56, 48], [72, 40], [88, 52], [96, 72], [86, 88], [60, 92]], '#3d5741');
+      for (const [x, y, rx, ry] of [[46, 66, 16, 12], [66, 56, 17, 12], [80, 74, 14, 11], [56, 82, 14, 10]] as const) el(ctx, x, y, rx, ry, '#4a664a', 'rgba(34,48,34,0.7)', 1);
+      ctx.strokeStyle = '#c8bfa2'; ctx.lineWidth = 1.8; ctx.lineCap = 'round';
+      for (const [x, y, a] of [[38, 62, -0.7], [52, 50, -1.1], [74, 44, -0.5], [90, 60, 0.2], [94, 80, 0.8], [66, 90, 1.6], [44, 84, 2.2]] as const) {
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * 9, y + Math.sin(a) * 9); ctx.stroke();
+      }
+      for (const [x, y] of [[58, 62], [74, 70], [48, 76]] as const) el(ctx, x, y, 3, 2.8, '#6b3d6a', 'rgba(60,26,58,0.5)', 0.7);
+      break;
+    }
+    case 'duck_throne': {
+      // Stepped stone dais, carved wooden back with a crown crest, buttoned cushion.
+      rr(ctx, 16, 96, 96, 20, 5, '#8b877a', '#5b5a51', 2);
+      rr(ctx, 24, 80, 80, 20, 4, '#a8a294', '#6b6a5f', 2);
+      rr(ctx, 30, 12, 68, 74, 10, '#5c4126', '#31241a', 2.2);
+      rr(ctx, 35, 17, 58, 62, 8, '#8f6a3c', '#5c442a', 1.4);
+      rr(ctx, 44, 30, 40, 7, 2.5, '#d4b66a', '#7a6234', 1);
+      pg(ctx, [[47, 30], [51, 20], [57, 28], [64, 17], [71, 28], [77, 20], [81, 30]], '#d9bd77');
+      el(ctx, 64, 33.5, 3, 3, '#a83a33', '#6f2420', 0.8);
+      rr(ctx, 39, 52, 50, 40, 8, '#6f241f', '#4a1512', 2);
+      rr(ctx, 43, 56, 42, 32, 6, '#a83a33', '#712621', 1.2);
+      rr(ctx, 46, 58, 36, 12, 4, 'rgba(255,150,130,0.2)');
+      for (const [x, y] of [[55, 70], [64, 70], [73, 70], [55, 80], [64, 80], [73, 80]] as const) el(ctx, x, y, 1.6, 1.6, '#6f241f');
+      rr(ctx, 24, 50, 12, 42, 4, '#7a5a35', '#4a3626', 1.6);
+      rr(ctx, 92, 50, 12, 42, 4, '#7a5a35', '#4a3626', 1.6);
+      rr(ctx, 24, 47, 12, 9, 4, '#d4b66a', '#7a6234', 1.2);
+      rr(ctx, 92, 47, 12, 9, 4, '#d4b66a', '#7a6234', 1.2);
+      for (const [x, y] of [[34, 20], [94, 20], [34, 78], [94, 78]] as const) el(ctx, x, y, 2, 2, '#d4b66a', '#7a6234', 0.7);
+      break;
+    }
+    case 'nest_cluster': {
+      // Brooding nest: deep bowl, straw rim, five eggs and a hatched shell.
+      el(ctx, 64, 74, 56, 38, '#5b402b', '#33271d', 2);
+      el(ctx, 64, 70, 50, 32, '#8a6238', '#5c4126', 2);
+      el(ctx, 64, 67, 43, 26, '#4a3626');
+      ctx.strokeStyle = '#c59a5e'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+      for (let i = 0; i < 9; i++) {
+        const a = 0.25 + i * 0.31;
+        const x = 64 + Math.cos(a) * 47, y = 70 + Math.sin(a) * 30;
+        ctx.beginPath(); ctx.moveTo(x - Math.sin(a) * 7, y + Math.cos(a) * 5); ctx.lineTo(x + Math.sin(a) * 7, y - Math.cos(a) * 5); ctx.stroke();
+      }
+      ctx.strokeStyle = 'rgba(240,214,164,0.55)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(64, 70, 40, 24, 0, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();
+      for (const [x, y, r] of [[48, 66, 8], [64, 60, 9], [80, 67, 7.5], [56, 78, 7], [74, 79, 6.5]] as const) {
+        el(ctx, x, y, r * 0.74, r, '#f0e6ca', '#ad966d', 1);
+        el(ctx, x - 2, y - 3, 1.5, 2.2, 'rgba(255,255,255,0.7)');
+      }
+      pg(ctx, [[86, 46], [92, 40], [98, 46], [104, 40], [108, 50], [102, 54], [96, 52], [90, 54]], '#efe3c6');
+      ctx.strokeStyle = '#ad966d'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(86, 46);
+      for (const [x, y] of [[92, 40], [98, 46], [104, 40], [108, 50], [102, 54], [96, 52], [90, 54]] as const) ctx.lineTo(x, y);
+      ctx.closePath(); ctx.stroke();
+      el(ctx, 34, 52, 8, 4, '#efe6d0', 'rgba(160,146,116,0.7)', 0.8);
+      ln(ctx, [[34, 52], [40, 50]], '#c9bda0', 1);
+      break;
+    }
+    case 'crate_stack': {
+      // Two crates below, one stacked on top, each with cross bracing and a stencil.
+      const crate = (x: number, y: number, w: number, h: number, fill: string) => {
+        rr(ctx, x, y, w, h, 3, '#4e3a26', '#2c2118', 1.8);
+        rr(ctx, x + 3, y + 3, w - 6, h - 6, 2.5, fill, '#6f5334', 1.2);
+        ln(ctx, [[x + 6, y + 6], [x + w - 6, y + h - 6]], 'rgba(74,54,38,0.45)', 2.5);
+        ln(ctx, [[x + w - 6, y + 6], [x + 6, y + h - 6]], 'rgba(74,54,38,0.45)', 2.5);
+        rr(ctx, x + 2, y + 2, w - 4, 4, 2, 'rgba(255,236,200,0.16)');
+      };
+      crate(16, 56, 46, 44, '#9d7b4d');
+      crate(66, 60, 46, 40, '#a9885a');
+      crate(38, 18, 50, 40, '#b38f5f');
+      rr(ctx, 52, 30, 22, 12, 2, 'rgba(58,44,28,0.32)');
+      el(ctx, 59, 36, 3.4, 3, '#d9c9a4'); el(ctx, 66, 36, 2.2, 2.4, '#d9c9a4');
+      break;
+    }
+    case 'hay_bale': {
+      // Round-cornered straw bale with binder straps and cut-straw texture.
+      rr(ctx, 16, 30, 96, 70, 16, '#7d6430', '#4e3f1f', 2);
+      rr(ctx, 20, 34, 88, 62, 14, '#b8923f', '#8a6c31', 1.5);
+      rr(ctx, 24, 38, 80, 54, 12, '#d0aa4e');
+      ctx.strokeStyle = 'rgba(150,116,44,0.5)'; ctx.lineWidth = 1.2; ctx.lineCap = 'round';
+      for (let i = 0; i < 16; i++) {
+        const y = 42 + (i % 8) * 6.4, x = 28 + (i % 4) * 18;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 12, y + (i % 3) - 1); ctx.stroke();
+      }
+      for (const x of [44, 76]) {
+        rr(ctx, x, 31, 8, 68, 2, '#6d5a2f', '#4a3d20', 1);
+        rr(ctx, x + 2, 33, 3, 64, 1.5, 'rgba(240,220,170,0.22)');
+      }
+      el(ctx, 64, 66, 24, 12, 'rgba(90,70,30,0.14)');
+      break;
+    }
   }
 }
+
+/** 所有程序化道具种类（供审查图 / 预览页枚举，顺序即分组顺序）。 */
+export const SCENERY_KINDS: SceneryProp['kind'][] = [
+  'delivery_truck', 'pickup_truck', 'dump_truck', 'container_truck', 'flatbed',
+  'rowboat', 'fishing_boat', 'speedboat',
+  'barrels', 'bollard', 'crane', 'crate_stack', 'hay_bale',
+  'fountain', 'duck_king_statue', 'billboard', 'vending_machine', 'ice_beacon', 'king_vault_gate',
+  'wood_table', 'wood_bench', 'bar_stool', 'metal_workbench',
+  'stone_steps', 'wood_steps', 'duck_throne', 'nest_cluster', 'egg_nest',
+  'berry_bush', 'thorn_bush', 'potted_flower',
+  'bed', 'table_map_cup', 'table_field_kit', 'wood_chair', 'bedside_cabinet',
+];
 
 /** 绘制单件道具：深色底座投影 + 主体（与游戏其它物体一致的投影画法）。 */
 export function drawScenery(ctx: CanvasRenderingContext2D, p: SceneryProp) {
@@ -361,13 +584,16 @@ export function drawScenery(ctx: CanvasRenderingContext2D, p: SceneryProp) {
   // 底座投影：水面小船投影略窄，车辆偏长，统一用椭圆近似
   const ship = p.kind === 'rowboat' || p.kind === 'fishing_boat' || p.kind === 'speedboat';
   const bed = p.kind === 'bed';
-  const compact = p.kind === 'table_map_cup' || p.kind === 'table_field_kit' || p.kind === 'wood_chair' || p.kind === 'bedside_cabinet' || p.kind === 'potted_flower' || p.kind === 'egg_nest' || p.kind === 'ice_beacon';
+  const flat = p.kind === 'wood_table' || p.kind === 'wood_bench' || p.kind === 'stone_steps' || p.kind === 'wood_steps'
+    || p.kind === 'metal_workbench' || p.kind === 'duck_throne' || p.kind === 'nest_cluster' || p.kind === 'hay_bale';
+  const compact = p.kind === 'table_map_cup' || p.kind === 'table_field_kit' || p.kind === 'wood_chair' || p.kind === 'bedside_cabinet' || p.kind === 'potted_flower' || p.kind === 'egg_nest' || p.kind === 'ice_beacon'
+    || p.kind === 'bar_stool' || p.kind === 'berry_bush' || p.kind === 'thorn_bush' || p.kind === 'crate_stack';
   const gate = p.kind === 'king_vault_gate';
   ctx.fillStyle = 'rgba(15,22,10,0.3)';
   ctx.beginPath();
-  ctx.ellipse(4, 7, ship ? 30 : compact ? 34 : gate ? 48 : 42, ship ? 48 : bed ? 48 : compact ? 29 : gate ? 38 : 40, 0, 0, TAU);
+  ctx.ellipse(4, 7, ship ? 30 : flat ? 50 : compact ? 34 : gate ? 48 : 42, ship ? 48 : bed ? 48 : flat ? 34 : compact ? 29 : gate ? 38 : 40, 0, 0, TAU);
   ctx.fill();
-  if (!ship && !compact && !bed && !gate) { ctx.beginPath(); ctx.ellipse(4, 7, 44, 30, 0, 0, TAU); ctx.fill(); }
+  if (!ship && !compact && !bed && !gate && !flat) { ctx.beginPath(); ctx.ellipse(4, 7, 44, 30, 0, 0, TAU); ctx.fill(); }
 
   drawAsset(ctx, p.kind);
   ctx.restore();

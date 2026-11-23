@@ -8,7 +8,8 @@
     "build": "vite build",
     "build:minigame": "vite build --config vite.minigame.config.ts",
     "typecheck": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "art:props": "node art_assets/build-gallery.mjs"
   },
   "dependencies": {
     "clsx": "2.1.1",
