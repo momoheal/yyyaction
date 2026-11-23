@@ -1585,9 +1585,18 @@ export class Game {
       else { out.x = 0; out.y = 0; }
     }
     else {
-      const p = this.player;
-      const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1;
-      out.x = (dx / d) * speed; out.y = (dy / d) * speed;
+      // No flow route (typically the player is across a lake). Head for the
+      // closest walkable cell near the player instead of charging into the
+      // shoreline and being pushed back every frame.
+      const goal = this.nav.nearestOpen(this.player.x, this.player.y);
+      let dx = goal.x - e.x, dy = goal.y - e.y, d = Math.hypot(dx, dy);
+      if (d < 1) {
+        dx = this.player.x - e.x; dy = this.player.y - e.y; d = Math.hypot(dx, dy) || 1;
+      }
+      const look = Math.min(56, d);
+      if (this.nav.isOpen(e.x + (dx / d) * look, e.y + (dy / d) * look)) {
+        out.x = (dx / d) * speed; out.y = (dy / d) * speed;
+      } else { out.x = 0; out.y = 0; }
     }
   }
 

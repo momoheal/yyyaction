@@ -3,6 +3,7 @@ import { Game, type RaidResult } from '../game/game';
 import { Renderer } from '../game/render';
 import { Input } from '../game/input';
 import { Sfx } from '../game/audio';
+import { Music, trackFor } from '../game/music';
 import { LOADOUTS } from '../game/data';
 import { getRaidMap, type RaidMapId } from '../game/map';
 import { insertScore, loadSave, writeSave, type SaveData, type ScoreEntry } from '../game/storage';
@@ -43,6 +44,7 @@ canvas.width = Math.round(W * Math.min(info.pixelRatio || 1, 2));
 canvas.height = Math.round(H * Math.min(info.pixelRatio || 1, 2));
 
 const sfx = new Sfx();
+const music = new Music();
 const input = new Input(fakeElement as unknown as HTMLElement);
 input.touchMode = true;
 input.enabled = false;
@@ -65,6 +67,7 @@ let revivedThisRaid = false;
 let training = false;
 let hits: Hit[] = [];
 let lastTime = Date.now();
+let musicCombatHold = 0;
 
 function commit(s: SaveData) { save = s; writeSave(s); }
 
@@ -117,6 +120,7 @@ function deploy(kitId: string, isTraining = false) {
     return;
   }
   sfx.unlock();
+  music.unlock();
   const k = affordableLoadout(kitId, s.stash);
   training = isTraining;
   revivedThisRaid = false;
@@ -132,6 +136,7 @@ function deploy(kitId: string, isTraining = false) {
 
 function toMenu() {
   game.startDemo();
+  music.setPaused(false);
   screen = 'menu';
   input.enabled = false;
   input.reset();
@@ -142,6 +147,7 @@ function toMenu() {
 function pause() {
   if (screen !== 'playing') return;
   sfx.play('ui');
+  music.setPaused(true);
   screen = 'paused';
   input.enabled = false;
   input.reset();
@@ -149,6 +155,8 @@ function pause() {
 
 function resume() {
   sfx.unlock();
+  music.unlock();
+  music.setPaused(false);
   sfx.play('ui');
   screen = 'playing';
   input.enabled = true;
@@ -183,11 +191,12 @@ async function watchAd(kind: 'revive' | 'coins') {
 
 function handleUiTap(id: string) {
   sfx.unlock();
+  music.unlock();
   if (id === 'help') { helpOpen = true; sfx.play('ui'); return; }
   if (id === 'closehelp') { helpOpen = false; sfx.play('ui'); return; }
   if (helpOpen) return;
   sfx.play('ui');
-  if (id === 'mute') { commit({ ...save, muted: !save.muted }); sfx.setMuted(save.muted); return; }
+  if (id === 'mute') { commit({ ...save, muted: !save.muted }); sfx.setMuted(save.muted); music.setMuted(save.muted); return; }
   if (id === 'adcoin') { void watchAd('coins'); return; }
   if (id === 'revive') { void watchAd('revive'); return; }
   if (id === 'skiprevive') {
@@ -233,6 +242,7 @@ wx.onShow(() => { lastTime = Date.now(); if (screen === 'playing') pause(); });
 wx.onHide(() => { if (screen === 'playing') pause(); });
 
 sfx.setMuted(save.muted);
+music.setMuted(save.muted);
 
 function loop() {
   const now = Date.now();
@@ -251,6 +261,21 @@ function loop() {
   if (screen === 'playing') game.update(step);
   else if (screen === 'menu') game.updateDemo(step);
   else game.updateIdle(step);
+
+  // Scene-driven procedural soundtrack (synthesised, no mp3 assets).
+  music.update(dt);
+  if (screen === 'playing' || screen === 'gameover') {
+    const p = game.player;
+    const live = game.enemies.filter((e) => !e.dead && e.state !== 'idle' && e.state !== 'search');
+    if (live.some((e) => Math.hypot(e.x - p.x, e.y - p.y) < 1100 && (e.canSee || e.alertT > 0))) musicCombatHold = 3.2;
+    else musicCombatHold = Math.max(0, musicCombatHold - dt);
+    const extracting = (!!game.exZone && game.exProg > 0) || (game.ended && game.outcome === 'extract');
+    const bossType = game.boss && !game.boss.dead ? game.boss.type : null;
+    music.play(trackFor(game.mode, game.mapId, bossType, musicCombatHold > 0, extracting));
+  } else if (screen === 'menu') {
+    music.play('menu');
+  }
+
   renderer.render(game, input, screen, dt);
   const state: UiState = {
     screen, save, kit, mapId, characterId: save.characterId, result,

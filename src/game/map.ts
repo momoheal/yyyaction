@@ -197,13 +197,21 @@ interface RoomDef {
 }
 
 /** Deterministic ground scatter so industrial/harbour maps aren't bare. */
-function scatterDecor(w: number, h: number, count: number, seed: number): Decor[] {
+function scatterDecor(w: number, h: number, count: number, seed: number, water: GameMap['water'] = []): Decor[] {
   const rnd = mulberry32(seed * 7919 + 13);
   const out: Decor[] = [];
+  const inWater = (x: number, y: number) => water.some((p) => p.w && p.h
+    ? x >= p.x - p.w / 2 && x <= p.x + p.w / 2 && y >= p.y - p.h / 2 && y <= p.y + p.h / 2
+    : Math.hypot(x - p.x, y - p.y) <= p.r);
   for (let i = 0; i < count; i++) {
+    let x = 0, y = 0;
+    for (let attempt = 0; attempt < 8; attempt++) {
+      x = 60 + rnd() * (w - 120);
+      y = 60 + rnd() * (h - 120);
+      if (!inWater(x, y)) break;
+    }
     out.push({
-      x: 60 + rnd() * (w - 120),
-      y: 60 + rnd() * (h - 120),
+      x, y,
       t: rnd() < 0.5 ? 2 : 0, // pebbles & tufts suit concrete/asphalt
       s: 3 + rnd() * 5,
       c: Math.floor(rnd() * 4),
@@ -466,7 +474,8 @@ function reframeMap(map: GameMap, dx: number, dy: number, w: number, h: number):
     props: map.props.map(point), floors: map.floors.map(point), decor: map.decor.map(point),
     trees: map.trees.map(point), water: map.water.map(point), roads: map.roads.map(shiftPolyline),
     pads: map.pads.map(point), containers: map.containers.map(point), extractions: map.extractions.map(point),
-    spawns: map.spawns.map(point), enemySpots: map.enemySpots.map(point), reinforce: map.reinforce.map(point),
+    spawns: map.spawns.map((s) => ({ ...s, x: s.x + dx, y: s.y + dy, chick: [s.chick[0] + dx, s.chick[1] + dy] })),
+    enemySpots: map.enemySpots.map(point), reinforce: map.reinforce.map(point),
     zones: map.zones.map(point), tracks: map.tracks.map((y) => y + dy),
   };
 }
@@ -476,8 +485,8 @@ function buildHarbor(): GameMap {
   // Open harbour water along the north edge. Land piers (gaps between the
   // rectangles) jut into the sea: the main quay and the boarding pier.
   const water = [
-    { x: 575, y: 20, r: 0, w: 950, h: 320 },   // western basin (x100..1050)
-    { x: 1700, y: 20, r: 0, w: 700, h: 320 },  // eastern basin (x1350..2050)
+    { x: 575, y: 20, r: 0, w: 950, h: 300 },   // western basin (x100..1050)
+    { x: 1700, y: 20, r: 0, w: 700, h: 300 },  // eastern basin (x1350..2050)
   ];
   const rooms = buildRooms([
     { name: '北岸补给站', x: 210, y: 570, w: 274, h: 180, floor: 'wood', doors: [['s', 0.5], ['e', 0.6]], loot: [['crate', 0.24, 0.3], ['duffel', 0.7, 0.62], ['toolbox', 0.5, 0.75]] },
@@ -538,7 +547,7 @@ function buildHarbor(): GameMap {
       { name: '登船码头', type: 'concrete', x: 2050, y: 190, w: 290, h: 220 },
       { name: '南侧堆货区', type: 'concrete', x: 1150, y: 1450, w: 800, h: 160 },
     ],
-    decor: [...rooms.decor, ...scatterDecor(w, h, 90, 3)], trees: [], tracks: [],
+    decor: [...rooms.decor, ...scatterDecor(w, h, 90, 3, water)], trees: [], tracks: [],
     roads: [
       // Two horizontal arterial roads (west entrance -> east gate)
       [100, 830, 2300, 830],
@@ -724,6 +733,10 @@ function buildHatchery(): GameMap {
       loot: [['weaponcase', 0.2, 0.25], ['crate', 0.8, 0.25], ['safe', 0.5, 0.8]] },
     { name: '东侧巢室', x: 1830, y: 1030, w: 330, h: 250, floor: 'wood', doors: [['n', 0.5], ['w', 0.5]],
       loot: [['medbox', 0.2, 0.2], ['crate', 0.8, 0.3], ['duffel', 0.5, 0.85]] },
+    { name: '东北孵卵室', x: 1430, y: 150, w: 260, h: 220, floor: 'tile', doors: [['s', 0.5], ['w', 0.5]],
+      racks: [[1460, 210, 150, 20]], loot: [['pc', 0.2, 0.2], ['medbox', 0.75, 0.3], ['weaponcase', 0.5, 0.8]] },
+    { name: '南巢育成房', x: 620, y: 1400, w: 300, h: 170, floor: 'wood', doors: [['n', 0.5], ['e', 0.5]],
+      loot: [['crate', 0.2, 0.25], ['duffel', 0.8, 0.3], ['medbox', 0.5, 0.8]] },
   ]);
   const extraCover: Cover[] = [
     ['cargo', 600, 720, 220, 68], ['cargo', 1000, 760, 180, 60], ['cargo', 1480, 700, 200, 70],
@@ -731,11 +744,14 @@ function buildHatchery(): GameMap {
     ['cargo', 1750, 1330, 180, 55], ['cargo', 700, 1380, 180, 55],
     ['wall', 820, 980, 18, 140], ['wall', 1600, 900, 18, 160],
     ['fence', 240, 650, 16, 180], ['fence', 2160, 650, 16, 180],
+    ['wall', 900, 560, 18, 130], ['wall', 1500, 560, 18, 130],
+    ['cargo', 1180, 1040, 180, 56], ['cargo', 1980, 960, 160, 56],
+    ['fence', 700, 1160, 16, 140],
   ];
   const props: SceneryProp[] = [
     { kind: 'delivery_truck', x: 880, y: 620, rot: Math.PI / 2, scale: 1.05 },
     { kind: 'pickup_truck', x: 1570, y: 860, rot: Math.PI / 2, scale: 1.0 },
-    { kind: 'rowboat', x: 760, y: 92, rot: 0, scale: 0.9 },
+    { kind: 'rowboat', x: 960, y: 85, rot: 0, scale: 0.9 },
     { kind: 'barrels', x: 1010, y: 1120, scale: 1.0, rot: 0 },
     { kind: 'crane', x: 2040, y: 900, scale: 1.05, rot: 0 },
     { kind: 'vending_machine', x: 1260, y: 390, rot: 0, scale: 0.8 },
@@ -749,6 +765,10 @@ function buildHatchery(): GameMap {
     { kind: 'berry_bush', x: 1652, y: 1186, rot: 0, scale: 1.0 },
     { kind: 'thorn_bush', x: 986, y: 1180, rot: 0, scale: 1.0 },
     { kind: 'crate_stack', x: 1836, y: 902, rot: 0, scale: 0.95 },
+    { kind: 'nest_cluster', x: 1560, y: 320, rot: 0, scale: 1.0 },
+    { kind: 'berry_bush', x: 2040, y: 420, rot: 0, scale: 0.9 },
+    { kind: 'wood_steps', x: 760, y: 1480, rot: 0, scale: 0.85 },
+    { kind: 'hay_bale', x: 1000, y: 1500, rot: 0, scale: 0.95 },
   ];
   return withBiomeArt(reframeMap({
     w, h, water, props,
@@ -759,7 +779,7 @@ function buildHatchery(): GameMap {
       { name: '鸭后孵化巢', type: 'wood', x: 960, y: 590, w: 520, h: 460 },
       { name: '西侧腐叶道', type: 'concrete', x: 110, y: 700, w: 420, h: 370 },
     ],
-    decor: [...rooms.decor, ...scatterDecor(w, h, 85, 7)], trees: [], tracks: [],
+    decor: [...rooms.decor, ...scatterDecor(w, h, 85, 7, water)], trees: [], tracks: [],
     roads: [[80, 760, 2220, 760], [80, 1360, 2220, 1360], [880, 120, 880, 1500], [1600, 120, 1600, 1500], [1250, 760, 1250, 1060]],
     pads: [{ type: 'field', x: 900, y: 620, w: 500, h: 260 }, ...rooms.pads, { type: 'platform', x: 2100, y: 1420, w: 180, h: 110 }],
     containers: [
@@ -769,10 +789,12 @@ function buildHatchery(): GameMap {
       { type: 'weaponcase', x: 1960, y: 1160, fixedItem: 'frostmp9' },
       { type: 'crate', x: 1280, y: 1300, fixedItem: 'rpg' },
       { type: 'treasure_chest', x: 1435, y: 960 },
-      { type: 'vending', x: 1260, y: 390 }, { type: 'treasure_chest', x: 900, y: 1460 }, { type: 'coin_pile', x: 1900, y: 1450 },
+      { type: 'vending', x: 1260, y: 390 },       { type: 'treasure_chest', x: 900, y: 1460 }, { type: 'coin_pile', x: 1900, y: 1450 },
+      { type: 'weaponcase', x: 1560, y: 330, fixedItem: 'rpg' }, { type: 'medbox', x: 760, y: 1500 },
+      { type: 'treasure_chest', x: 1040, y: 1520 },
     ],
     spawns: [
-      { x: 110, y: 430, chick: [560, 760] }, { x: 1120, y: 120, chick: [1200, 600] },
+      { x: 110, y: 430, chick: [560, 760] }, { x: 560, y: 150, chick: [1200, 600] },
       { x: 2200, y: 520, chick: [1850, 760] }, { x: 200, y: 1500, chick: [700, 1360] },
     ],
     extractions: [{ id: 'A', name: '北岸吊桥', x: 120, y: 220, r: 72 }, { id: 'B', name: '东侧排水门', x: 2160, y: 1430, r: 72 }],
@@ -785,14 +807,18 @@ function buildHatchery(): GameMap {
       { type: 'elite', x: 1750, y: 620, n: 1 }, { type: 'elite', x: 500, y: 1200, n: 1 },
       { type: 'shield', x: 1350, y: 1080, n: 1 }, { type: 'lookout', x: 2000, y: 1250, n: 1 },
       { type: 'bandit', x: 420, y: 500, n: 1 }, { type: 'armored', x: 1900, y: 1200, n: 1 },
+      { type: 'elite', x: 1560, y: 300, n: 1 }, { type: 'shield', x: 760, y: 1500, n: 1 },
+      { type: 'hen', x: 2000, y: 420, n: 1 }, { type: 'bandit', x: 660, y: 1490, n: 1 },
     ],
-    reinforce: [{ x: 150, y: 900 }, { x: 900, y: 150 }, { x: 2000, y: 220 }, { x: 2150, y: 900 }, { x: 400, y: 1480 }, { x: 1700, y: 1500 }, { x: 1150, y: 1400 }],
+    reinforce: [{ x: 150, y: 900 }, { x: 560, y: 150 }, { x: 2000, y: 220 }, { x: 2150, y: 900 }, { x: 400, y: 1480 }, { x: 1700, y: 1500 }, { x: 1150, y: 1400 }, { x: 1560, y: 300 }, { x: 780, y: 1530 }, { x: 2050, y: 420 }],
     zones: [
       { name: '北缘育雏棚', x: -350, y: -250, w: 3000, h: 500 },
       { name: '西侧育雏棚', x: -350, y: 250, w: 1200, h: 650 },
       { name: '中央孵化中庭', x: 850, y: 250, w: 900, h: 650 },
       { name: '鸭后蛋巢', x: 1750, y: 250, w: 900, h: 650 },
       { name: '南侧腐叶区', x: -350, y: 900, w: 3000, h: 950 },
+      { name: '东北孵卵室', x: 1050, y: 150, w: 800, h: 500 },
+      { name: '南巢育成区', x: 450, y: 1350, w: 900, h: 500 },
     ],
   }, 350, 250, 3000, 2100), 'hatchery');
 }
@@ -802,7 +828,7 @@ function buildOutpost(): GameMap {
   const w = 2600, h = 1700;
   const water = [
     { x: 900, y: 820, r: 0, w: 420, h: 220 },
-    { x: 2250, y: 820, r: 0, w: 300, h: 200 },
+    { x: 2450, y: 820, r: 0, w: 300, h: 200 },
   ];
   const rooms = buildRooms([
     { name: '冰封机库', x: 300, y: 300, w: 560, h: 380, floor: 'concrete', doors: [['s', 0.4], ['e', 0.6], ['n', 0.5]],
@@ -817,12 +843,19 @@ function buildOutpost(): GameMap {
       parts: [['v', 1330, 1140, 160, 20]], loot: [['pc', 0.15, 0.2], ['pc', 0.55, 0.2], ['laptop', 0.36, 0.62], ['safe', 0.85, 0.8]] },
     { name: '南机修库', x: 1900, y: 1150, w: 400, h: 300, floor: 'concrete', doors: [['n', 0.5], ['w', 0.5]],
       loot: [['weaponcase', 0.2, 0.2], ['crate', 0.8, 0.3], ['medbox', 0.5, 0.85]] },
+    { name: '冰塔观测所', x: 1500, y: 160, w: 220, h: 240, floor: 'tile', doors: [['s', 0.5], ['w', 0.5]],
+      loot: [['pc', 0.2, 0.2], ['toolbox', 0.75, 0.3], ['safe', 0.5, 0.8]] },
+    { name: '雪下军械库', x: 780, y: 1460, w: 320, h: 200, floor: 'concrete', doors: [['n', 0.5], ['e', 0.5]],
+      racks: [[810, 1510, 160, 20]], loot: [['weaponcase', 0.2, 0.25], ['medbox', 0.8, 0.3], ['crate', 0.5, 0.8]] },
   ]);
   const extraCover: Cover[] = [
     ['cargo', 550, 760, 200, 64], ['cargo', 1250, 760, 220, 64], ['cargo', 1650, 620, 180, 60],
     ['cargo', 2050, 760, 200, 60], ['cargo', 450, 950, 190, 58], ['cargo', 1000, 1250, 190, 58],
     ['cargo', 2100, 1350, 180, 58], ['wall', 1450, 720, 20, 140], ['wall', 1450, 960, 20, 140],
     ['wall', 2350, 500, 18, 160], ['fence', 250, 800, 16, 180], ['fence', 2480, 1050, 16, 180],
+    ['wall', 1000, 620, 18, 120], ['wall', 1550, 620, 18, 120],
+    ['cargo', 830, 1040, 170, 56], ['cargo', 2300, 620, 160, 56],
+    ['fence', 1320, 1480, 16, 140], ['fence', 2480, 1400, 16, 140],
   ];
   const props: SceneryProp[] = [
     { kind: 'dump_truck', x: 700, y: 960, rot: Math.PI / 2, scale: 1.05 },
@@ -840,21 +873,28 @@ function buildOutpost(): GameMap {
     { kind: 'crate_stack', x: 1660, y: 1304, rot: 0, scale: 0.95 },
     { kind: 'metal_workbench', x: 1660, y: 1410, rot: Math.PI / 2, scale: 0.85 },
     { kind: 'wood_bench', x: 842, y: 1062, rot: 0, scale: 0.86 },
+    { kind: 'ice_beacon', x: 1600, y: 280, rot: 0, scale: 1.0 },
+    { kind: 'metal_workbench', x: 950, y: 1560, rot: Math.PI / 2, scale: 0.85 },
+    { kind: 'crate_stack', x: 2280, y: 1360, rot: 0, scale: 0.95 },
+    { kind: 'stone_steps', x: 1900, y: 1120, rot: 0, scale: 0.9 },
+    { kind: 'wood_bench', x: 1000, y: 1500, rot: 0, scale: 0.86 },
   ];
   return withBiomeArt(reframeMap({
     w, h, water, props,
     solids: raidSolids(w, h, [...rooms.cover, ...extraCover], water, [[1180, 1000], [1620, 860], [2050, 1080], [600, 1320]]),
     floors: [
       ...rooms.floors,
-      { name: '冰封中庭', type: 'concrete', x: 900, y: 700, w: 1100, h: 340 },
-      { name: '霜羽元帅雪丘', type: 'concrete', x: 700, y: 430, w: 500, h: 380 },
-      { name: '铁壁统领擂台', type: 'concrete', x: 1690, y: 840, w: 560, h: 440 },
+      { name: '冰封中庭东场', type: 'concrete', x: 1120, y: 700, w: 780, h: 340 },
+      { name: '冰封中庭南岸', type: 'concrete', x: 900, y: 950, w: 220, h: 90 },
+      { name: '霜羽元帅雪丘', type: 'concrete', x: 700, y: 430, w: 500, h: 280 },
+      { name: '铁壁统领擂台东场', type: 'concrete', x: 1950, y: 840, w: 300, h: 440 },
+      { name: '铁壁统领擂台南场', type: 'concrete', x: 1690, y: 940, w: 260, h: 340 },
       { name: '西侧冻土路', type: 'concrete', x: 120, y: 700, w: 400, h: 380 },
       { name: '东侧广场', type: 'concrete', x: 1900, y: 960, w: 560, h: 160 },
     ],
-    decor: [...rooms.decor, ...scatterDecor(w, h, 95, 11)], trees: [], tracks: [],
+    decor: [...rooms.decor, ...scatterDecor(w, h, 95, 11, water)], trees: [], tracks: [],
     roads: [[80, 700, 2520, 700], [80, 1020, 2520, 1020], [850, 120, 850, 1580], [1650, 120, 1650, 1580], [2350, 300, 2350, 1450]],
-    pads: [...rooms.pads, { type: 'platform', x: 2320, y: 180, w: 210, h: 130 }, { type: 'base', x: 900, y: 700, w: 1100, h: 340 }],
+    pads: [...rooms.pads, { type: 'platform', x: 2320, y: 180, w: 210, h: 130 }, { type: 'base', x: 1120, y: 700, w: 780, h: 340 }],
     containers: [
       ...rooms.containers,
       { type: 'crate', x: 760, y: 1050 }, { type: 'medbox', x: 1300, y: 1400 }, { type: 'duffel', x: 2200, y: 1000 },
@@ -862,15 +902,17 @@ function buildOutpost(): GameMap {
       { type: 'safe', x: 2100, y: 1270, fixedItem: 'm4legend' },
       { type: 'crate', x: 500, y: 1200, fixedItem: 'rpg' },
       { type: 'vending', x: 1780, y: 1450 }, { type: 'treasure_chest', x: 1220, y: 1450 }, { type: 'coin_pile', x: 900, y: 1460 },
+      { type: 'weaponcase', x: 1600, y: 280, fixedItem: 'rpg' }, { type: 'medbox', x: 950, y: 1560 },
+      { type: 'treasure_chest', x: 1100, y: 1600 },
     ],
     spawns: [
-      { x: 110, y: 520, chick: [700, 800] }, { x: 1200, y: 100, chick: [1300, 600] },
+      { x: 110, y: 520, chick: [600, 960] }, { x: 1200, y: 100, chick: [1300, 600] },
       { x: 2500, y: 380, chick: [2100, 700] }, { x: 180, y: 1570, chick: [700, 1360] },
     ],
     extractions: [{ id: 'A', name: '北岭撤离台', x: 2430, y: 170, r: 76 }, { id: 'B', name: '南岭运输口', x: 2430, y: 1500, r: 76 }],
     enemySpots: [
       { type: 'frostMarshal', x: 980, y: 600, n: 1 }, { type: 'ironGuard', x: 1800, y: 1010, n: 1 },
-      { type: 'chicken', x: 730, y: 810, n: 3 }, { type: 'chicken', x: 1900, y: 700, n: 3 },
+      { type: 'chicken', x: 600, y: 960, n: 3 }, { type: 'chicken', x: 1900, y: 700, n: 3 },
       { type: 'bandit', x: 620, y: 700, n: 1 }, { type: 'bandit', x: 1300, y: 620, n: 1 },
       { type: 'bandit', x: 1650, y: 1080, n: 1 }, { type: 'bandit', x: 2200, y: 920, n: 1 },
       { type: 'elite', x: 1520, y: 880, n: 1 }, { type: 'elite', x: 2120, y: 1380, n: 1 },
@@ -878,14 +920,18 @@ function buildOutpost(): GameMap {
       { type: 'shield', x: 1080, y: 1180, n: 1 }, { type: 'shield', x: 1720, y: 720, n: 1 },
       { type: 'hen', x: 1450, y: 1300, n: 1 }, { type: 'hen', x: 700, y: 1320, n: 1 },
       { type: 'lookout', x: 2150, y: 150, n: 1 }, { type: 'lookout', x: 2300, y: 1550, n: 1 },
+      { type: 'elite', x: 1600, y: 300, n: 1 }, { type: 'shield', x: 900, y: 1560, n: 1 },
+      { type: 'armored', x: 2200, y: 600, n: 1 }, { type: 'bandit', x: 1000, y: 1500, n: 1 },
     ],
-    reinforce: [{ x: 150, y: 950 }, { x: 780, y: 120 }, { x: 1500, y: 150 }, { x: 2500, y: 700 }, { x: 2450, y: 1180 }, { x: 1000, y: 1580 }, { x: 1900, y: 1600 }],
+    reinforce: [{ x: 150, y: 950 }, { x: 780, y: 120 }, { x: 1500, y: 150 }, { x: 2500, y: 700 }, { x: 2450, y: 1180 }, { x: 1000, y: 1580 }, { x: 1900, y: 1600 }, { x: 1600, y: 300 }, { x: 950, y: 1600 }, { x: 2250, y: 600 }],
     zones: [
       { name: '北缘雷达雪坡', x: -300, y: -250, w: 3200, h: 650 },
       { name: '西侧机库与元帅雪丘', x: -300, y: 400, w: 1200, h: 1050 },
       { name: '冻土中央走廊', x: 900, y: 400, w: 900, h: 1050 },
       { name: '铁壁擂台与东哨所', x: 1800, y: 400, w: 1100, h: 1050 },
       { name: '南侧运输坡', x: -300, y: 1450, w: 3200, h: 500 },
+      { name: '冰塔观测哨', x: 1400, y: 150, w: 500, h: 500 },
+      { name: '雪下军械库', x: 650, y: 1400, w: 650, h: 450 },
     ],
   }, 300, 250, 3200, 2200), 'outpost');
 }
@@ -895,7 +941,7 @@ function buildMausoleum(): GameMap {
   const w = 2800, h = 1800;
   const water = [
     { x: 1000, y: 250, r: 0, w: 260, h: 100 },
-    { x: 1900, y: 900, r: 0, w: 200, h: 120 },
+    { x: 2050, y: 900, r: 0, w: 200, h: 120 },
   ];
   const rooms = buildRooms([
     { name: '王座大厅', x: 1050, y: 650, w: 760, h: 560, floor: 'concrete',
@@ -913,14 +959,23 @@ function buildMausoleum(): GameMap {
       loot: [['crate', 0.2, 0.2], ['toolbox', 0.8, 0.3]] },
     { name: '南库', x: 1350, y: 1400, w: 380, h: 260, floor: 'concrete', doors: [['n', 0.5], ['w', 0.5]],
       loot: [['weaponcase', 0.2, 0.2], ['duffel', 0.8, 0.3]] },
+    { name: '西侧碑亭', x: 120, y: 150, w: 220, h: 220, floor: 'tile', doors: [['s', 0.5], ['e', 0.5]],
+      loot: [['crate', 0.2, 0.2], ['treasure_chest', 0.7, 0.75]] },
+    { name: '东侧祭殿', x: 2520, y: 180, w: 250, h: 300, floor: 'tile', doors: [['s', 0.5], ['w', 0.5]],
+      loot: [['safe', 0.2, 0.2], ['medbox', 0.75, 0.3], ['weaponcase', 0.5, 0.8]] },
+    { name: '碑林回廊', x: 100, y: 820, w: 220, h: 300, floor: 'concrete', doors: [['n', 0.5], ['e', 0.5]],
+      loot: [['crate', 0.2, 0.25], ['duffel', 0.8, 0.3], ['medbox', 0.5, 0.85]] },
   ]);
   const extraCover: Cover[] = [
     ['wall', 1020, 600, 20, 180], ['wall', 1800, 600, 20, 180],
     ['wall', 1020, 1100, 20, 180], ['wall', 1800, 1100, 20, 180],
     ['wall', 900, 1400, 18, 180], ['wall', 2500, 800, 18, 200],
-    ['cargo', 600, 800, 200, 60], ['cargo', 2050, 850, 200, 60], ['cargo', 1750, 1500, 190, 58],
+    ['cargo', 600, 800, 200, 60], ['cargo', 2290, 850, 170, 56], ['cargo', 1750, 1500, 190, 58],
     ['cargo', 650, 1600, 190, 58], ['cargo', 2300, 650, 170, 56],
     ['fence', 250, 850, 16, 240], ['fence', 2540, 1250, 16, 220],
+    ['wall', 980, 500, 18, 160], ['wall', 1820, 500, 18, 160],
+    ['cargo', 760, 1050, 180, 56], ['cargo', 2550, 1080, 160, 56],
+    ['fence', 1000, 1500, 16, 160], ['fence', 2650, 700, 16, 160],
   ];
   const props: SceneryProp[] = [
     { kind: 'container_truck', x: 2500, y: 1600, rot: 0, scale: 1.0 },
@@ -939,6 +994,11 @@ function buildMausoleum(): GameMap {
     { kind: 'stone_steps', x: 1400, y: 598, rot: 0, scale: 0.9 },
     { kind: 'wood_table', x: 1156, y: 826, rot: 0, scale: 0.9 },
     { kind: 'crate_stack', x: 2058, y: 1602, rot: 0, scale: 0.95 },
+    { kind: 'duck_king_statue', x: 2630, y: 320, rot: 0, scale: 0.9 },
+    { kind: 'stone_steps', x: 1400, y: 690, rot: 0, scale: 0.9 },
+    { kind: 'fountain', x: 1800, y: 1520, rot: 0, scale: 0.9 },
+    { kind: 'wood_table', x: 210, y: 980, rot: 0, scale: 0.85 },
+    { kind: 'stone_steps', x: 1100, y: 1400, rot: 0, scale: 0.85 },
   ];
   return withBiomeArt(reframeMap({
     w, h, water, props,
@@ -949,7 +1009,7 @@ function buildMausoleum(): GameMap {
       { name: '王家秘库前厅', type: 'tile', x: 1850, y: 1280, w: 610, h: 430 },
       { name: '神道', type: 'tile', x: 1300, y: 80, w: 220, h: 560 },
     ],
-    decor: [...rooms.decor, ...scatterDecor(w, h, 100, 13)], trees: [], tracks: [],
+    decor: [...rooms.decor, ...scatterDecor(w, h, 100, 13, water)], trees: [], tracks: [],
     roads: [[120, 1000, 2680, 1000], [120, 1550, 2680, 1550], [250, 120, 250, 1650], [1400, 100, 1400, 1700], [2550, 120, 2550, 1650]],
     pads: [...rooms.pads, { type: 'platform', x: 2450, y: 1550, w: 250, h: 140 }, { type: 'base', x: 1000, y: 650, w: 800, h: 600 }],
     containers: [
@@ -962,6 +1022,8 @@ function buildMausoleum(): GameMap {
       { type: 'safe', x: 1500, y: 1490, fixedItem: 'frostmp9' },
       { type: 'vending', x: 2600, y: 1080 }, { type: 'treasure_chest', x: 800, y: 520 }, { type: 'coin_pile', x: 1960, y: 520 },
       { type: 'treasure_chest', x: 2000, y: 1540 }, { type: 'coin_pile', x: 2340, y: 1540 },
+      { type: 'weaponcase', x: 260, y: 280, fixedItem: 'rpg' }, { type: 'treasure_chest', x: 200, y: 1000 },
+      { type: 'medbox', x: 2600, y: 400 }, { type: 'safe', x: 2600, y: 1150 },
     ],
     spawns: [
       { x: 110, y: 600, chick: [620, 800] }, { x: 1350, y: 100, chick: [1400, 520] },
@@ -979,14 +1041,18 @@ function buildMausoleum(): GameMap {
       { type: 'hen', x: 600, y: 1000, n: 1 }, { type: 'lookout', x: 1300, y: 400, n: 1 },
       { type: 'lookout', x: 2500, y: 1450, n: 1 }, { type: 'bandit', x: 500, y: 1000, n: 1 },
       { type: 'bandit', x: 2000, y: 1050, n: 1 }, { type: 'chicken', x: 900, y: 1550, n: 4 },
+      { type: 'elite', x: 260, y: 300, n: 1 }, { type: 'shield', x: 200, y: 960, n: 1 },
+      { type: 'armored', x: 2600, y: 350, n: 1 }, { type: 'shield', x: 2600, y: 1150, n: 1 },
     ],
-    reinforce: [{ x: 150, y: 1050 }, { x: 1150, y: 120 }, { x: 2150, y: 180 }, { x: 2650, y: 900 }, { x: 2650, y: 1400 }, { x: 750, y: 1720 }, { x: 1800, y: 1720 }],
+    reinforce: [{ x: 150, y: 1050 }, { x: 1150, y: 120 }, { x: 2150, y: 180 }, { x: 2650, y: 900 }, { x: 2650, y: 1400 }, { x: 750, y: 1720 }, { x: 1800, y: 1720 }, { x: 250, y: 300 }, { x: 2600, y: 350 }, { x: 200, y: 1000 }],
     zones: [
       { name: '北侧神道与殿廊', x: -300, y: -250, w: 3400, h: 700 },
       { name: '西侧禁卫与西宝库', x: -300, y: 450, w: 1200, h: 1000 },
       { name: '王座大厅', x: 900, y: 450, w: 900, h: 1000 },
       { name: '东侧王家秘库', x: 1800, y: 450, w: 1300, h: 1000 },
       { name: '南侧外陵与运输道', x: -300, y: 1450, w: 3400, h: 550 },
+      { name: '西侧碑亭与碑林', x: -200, y: 100, w: 600, h: 1250 },
+      { name: '东侧祭殿', x: 2400, y: 100, w: 600, h: 700 },
     ],
   }, 300, 250, 3400, 2300), 'mausoleum');
 }
