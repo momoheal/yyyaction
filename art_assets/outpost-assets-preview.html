@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>霜锋哨站 · 新增程序化美术资产</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 28px 32px 40px;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: #1d2c31;
+    background:
+      radial-gradient(circle at 18% 12%, rgba(255,255,255,.95) 0 2px, transparent 3px),
+      radial-gradient(circle at 72% 34%, rgba(255,255,255,.9) 0 2px, transparent 3px),
+      linear-gradient(160deg, #dce9ec 0%, #cbdde2 55%, #bcd1d8 100%);
+  }
+  h1 { margin: 0 0 6px; font-size: 24px; letter-spacing: .5px; }
+  p.lead { margin: 0 0 24px; color: #4d6972; font-size: 13px; }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(220px, 1fr)); gap: 16px; max-width: 1080px; }
+  .card {
+    background: rgba(255,255,255,.86); border: 1px solid #a9c3ca; border-radius: 14px;
+    padding: 12px 14px 14px; box-shadow: 0 8px 24px rgba(49,84,96,.12);
+  }
+  .art { height: 190px; display: grid; place-items: center; border-radius: 10px; background: linear-gradient(#eef6f7, #d9e9ec); }
+  canvas { width: 180px; height: 180px; }
+  .name { margin-top: 10px; font-size: 15px; font-weight: 700; }
+  .id { font-family: ui-monospace, Consolas, monospace; font-size: 11px; color: #6f8b94; margin-top: 2px; }
+  .desc { font-size: 12px; color: #54717a; margin-top: 6px; line-height: 1.5; }
+  .note {
+    max-width: 1080px; margin-top: 20px; padding: 14px 18px; border-left: 4px solid #4a9bb2;
+    background: rgba(255,255,255,.82); border-radius: 8px; font-size: 13px; line-height: 1.7;
+  }
+  .badge { display: inline-block; background: #2e7f96; color: #fff; border-radius: 5px; padding: 1px 6px; font-size: 10px; margin-left: 6px; vertical-align: 2px; }
+</style>
+</head>
+<body>
+  <h1>霜锋哨站 · 新增程序化美术资产</h1>
+  <p class="lead">双 BOSS 地图专属氛围道具 · 与地图 1 同套 Canvas 几何绘制 / 配色 / 投影规范 · 128×128 逻辑画布</p>
+  <div class="grid" id="grid"></div>
+  <div class="note">
+    <strong>雪松替换说明：</strong>哨站边缘的尖角雪松已移除，树冠改为直接复用地图 1 的团簇灌木几何（同一组 blobs 与配色），只在上缘叠加雪弧、雪帽和霜点；地面灌木同步加雪，不再出现突兀的针叶树剪影。
+  </div>
+<script src="./props-bundle.js"></script>
+<script>
+const items = [
+  ['ice_block', '冰块堆', '三块半透明冰方箱，顶面压雪、侧面带冰裂纹。'],
+  ['ice_crystal', '冰晶簇', '三支矮冰棱，冷蓝分面配亮白 frost 边缘。'],
+  ['fighter_jet', '战斗机', '俯视战机：后掠翼、座舱盖、雪地迷彩与机翼徽记，停在北部停机坪。'],
+  ['lava_pool', '熔岩池', '玄武岩外圈 + 径向热梯度 + 漂浮黑色熔壳与亮缝。'],
+  ['lava_fissure', '熔岩裂隙', '狭长喷发裂缝，亮白熔芯穿过多段黑色岩缘。'],
+];
+const grid = document.getElementById('grid');
+for (const [kind, name, desc] of items) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = '<div class="art"><canvas width="360" height="360"></canvas></div>' +
+    '<div class="name">' + name + '<span class="badge">NEW</span></div>' +
+    '<div class="id">' + kind + '</div><div class="desc">' + desc + '</div>';
+  grid.appendChild(card);
+  const ctx = card.querySelector('canvas').getContext('2d');
+  ctx.scale(2.8125, 2.8125);
+  window.drawScenery(ctx, { kind, x: 64, y: 64, rot: 0, scale: 1 });
+}
+</script>
+</body>
+</html>

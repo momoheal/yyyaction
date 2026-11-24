@@ -1,4 +1,4 @@
-import { ARMORS, ENEMIES, EXTRACT_TIME, RARITY_COLORS, RARITY_RGB, SEARCH_TIME, THROWABLE_IDS, THROWABLES, fmtMoney, fmtTime, type CharacterId, type WeaponDef } from './data';
+import { ARMOR_ART_CELL, ENEMIES, EXTRACT_TIME, RARITY_COLORS, RARITY_RGB, SEARCH_TIME, THROWABLE_IDS, THROWABLES, fmtMoney, fmtTime, type CharacterId, type WeaponDef } from './data';
 import { F_SIGHT, type FloorType, type GameMap, type RaidMapId, type Solid } from './map';
 import { bagUi, hudScale, type Input } from './input';
 import { P_CASING, P_DEBRIS, P_DUST, P_FEATHER, P_FIRE, P_MUZZLE, P_RING, P_SMOKE, P_SPARK, P_STAR, TAU, type Container, type Enemy, type Game } from './game';
@@ -32,7 +32,7 @@ const STYLES: Record<Enemy['type'], DuckStyle> = {
   foundryBoss: { ...ST_GOOSE, body: '#b38e7b', wing: '#75554b', head: '#d9bc9d', vest: '#523840', helmet: '#574147', visor: '#ff8542' },
   broodQueen: { body: '#e7e9c4', wing: '#a8bf72', head: '#f6f3d9', beak: '#ffb43b', vest: '#6c8247', band: '#ffd75e' },
   frostMarshal: { body: '#d9f2fc', wing: '#87b9d4', head: '#eefaff', beak: '#7fd8ef', vest: '#3d6b85', helmet: '#9fdcf2', visor: '#d9f6ff' },
-  ironGuard: { body: '#aebac6', wing: '#6f7c8b', head: '#d6e0e9', beak: '#ffb771', vest: '#414b57', helmet: '#5b6876', visor: '#9cc8ff' },
+  ironGuard: { body: '#241a1e', wing: '#120f12', head: '#2c2226', beak: '#d94b3f', vest: '#0d0b0d', helmet: '#3a1216', visor: '#ff3b30' },
   duckKing: { body: '#ffdf7d', wing: '#d4a12e', head: '#fff1bd', beak: '#ff9a1f', vest: '#5b2d78', helmet: '#7a4a9e', band: '#ffd75e', visor: '#b56cff' },
 };
 
@@ -71,16 +71,6 @@ function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: n
 function ell(ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, ry: number, rot = 0) {
   ctx.beginPath();
   ctx.ellipse(x, y, Math.max(0.01, rx), Math.max(0.01, ry), rot, 0, TAU);
-  ctx.fill();
-}
-
-function pg(ctx: CanvasRenderingContext2D, points: number[][], fill: string) {
-  if (!points.length) return;
-  ctx.fillStyle = fill;
-  ctx.beginPath();
-  ctx.moveTo(points[0][0], points[0][1]);
-  for (let i = 1; i < points.length; i++) ctx.lineTo(points[i][0], points[i][1]);
-  ctx.closePath();
   ctx.fill();
 }
 
@@ -275,7 +265,7 @@ export class Renderer {
   private gearIconCache = new Map<string, HTMLImageElement>();
   private armorIconAtlas = new Image();
   private canopies: HTMLCanvasElement[] = [];
-  private snowCanopies: HTMLCanvasElement[] = [];
+  private snowBushCanopies: HTMLCanvasElement[] = [];
   private scorch!: HTMLCanvasElement;
   private minimap: HTMLCanvasElement | null = null;
   private vignette: HTMLCanvasElement | null = null;
@@ -395,6 +385,7 @@ export class Renderer {
     }
     // canopies
     const pals = [['#2d4f24', '#3f6b2f', '#4f7f38', '#6a9a48'], ['#284a22', '#355f2c', '#47753a', '#5f8f45'], ['#33501f', '#4a6f2a', '#5d8636', '#7aa04a']];
+    const canopyBlobs: [number, number, number][][] = [];
     for (let v = 0; v < 3; v++) {
       const c = mk(220, 220), g = c.getContext('2d')!;
       const P = pals[v];
@@ -403,6 +394,7 @@ export class Renderer {
         const a = (i / 7) * TAU + rnd() * 0.5, d = 38 + rnd() * 14;
         blobs.push([110 + Math.cos(a) * d, 110 + Math.sin(a) * d, 34 + rnd() * 14]);
       }
+      canopyBlobs.push(blobs);
       g.fillStyle = P[0];
       for (const b of blobs) ell(g, b[0], b[1], b[2] + 5, b[2] + 5);
       g.fillStyle = P[1];
@@ -416,24 +408,33 @@ export class Renderer {
       }
       this.canopies.push(c);
     }
-    const pinePals = [
-      ['#173f48', '#21545d', '#2f6a72', '#dcebed'],
-      ['#1b3d4c', '#265568', '#387589', '#e6f1f2'],
-      ['#17433f', '#205a53', '#32796d', '#e5f0e9'],
-    ];
+    // Snowy outpost bushes: reuse the exact map-1 bush blobs, then lay snow on top.
     for (let v = 0; v < 3; v++) {
-      const c = mk(220, 220), g = c.getContext('2d')!, p = pinePals[v];
-      const outline = [[110, 15], [128, 66], [164, 46], [145, 86], [190, 94], [148, 113], [174, 151], [128, 137], [110, 204], [92, 137], [46, 151], [72, 113], [30, 94], [75, 86], [56, 46], [92, 66]];
-      pg(g, outline, '#102a31');
-      const canopy = [[110, 23], [124, 68], [155, 51], [139, 88], [178, 95], [142, 113], [163, 145], [124, 133], [110, 190], [96, 133], [57, 145], [78, 113], [42, 95], [81, 88], [65, 51], [96, 68]];
-      pg(g, canopy, p[0]);
-      pg(g, [[110, 34], [124, 75], [149, 61], [134, 91], [165, 97], [137, 113], [153, 136], [120, 128], [110, 174], [100, 128], [67, 136], [83, 113], [55, 97], [86, 91], [71, 61], [96, 75]], p[1]);
-      pg(g, [[108, 54], [121, 83], [139, 72], [130, 95], [150, 99], [130, 111], [140, 128], [116, 121], [108, 153], [101, 121], [79, 128], [88, 111], [69, 99], [88, 95], [78, 72], [96, 83]], p[2]);
-      g.fillStyle = 'rgba(244,252,252,0.9)';
-      for (const [x, y, rx, ry] of [[93, 64, 16, 7], [131, 88, 18, 7], [83, 105, 17, 6], [140, 128, 15, 6], [99, 143, 18, 7], [112, 48, 12, 5]] as [number, number, number, number][]) ell(g, x, y, rx, ry, -0.25);
-      g.fillStyle = 'rgba(255,255,255,0.82)';
-      for (let i = 0; i < 13; i++) ell(g, 44 + ((i * 47 + v * 19) % 132), 45 + ((i * 61 + v * 13) % 128), 1.2 + (i % 3), 1 + (i % 2));
-      this.snowCanopies.push(c);
+      const c = mk(220, 220), g = c.getContext('2d')!, P = pals[v], blobs = canopyBlobs[v];
+      const srnd = seeded(4100 + v * 17);
+      g.fillStyle = P[0];
+      for (const b of blobs) ell(g, b[0], b[1], b[2] + 5, b[2] + 5);
+      g.fillStyle = P[1];
+      for (const b of blobs) ell(g, b[0], b[1], b[2], b[2]);
+      g.fillStyle = P[2];
+      for (const b of blobs) ell(g, b[0] - b[2] * 0.25, b[1] - b[2] * 0.25, b[2] * 0.68, b[2] * 0.68);
+      g.fillStyle = 'rgba(210,233,236,0.22)';
+      for (const b of blobs) ell(g, b[0] + b[2] * 0.12, b[1] + b[2] * 0.22, b[2] * 0.78, b[2] * 0.56);
+      g.strokeStyle = 'rgba(246,253,253,0.94)'; g.lineCap = 'round';
+      for (const [x, y, rad] of blobs) {
+        g.lineWidth = Math.max(7, rad * 0.3);
+        g.beginPath(); g.arc(x, y, rad * 0.82, Math.PI * 1.1, Math.PI * 1.9); g.stroke();
+      }
+      g.fillStyle = 'rgba(252,254,254,0.96)';
+      for (const [x, y, rad] of blobs) ell(g, x - rad * 0.14, y - rad * 0.48, rad * 0.6, rad * 0.27, -0.12);
+      g.fillStyle = P[3];
+      for (let i = 0; i < 9; i++) {
+        const b = blobs[Math.floor(srnd() * blobs.length)];
+        ell(g, b[0] - b[2] * 0.4 + srnd() * 6, b[1] - b[2] * 0.4 + srnd() * 6, 5 + srnd() * 8, 4 + srnd() * 6);
+      }
+      g.fillStyle = 'rgba(255,255,255,0.85)';
+      for (let i = 0; i < 14; i++) ell(g, 38 + srnd() * 144, 38 + srnd() * 140, 1 + srnd() * 2.2, 1 + srnd() * 1.6);
+      this.snowBushCanopies.push(c);
     }
     // scorch
     {
@@ -515,10 +516,10 @@ export class Renderer {
         this.ctx.drawImage(this.emoji('GUN'), x - size / 2, y - size / 2, size, size);
         return;
       }
-      const armorIndex = ARMORS.findIndex((armor) => armor.id === id);
-      if (armorIndex >= 0 && this.armorIconAtlas.complete && this.armorIconAtlas.naturalWidth > 0) {
-        const cell = this.armorIconAtlas.naturalWidth / ARMORS.length;
-        this.ctx.drawImage(this.armorIconAtlas, armorIndex * cell, 0, cell, this.armorIconAtlas.naturalHeight, x - size / 2, y - size / 2, size, size);
+      const armorArt = ARMOR_ART_CELL[id];
+      if (armorArt !== undefined && this.armorIconAtlas.complete && this.armorIconAtlas.naturalWidth > 0) {
+        const cell = this.armorIconAtlas.naturalWidth / 3;
+        this.ctx.drawImage(this.armorIconAtlas, armorArt * cell, 0, cell, this.armorIconAtlas.naturalHeight, x - size / 2, y - size / 2, size, size);
         return;
       }
       this.ctx.drawImage(this.emoji('🦺'), x - size / 2, y - size / 2, size, size);
@@ -903,16 +904,16 @@ export class Renderer {
       if (o.x > v.l && o.x < v.r && o.y > v.t && o.y < v.b) vis.push(i);
     }
     // bushes
-    ctx.fillStyle = swamp ? '#536b39' : crypt ? '#586244' : '#3f6a2e';
+    ctx.fillStyle = swamp ? '#536b39' : crypt ? '#586244' : cold ? '#496b50' : '#3f6a2e';
     ctx.beginPath();
     for (const i of vis) { const o = d[i]; if (o.t !== 3) continue; ctx.moveTo(o.x + o.s, o.y); ctx.arc(o.x, o.y, o.s, 0, TAU); ctx.moveTo(o.x + o.s * 0.9 + o.s * 0.6, o.y + 4); ctx.arc(o.x + o.s * 0.6, o.y + 4, o.s * 0.9, 0, TAU); }
     ctx.fill();
-    ctx.fillStyle = swamp ? '#82954f' : crypt ? '#7d8150' : '#548a3c';
+    ctx.fillStyle = swamp ? '#82954f' : crypt ? '#7d8150' : cold ? '#8ba99a' : '#548a3c';
     ctx.beginPath();
     for (const i of vis) { const o = d[i]; if (o.t !== 3) continue; ctx.moveTo(o.x - 3 + o.s * 0.6, o.y - 3); ctx.arc(o.x - 3, o.y - 3, o.s * 0.6, 0, TAU); }
     ctx.fill();
-    if (swamp || crypt) {
-      ctx.fillStyle = swamp ? 'rgba(207,205,128,0.68)' : 'rgba(220,204,151,0.58)';
+    if (swamp || crypt || cold) {
+      ctx.fillStyle = cold ? 'rgba(244,252,253,0.9)' : swamp ? 'rgba(207,205,128,0.68)' : 'rgba(220,204,151,0.58)';
       ctx.beginPath();
       for (const i of vis) {
         const o = d[i]; if (o.t !== 3) continue;
@@ -1509,14 +1510,14 @@ export class Renderer {
       }
       ctx.fillStyle = '#e4fbff'; ctx.beginPath(); ctx.arc(sx, sy, r * 0.07, 0, TAU); ctx.fill();
     } else if (e.type === 'ironGuard') {
-      // Broad steel shoulder caps and a forward red ram plate signal frontal armour.
+      // Blackened shoulder caps and a crimson ram plate signal the iron warden's frontal armour.
       for (const y of [-r * 0.68, r * 0.68]) {
-        ctx.fillStyle = '#687989'; ctx.strokeStyle = '#d6e6f0'; ctx.lineWidth = 2;
+        ctx.fillStyle = '#1a1013'; ctx.strokeStyle = '#b3262c'; ctx.lineWidth = 2;
         rr(ctx, -r * 0.45, y - r * 0.27, r * 0.68, r * 0.54, r * 0.2); ctx.fill(); ctx.stroke();
-        ctx.strokeStyle = '#9aabba'; ctx.lineWidth = 1.5;
+        ctx.strokeStyle = '#6d1a1e'; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(-r * 0.3, y); ctx.lineTo(r * 0.05, y); ctx.stroke();
       }
-      ctx.fillStyle = '#8d3c3b'; ctx.strokeStyle = '#ffd4b5'; ctx.lineWidth = 2;
+      ctx.fillStyle = '#a81e24'; ctx.strokeStyle = '#ffb3a3'; ctx.lineWidth = 2;
       rr(ctx, r * 0.12, r * 0.46, r * 0.64, r * 0.38, r * 0.13); ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#ffd5ad'; ctx.beginPath(); ctx.arc(r * 0.45, r * 0.65, r * 0.09, 0, TAU); ctx.fill();
     } else if (e.type === 'duckKing') {
@@ -1626,7 +1627,7 @@ export class Renderer {
       const under = g.mode === 'raid' && Math.hypot(p.x - tr.x, p.y - tr.y) < tr.r * 0.95;
       ctx.globalAlpha = under ? 0.38 : 0.95;
       const s = tr.r * 2.3 + Math.sin(t * 1.3 + tr.x * 0.01) * 1.5;
-      const canopy = g.mapId === 'outpost' ? this.snowCanopies[tr.v] : this.canopies[tr.v];
+      const canopy = g.mapId === 'outpost' ? this.snowBushCanopies[tr.v] : this.canopies[tr.v];
       ctx.drawImage(canopy, tr.x - s / 2, tr.y - s / 2, s, s);
     }
     ctx.globalAlpha = 1;

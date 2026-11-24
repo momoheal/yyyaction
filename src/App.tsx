@@ -3,11 +3,16 @@ import GameView, { type GameHandle, type Screen } from './components/GameView';
 import { GameOverScreen, PauseMenu, StartScreen, type GameOverData } from './components/Menus';
 import { Sfx } from './game/audio';
 import { Music } from './game/music';
-import { LOADOUTS, UPGRADE_MAX, upgradePrice } from './game/data';
+import { LOADOUTS, THROWABLE_IDS, UPGRADE_MAX, upgradePrice } from './game/data';
 import type { RaidResult } from './game/game';
 import { getRaidMap, type RaidMapId } from './game/map';
 import { insertScore, loadSave, writeSave, type SaveData, type ScoreEntry } from './game/storage';
-import { availableGear, changeStock, gearDef, gearMods, hasWarehouseLoadout, modSlots, normalizeConsumables, raidGearItems, sameGear, tuningPrice, warehouseLoadout, WAREHOUSE_KIT, type RaidGear } from './game/warehouse';
+import {
+  ARMOR_TUNE_TYPES, WAREHOUSE_KIT, availableGear, armorModSlots, armorModsOf, changeStock, changeSupply,
+  clampCarryToStock, emptyConsumables, gearDef, gearMods, gearSellPrice, hasWarehouseLoadout, modSlots,
+  moveSupplies, normalizeConsumables, normalizeSupplies, raidGearItems, sameGear, stockOf, supplyDef,
+  supplySellPrice, tuningPrice, tunesForWeapon, warehouseLoadout, type RaidGear, type SupplyKey, type SupplyStock,
+} from './game/warehouse';
 import type { WarehouseAction } from './components/Armory';
 
 function affordableLoadout(id: string, stash: number) {
@@ -67,29 +72,33 @@ export default function App() {
   const changeWarehouse = (action: WarehouseAction) => {
     const s = saveRef.current;
     const { items, selected } = s.warehouse;
+    const stock = normalizeSupplies(s.warehouse.supplies);
+    const isSupplyKey = (id: string): id is SupplyKey => id === 'bandages' || id === 'medkits' || (THROWABLE_IDS as string[]).includes(id);
+    const apply = (next: RaidGear, nextItems = items, nextStock: SupplyStock = stock, nextStash = s.stash) => {
+      const nextKit = hasWarehouseLoadout(next) ? WAREHOUSE_KIT : LOADOUTS[0].id;
+      setKit(nextKit);
+      commit({ ...s, stash: nextStash, kit: nextKit, warehouse: { items: nextItems, supplies: nextStock, selected: next } });
+    };
+
     if (action.type === 'select') {
       const next: RaidGear = {
         weapon: items.find((item) => sameGear(selected.weapon, item)),
         armor: items.find((item) => sameGear(selected.armor, item)),
-        consumables: selected.consumables,
+        consumables: clampCarryToStock(normalizeConsumables(selected.consumables), stock),
       };
       const item = action.gear;
       if (item && (gearDef(item.id)?.kind !== action.slot || !items.some((row) => sameGear(item, row)))) return;
-      next[action.slot] = item && { id: item.id, tuned: item.tuned, mods: gearMods(item) };
-      const nextKit = hasWarehouseLoadout(next) ? WAREHOUSE_KIT : LOADOUTS[0].id;
-      setKit(nextKit);
-      commit({ ...s, kit: nextKit, warehouse: { items, selected: next } });
+      next[action.slot] = item && { id: item.id, tuned: item.tuned, ...(gearMods(item).length ? { mods: gearMods(item) } : {}), ...(armorModsOf(item).length ? { armorMods: armorModsOf(item) } : {}) };
+      apply(next);
       return;
     }
     if (action.type === 'consumable') {
-      const c = normalizeConsumables(selected.consumables);
+      const c = clampCarryToStock(normalizeConsumables(selected.consumables), stock);
+      if (action.delta > 0 && stockOf(stock, action.key) - stockOf(c, action.key) < action.delta) return;
       if (action.key === 'bandages') c.bandages += action.delta;
       else if (action.key === 'medkits') c.medkits += action.delta;
       else c.throwables[action.key] = (c.throwables[action.key] ?? 0) + action.delta;
-      const next: RaidGear = { ...selected, consumables: normalizeConsumables(c) };
-      const nextKit = hasWarehouseLoadout(next) ? WAREHOUSE_KIT : LOADOUTS[0].id;
-      setKit(nextKit);
-      commit({ ...s, kit: nextKit, warehouse: { items, selected: next } });
+      apply({ ...selected, consumables: normalizeConsumables(c) });
       return;
     }
     if (action.type === 'upgrade') {
@@ -101,24 +110,56 @@ export default function App() {
       return;
     }
     if (action.type === 'buy') {
+      if (isSupplyKey(action.id)) {
+        const def = supplyDef(action.id);
+        if (s.stash < def.value) return;
+        apply(selected, items, changeSupply(stock, action.id, 1), s.stash - def.value);
+        return;
+      }
       const def = gearDef(action.id);
-      if (!def || def.kind !== 'weapon') return;
-      if (s.stash < def.value) return;
-      commit({ ...s, stash: s.stash - def.value, warehouse: { items: changeStock(items, { id: action.id, tuned: false }, 1), selected } });
+      if (!def || s.stash < def.value) return;
+      apply(selected, changeStock(items, { id: action.id, tuned: false }, 1), stock, s.stash - def.value);
+      return;
+    }
+    if (action.type === 'sell') {
+      if (action.target.kind === 'supply') {
+        const key = action.target.key;
+        if (stockOf(stock, key) <= 0) return;
+        const nextStock = changeSupply(stock, key, -1);
+        const carry = clampCarryToStock(normalizeConsumables(selected.consumables), nextStock);
+        apply({ ...selected, consumables: carry }, items, nextStock, s.stash + supplySellPrice(key));
+        return;
+      }
+      const gear = action.target.gear;
+      // Equipped gear cannot be sold — it is already reserved for the next raid.
+      if (sameGear(selected.weapon, gear) || sameGear(selected.armor, gear)) return;
+      if (!items.some((item) => sameGear(gear, item))) return;
+      apply(selected, changeStock(items, gear, -1), stock, s.stash + gearSellPrice(gear));
+      return;
+    }
+    if (action.type === 'tuneArmor') {
+      const base = gearDef(action.gear.id);
+      if (!base || base.kind !== 'armor' || !ARMOR_TUNE_TYPES.includes(action.mod)) return;
+      const mods = armorModsOf(action.gear);
+      if (mods.includes(action.mod) || mods.length >= armorModSlots(action.gear.id)) return;
+      const cost = tuningPrice(base);
+      const source = items.find((item) => sameGear(action.gear, item));
+      if (s.stash < cost || !source) return;
+      const tuned = { id: source.id, tuned: true, armorMods: [...mods, action.mod] };
+      const next = sameGear(selected.armor, source) ? { ...selected, armor: tuned } : selected;
+      apply(next, changeStock(changeStock(items, source, -1), tuned, 1), stock, s.stash - cost);
       return;
     }
     const base = gearDef(action.gear.id);
-    if (!base || base.kind !== 'weapon') return;
+    if (!base || base.kind !== 'weapon' || !tunesForWeapon(action.gear.id).includes(action.mod)) return;
     const mods = gearMods(action.gear);
     if (mods.includes(action.mod) || mods.length >= modSlots(action.gear.id)) return;
     const cost = tuningPrice(base);
     const source = items.find((item) => sameGear(action.gear, item));
     if (s.stash < cost || !source) return;
     const tuned = { id: source.id, tuned: true, mods: [...mods, action.mod] };
-    commit({ ...s, stash: s.stash - cost, warehouse: {
-      items: changeStock(changeStock(items, source, -1), tuned, 1),
-      selected: sameGear(selected.weapon, source) ? { ...selected, weapon: tuned } : selected,
-    } });
+    const next = sameGear(selected.weapon, source) ? { ...selected, weapon: tuned } : selected;
+    apply(next, changeStock(changeStock(items, source, -1), tuned, 1), stock, s.stash - cost);
   };
 
   const deploy = useCallback((kitId: string, training = false) => {
@@ -147,7 +188,8 @@ export default function App() {
     trainingRef.current = training;
     if (!training) {
       const items = equipped.reduce((stock, item) => changeStock(stock, item, -1), s.warehouse.items);
-      commit({ ...s, stash: s.stash - k.cost, kit: k.id, raids: s.raids + 1, firstRun: false, warehouse: { ...s.warehouse, items } });
+      const supplies = moveSupplies(normalizeSupplies(s.warehouse.supplies), gear.consumables ?? emptyConsumables(), -1);
+      commit({ ...s, stash: s.stash - k.cost, kit: k.id, raids: s.raids + 1, firstRun: false, warehouse: { ...s.warehouse, items, supplies } });
       setKit(k.id);
     }
     setOver(null);
@@ -192,7 +234,9 @@ export default function App() {
     }
     const stash = s.stash + (ok ? r.cashValue + r.kitCost : 0);
     const gear = ok ? [...r.usedGear, ...r.foundGear] : [];
-    const stock = gear.reduce((items, item) => changeStock(items, item, 1), s.warehouse.items);
+    const items = gear.reduce((stock, item) => changeStock(stock, item, 1), s.warehouse.items);
+    let supplies = normalizeSupplies(s.warehouse.supplies);
+    if (ok) supplies = moveSupplies(moveSupplies(supplies, r.usedSupplies, 1), r.foundSupplies, 1);
     let list = s.scores;
     let rank = -1;
     if (r.score > 0) {
@@ -205,7 +249,7 @@ export default function App() {
       list = res.list;
       rank = res.rank;
     }
-    commit({ ...s, stash, scores: list, extracts: s.extracts + (ok ? 1 : 0), bestValue: Math.max(s.bestValue, ok ? r.value : 0), warehouse: { ...s.warehouse, items: stock } });
+    commit({ ...s, stash, scores: list, extracts: s.extracts + (ok ? 1 : 0), bestValue: Math.max(s.bestValue, ok ? r.value : 0), warehouse: { ...s.warehouse, items, supplies } });
     setOver({ r, rank, stashBefore: s.stash, stashAfter: stash });
     overAt.current = performance.now();
   }, [commit, transition]);

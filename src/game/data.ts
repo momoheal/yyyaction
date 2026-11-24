@@ -102,11 +102,24 @@ export const THROWABLES: Record<ThrowableId, ThrowableDef> = {
   flash: { id: 'flash', name: '闪光弹', icon: '✨', color: '#fff3b0', radius: 260, fuse: 1.0, value: 7500, damage: 0, desc: '范围内敌人目眩 2.6 秒，停止射击' },
   fire: { id: 'fire', name: '燃烧瓶', icon: '🔥', color: '#ff5a2a', radius: 135, fuse: 1.2, value: 8500, damage: 18, desc: '地面燃烧 6 秒，持续灼烧范围内目标' },
 };
+/** Six armour tiers. Values are the raw rating before character scaling and mods. */
 export const ARMORS: ItemDef[] = [
+  { id: 'armor1', name: '一级护甲', icon: 'gear:armor1', rarity: 0, value: 4000, kind: 'armor', armor: 25 },
   { id: 'armor2', name: '二级护甲', icon: 'gear:armor2', rarity: 1, value: 12000, kind: 'armor', armor: 60 },
+  { id: 'armor3', name: '三级护甲', icon: 'gear:armor3', rarity: 2, value: 26000, kind: 'armor', armor: 90 },
   { id: 'armor4', name: '四级护甲', icon: 'gear:armor4', rarity: 3, value: 45000, kind: 'armor', armor: 120 },
+  { id: 'armor5', name: '五级护甲', icon: 'gear:armor5', rarity: 3, value: 78000, kind: 'armor', armor: 150 },
   { id: 'armor6', name: '六级护甲', icon: 'gear:armor6', rarity: 4, value: 120000, kind: 'armor', armor: 180 },
 ];
+
+export function armorById(id: string): ItemDef | undefined {
+  return ARMORS.find((armor) => armor.id === id);
+}
+
+/** The three-cell armour atlas is reused across six tiers (light / medium / heavy art). */
+export const ARMOR_ART_CELL: Record<string, number> = {
+  armor1: 0, armor2: 0, armor3: 1, armor4: 1, armor5: 2, armor6: 2,
+};
 
 export interface WeaponDef {
   id: string;
@@ -130,6 +143,10 @@ export interface WeaponDef {
   color: string;
   pierce: number;
   rarity: Rarity;
+  /** Rocket-style splash applied on impact; scaled by damage mods. */
+  blast?: { radius: number; dmg: number };
+  /** Fraction of armour ignored on every hit (signature trait of the iron breaker). */
+  antiArmor?: number;
 }
 
 export const WEAPONS: Record<string, WeaponDef> = {
@@ -147,9 +164,37 @@ export const WEAPONS: Record<string, WeaponDef> = {
   m4legend: { id: 'm4legend', name: '渐变之影 M4A1', short: 'M4·影', tier: 5, dmg: 42, rate: 9.2, mag: 35, reload: 1.7, spread: 0.028, pellets: 1, speed: 1750, range: 1050, shake: 0.12, kick: 3, noise: 810, sound: 'rifle', value: 320000, len: 26, color: '#8e5bd6', pierce: 2, rarity: 5 },
   awmlegend: { id: 'awmlegend', name: '龙纹 AWM', short: 'AWM·龙', tier: 5, dmg: 190, rate: 1.0, mag: 6, reload: 2.4, spread: 0.002, pellets: 1, speed: 3000, range: 1600, shake: 0.42, kick: 11, noise: 1150, sound: 'sniper', value: 420000, len: 34, color: '#c0392b', pierce: 3, rarity: 5 },
   minigun: { id: 'minigun', name: 'M134 火神炮', short: 'M134', tier: 5, dmg: 30, rate: 16, mag: 150, reload: 4.2, spread: 0.1, pellets: 1, speed: 1600, range: 950, shake: 0.18, kick: 3, noise: 1100, sound: 'lmg', value: 380000, len: 36, color: '#6b4a1e', pierce: 1, rarity: 5 },
-  rpg: { id: 'rpg', name: 'RPG 火箭筒', short: 'RPG', tier: 5, dmg: 150, rate: 0.55, mag: 1, reload: 3.2, spread: 0.01, pellets: 1, speed: 900, range: 1000, shake: 0.55, kick: 14, noise: 1300, sound: 'explosion', value: 680000, len: 40, color: '#4d5238', pierce: 0, rarity: 5 },
+  rpg: { id: 'rpg', name: 'RPG 火箭筒', short: 'RPG', tier: 5, dmg: 110, rate: 0.8, mag: 2, reload: 2.8, spread: 0.008, pellets: 1, speed: 820, range: 1100, shake: 0.5, kick: 11, noise: 1300, sound: 'explosion', value: 780000, len: 40, color: '#4d5238', pierce: 0, rarity: 5, blast: { radius: 240, dmg: 300 } },
   frostmp9: { id: 'frostmp9', name: '冰风 MP9', short: '冰MP9', tier: 5, dmg: 22, rate: 13, mag: 32, reload: 1.4, spread: 0.045, pellets: 1, speed: 1500, range: 700, shake: 0.08, kick: 2, noise: 560, sound: 'smg', value: 520000, len: 18, color: '#7fd8ef', pierce: 0, rarity: 5 },
+  // Guaranteed drop from the iron warden: heavy, armour-shredding belt-fed gun.
+  ironbreaker: { id: 'ironbreaker', name: '玄铁破壁者', short: '破壁者', tier: 5, dmg: 48, rate: 8.5, mag: 90, reload: 2.6, spread: 0.055, pellets: 1, speed: 1700, range: 1050, shake: 0.15, kick: 4, noise: 950, sound: 'lmg', value: 760000, len: 30, color: '#8f1d1d', pierce: 3, rarity: 5, antiArmor: 0.5 },
 };
+
+/** Short category label used by warehouse filters and mod eligibility. */
+export function weaponCategory(id: string): string {
+  const w = WEAPONS[id];
+  if (!w) return '其他';
+  if (EXPLOSIVE_WEAPONS.has(id)) return '发射器';
+  if (w.pellets > 1) return '霰弹枪';
+  if (id === 'pistol') return '手枪';
+  if (id === 'dmr') return '精确射手';
+  if (w.rate <= 1.2) return '狙击枪';
+  if (w.rate >= 10) return '冲锋枪';
+  if (w.mag >= 60) return '机枪';
+  return '突击步枪';
+}
+
+/** One-line signature trait shown next to the gun in the armory. */
+export function weaponTrait(id: string): string {
+  const w = WEAPONS[id];
+  if (!w) return '';
+  if (w.blast) return `爆炸 ${w.blast.dmg} · 半径 ${w.blast.radius}`;
+  if (w.antiArmor) return `无视 ${Math.round(w.antiArmor * 100)}% 护甲`;
+  if (CHILL_WEAPONS.has(id)) return '命中冰缓';
+  if (w.pellets > 1) return `${w.pellets} 弹丸 · 收束改造专属`;
+  if (w.pierce) return `穿透 ${w.pierce}`;
+  return '通用枪械';
+}
 
 /** Weapons whose bullets slow enemies on hit. */
 export const CHILL_WEAPONS = new Set(['frostmp9']);
@@ -330,7 +375,7 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
     prefMin: 120, prefMax: 280, burst: [8, 12], melee: 0, boss: true, frontArmor: true,
     encounter: {
       skill: 'charge', skillName: '钢铁破阵', skillLabels: { charge: '铁壁冲锋' }, ringColor: 'rgba(255,92,72,0.98)',
-      warning: '正面装甲极厚，绕后输出；看到红色冲撞路线立刻横向闪避',
+      warning: '黑红重甲正面免疫大半伤害，绕后或将它的护甲打穿；击杀必掉传说武器「玄铁破壁者」',
       phaseWarning: '冲撞更频繁、距离更远', phaseAt: 0.5,
       phases: [
         { windup: 1.3, cooldown: 8, damage: 22, range: 380 },
@@ -343,7 +388,7 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
         { count: 2, weights: [0, 0, 0, 0, 58, 42] },
         { count: 1, weights: [0, 0, 14, 32, 38, 16] },
       ],
-      weaponDrops: ['lmg'],
+      weaponDrops: ['ironbreaker'],
     },
   },
   duckKing: {

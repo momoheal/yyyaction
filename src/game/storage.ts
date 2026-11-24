@@ -1,6 +1,6 @@
 import { STARTING_STASH, UPGRADE_MAX, getCharacter, type CharacterId, type CharacterUpgrades, type UpgradeKey } from './data';
 import type { RaidMapId } from './map';
-import { readWarehouse, type Warehouse } from './warehouse';
+import { readWarehouse, starterSupplies, type Warehouse } from './warehouse';
 
 export interface ScoreEntry {
   score: number;
@@ -47,7 +47,7 @@ function readUpgrades(value: unknown): CharacterUpgrades {
 }
 
 export function defaultSave(): SaveData {
-  return { stash: STARTING_STASH, scores: [], kit: 'assault', characterId: 'duck', muted: false, raids: 0, extracts: 0, bestValue: 0, firstRun: true, trainingCompleted: false, debugMode: false, warehouse: { items: [], selected: {} }, upgrades: { capacity: 0, rollCd: 0, speed: 0 } };
+  return { stash: STARTING_STASH, scores: [], kit: 'assault', characterId: 'duck', muted: false, raids: 0, extracts: 0, bestValue: 0, firstRun: true, trainingCompleted: false, debugMode: false, warehouse: { items: [], supplies: starterSupplies(), selected: {} }, upgrades: { capacity: 0, rollCd: 0, speed: 0 } };
 }
 
 export function loadSave(): SaveData {

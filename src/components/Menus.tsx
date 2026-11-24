@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '../utils/cn';
 import { CHARACTERS, ENEMIES, LOADOUTS, RARITY_COLORS, RARITY_NAMES, RARITY_RGB, characterArmor, fmtMoney, fmtTime, getCharacter, type CharacterId, type Loadout } from '../game/data';
 import { getRaidMap, type RaidMapId } from '../game/map';
@@ -131,10 +131,26 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
   const [panel, setPanel] = useState<'warehouse' | 'maps' | 'rank' | 'help' | 'debug' | null>(null);
   const [debugPassword, setDebugPassword] = useState('');
   const [debugError, setDebugError] = useState(false);
+  const debugTitleTaps = useRef({ count: 0, lastAt: 0 });
+  const onTitleTap = () => {
+    const now = performance.now();
+    const taps = debugTitleTaps.current;
+    if (now - taps.lastAt > 2000) taps.count = 0;
+    taps.lastAt = now;
+    taps.count += 1;
+    if (taps.count >= 6) {
+      taps.count = 0;
+      setDebugPassword('');
+      setDebugError(false);
+      setPanel('debug');
+    }
+  };
   const rate = save.raids ? Math.round((save.extracts / save.raids) * 100) : 0;
   const map = getRaidMap(mapId);
   const prepared = raidGearItems(availableGear(save.warehouse));
-  const stockCount = save.warehouse.items.reduce((count, item) => count + item.count, 0);
+  const stockCount = save.warehouse.items.reduce((count, item) => count + item.count, 0)
+    + Object.values(save.warehouse.supplies?.throwables ?? {}).reduce<number>((sum, n) => sum + (n || 0), 0)
+    + (save.warehouse.supplies?.bandages ?? 0) + (save.warehouse.supplies?.medkits ?? 0);
   return (
     <div className="scroll-y absolute inset-0 z-10">
       <div className="pointer-events-none fixed inset-0 bg-gradient-to-r from-[#0b0d10]/95 via-[#0b0d10]/75 to-[#0b0d10]/30" />
@@ -145,7 +161,7 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
           <div className="inline-flex items-center gap-2 rounded-full border border-[#ffd23f]/30 bg-[#ffd23f]/10 px-3 py-1 font-num text-xs font-bold tracking-[0.25em] text-[#ffd23f]">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#ffd23f]" /> 搜 · 打 · 撤
           </div>
-          <h1 className="title-font mt-1.5 text-[44px] leading-none text-[#ffd23f] sm:mt-3 sm:text-[96px] short:mt-1.5 short:text-[46px]">鸭鸭鸭行动</h1>
+          <h1 onClick={onTitleTap} className="title-font mt-1.5 text-[44px] leading-none text-[#ffd23f] sm:mt-3 sm:text-[96px] short:mt-1.5 short:text-[46px]">鸭鸭鸭行动</h1>
           <p className="mt-3 hidden max-w-md text-[15px] leading-relaxed text-white/70 sm:block short:hidden">
             搜刮物资，挑战各战区的首领，在倒计时结束前<span className="font-bold text-emerald-300">活着撤离</span>。带回的物资会存入仓库。
           </p>
@@ -246,9 +262,6 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
           </button>
           <button onClick={save.trainingCompleted ? onTraining : onDeploy} className="mt-2 min-h-10 rounded-lg border border-white/20 bg-black/40 px-4 text-sm font-bold text-white/85 active:scale-[0.98]">
             {save.trainingCompleted ? '重玩新手行动' : '直接开始正式行动'}
-          </button>
-          <button type="button" onClick={() => { setDebugPassword(''); setDebugError(false); setPanel('debug'); }} className="ml-2 min-h-10 rounded-lg border border-white/10 bg-black/25 px-3 text-xs font-bold text-white/55 hover:border-white/25 hover:text-white/80">
-            {save.debugMode ? '🛠 调试模式已开启' : '🛠 调试入口'}
           </button>
           <div className="mt-2 grid grid-cols-2 gap-2 lg:hidden">
             <button type="button" onClick={() => { setTab('rank'); setPanel('rank'); }} className="min-h-10 rounded-lg border border-white/20 bg-black/40 text-sm font-bold text-white/85 active:scale-[0.98]">🏆 排行榜</button>

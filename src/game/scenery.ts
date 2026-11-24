@@ -42,7 +42,7 @@ function el(ctx: CanvasRenderingContext2D, cx: number, cy: number, rx: number, r
   if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = sw; ctx.stroke(); }
 }
 
-function pg(ctx: CanvasRenderingContext2D, pts: number[][], fill: string) {
+function pg(ctx: CanvasRenderingContext2D, pts: number[][], fill: string | CanvasGradient) {
   ctx.beginPath();
   ctx.moveTo(pts[0][0], pts[0][1]);
   for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
@@ -50,7 +50,7 @@ function pg(ctx: CanvasRenderingContext2D, pts: number[][], fill: string) {
   ctx.fillStyle = fill; ctx.fill();
 }
 
-function ln(ctx: CanvasRenderingContext2D, pts: number[][], fill: string, width: number) {
+function ln(ctx: CanvasRenderingContext2D, pts: number[][], fill: string | CanvasGradient, width: number) {
   ctx.beginPath();
   ctx.moveTo(pts[0][0], pts[0][1]);
   for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
@@ -559,6 +559,100 @@ function drawAsset(ctx: CanvasRenderingContext2D, kind: SceneryProp['kind']) {
       el(ctx, 64, 66, 24, 12, 'rgba(90,70,30,0.14)');
       break;
     }
+    case 'ice_block': {
+      // Three translucent frozen crates; snowy top edges keep the stack readable on ice.
+      const cube = (x: number, y: number, w: number, h: number, top: string) => {
+        pg(ctx, [[x, y + 11], [x + 10, y], [x + w, y], [x + w - 10, y + 11]], top);
+        pg(ctx, [[x, y + 11], [x + w - 10, y + 11], [x + w - 10, y + h], [x, y + h]], 'rgba(103,188,208,0.88)');
+        pg(ctx, [[x + w - 10, y + 11], [x + w, y], [x + w, y + h - 7], [x + w - 10, y + h]], 'rgba(53,124,151,0.92)');
+        ln(ctx, [[x + 3, y + 11], [x + w - 13, y + 11]], 'rgba(240,255,255,0.7)', 2);
+        ln(ctx, [[x + 4, y + 16], [x + 4, y + h - 5]], 'rgba(235,255,255,0.45)', 1.6);
+        pg(ctx, [[x + 6, y + 5], [x + 15, y + 2], [x + 22, y + 5], [x + 13, y + 8]], 'rgba(255,255,255,0.82)');
+      };
+      cube(38, 44, 42, 34, 'rgba(174,232,240,0.95)');
+      cube(24, 70, 46, 36, 'rgba(154,220,234,0.95)');
+      cube(70, 68, 42, 38, 'rgba(188,238,245,0.95)');
+      ln(ctx, [[36, 84], [48, 78], [56, 86]], 'rgba(243,255,255,0.6)', 1.4);
+      ln(ctx, [[82, 82], [90, 76], [102, 80]], 'rgba(243,255,255,0.6)', 1.4);
+      el(ctx, 64, 108, 34, 5, 'rgba(238,250,252,0.75)');
+      break;
+    }
+    case 'ice_crystal': {
+      // A low cluster of three ice shards, drawn as flat facets with bright frost rims.
+      el(ctx, 64, 101, 43, 15, 'rgba(225,246,250,0.8)');
+      const shard = (pts: number[][], face: string, side: string) => {
+        pg(ctx, pts, face);
+        ln(ctx, [pts[0], pts[1], pts[2]], 'rgba(240,255,255,0.72)', 1.6);
+        pg(ctx, [pts[3], pts[4], pts[5], pts[0]], side);
+      };
+      shard([[45, 84], [38, 54], [50, 26], [58, 50], [58, 84], [51, 92]], '#92dae8', '#3e8faa');
+      shard([[84, 86], [92, 44], [84, 18], [74, 48], [70, 86], [76, 94]], '#a6e6ef', '#4a9cb6');
+      shard([[66, 96], [64, 62], [72, 42], [82, 66], [84, 94], [75, 100]], '#7fc8dc', '#367f9d');
+      for (const [x, y, r] of [[45, 46, 3], [83, 33, 3.4], [71, 63, 2.4]] as const) el(ctx, x, y, r, r * 1.3, '#f4ffff');
+      ln(ctx, [[40, 82], [52, 76], [61, 84]], 'rgba(255,255,255,0.6)', 1.6);
+      break;
+    }
+    case 'fighter_jet': {
+      // Top-down jet: nose up, swept wings, frost-camo panels and a tiny squadron roundel.
+      pg(ctx, [[60, 54], [14, 86], [10, 99], [56, 92], [60, 82]], '#3f4e59');
+      pg(ctx, [[68, 54], [114, 86], [118, 99], [72, 92], [68, 82]], '#3f4e59');
+      pg(ctx, [[59, 92], [29, 112], [27, 120], [60, 112]], '#394752');
+      pg(ctx, [[69, 92], [99, 112], [101, 120], [68, 112]], '#394752');
+      pg(ctx, [[64, 6], [72, 32], [75, 90], [69, 118], [59, 118], [53, 90], [56, 32]], '#5d6d78');
+      pg(ctx, [[64, 10], [68, 34], [70, 88], [64, 114], [62, 34]], '#7d8d97');
+      pg(ctx, [[57, 40], [64, 44], [64, 64], [55, 60]], '#485761');
+      pg(ctx, [[71, 40], [64, 44], [64, 64], [73, 60]], '#485761');
+      el(ctx, 64, 52, 7.5, 15, '#243742');
+      el(ctx, 62, 48, 3.4, 7, '#93c7d6');
+      rr(ctx, 44, 78, 8, 15, 2, '#2b363e'); rr(ctx, 76, 78, 8, 15, 2, '#2b363e');
+      el(ctx, 64, 118, 9, 4, '#b25c32'); el(ctx, 64, 120, 5, 2.5, '#ffcf7d');
+      // Snow-patched panels and the wing markings.
+      for (const x of [28, 90]) {
+        pg(ctx, [[x, 76], [x + 12, 70], [x + 18, 76], [x + 6, 82]], 'rgba(232,244,246,0.78)');
+        el(ctx, x + 10, 87, 6, 5, '#e9eef0');
+        el(ctx, x + 10, 87, 3.6, 3, '#c0392b');
+        el(ctx, x + 10, 87, 1.6, 1.4, '#f4f6f5');
+      }
+      ln(ctx, [[57, 74], [57, 104]], 'rgba(226,240,243,0.55)', 2);
+      ln(ctx, [[71, 74], [71, 104]], 'rgba(226,240,243,0.55)', 2);
+      break;
+    }
+    case 'lava_pool': {
+      // Molten pocket: charred basalt rim, radial heat gradient and floating crust plates.
+      el(ctx, 64, 64, 56, 43, 'rgba(255,112,38,0.16)');
+      pg(ctx, [[14, 62], [28, 38], [52, 27], [80, 31], [106, 45], [116, 68], [101, 90], [72, 102], [40, 96], [22, 81]], '#2a211c');
+      const heat = ctx.createRadialGradient(64, 62, 4, 64, 64, 52);
+      heat.addColorStop(0, '#ffe79a');
+      heat.addColorStop(0.34, '#ffab36');
+      heat.addColorStop(0.68, '#e9551c');
+      heat.addColorStop(1, '#8b2c12');
+      pg(ctx, [[24, 63], [37, 44], [58, 36], [82, 40], [102, 52], [108, 69], [95, 84], [70, 94], [44, 88], [30, 78]], heat);
+      for (const [x, y, w, h, a] of [[44, 55, 15, 10, -0.3], [76, 49, 18, 11, 0.4], [90, 74, 13, 9, -0.2], [54, 82, 17, 9, 0.25]] as const) {
+        ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+        rr(ctx, -w / 2, -h / 2, w, h, 2.5, '#3f2921', '#1d1512', 1);
+        ctx.restore();
+      }
+      ln(ctx, [[32, 65], [46, 57], [58, 64], [74, 54], [88, 62], [101, 66]], '#ffd571', 2.2);
+      ln(ctx, [[48, 84], [60, 76], [72, 83], [85, 76]], '#ffc45c', 1.6);
+      for (const [x, y, r] of [[46, 71, 2.4], [68, 68, 2], [83, 57, 2.2], [60, 46, 1.8]] as const) el(ctx, x, y, r, r, '#fff2b2');
+      break;
+    }
+    case 'lava_fissure': {
+      // Narrow eruption crack with a basalt lip, brighter core and a few escaping sparks.
+      el(ctx, 64, 62, 58, 27, 'rgba(255,110,38,0.14)');
+      pg(ctx, [[13, 74], [31, 50], [53, 45], [76, 36], [101, 42], [117, 60], [103, 75], [76, 69], [52, 80], [28, 85]], '#2b211c');
+      const crack = ctx.createRadialGradient(64, 60, 2, 64, 62, 48);
+      crack.addColorStop(0, '#fff0a6');
+      crack.addColorStop(0.45, '#ff9b2e');
+      crack.addColorStop(1, '#a83214');
+      pg(ctx, [[25, 69], [39, 54], [57, 50], [76, 43], [98, 49], [107, 61], [93, 70], [72, 64], [51, 73], [33, 78]], crack);
+      ln(ctx, [[29, 68], [43, 57], [58, 61], [76, 51], [94, 59], [104, 61]], '#fff0a6', 2.4);
+      for (const [x, y, w] of [[37, 76, 10], [64, 43, 12], [87, 71, 9]] as const) {
+        pg(ctx, [[x, y], [x + w / 2, y - 7], [x + w, y + 1], [x + w / 2, y + 4]], '#3d2a22');
+      }
+      for (const [x, y] of [[48, 46], [69, 66], [91, 45], [101, 72]] as const) el(ctx, x, y, 2, 2, '#ffd77a');
+      break;
+    }
   }
 }
 
@@ -571,6 +665,7 @@ export const SCENERY_KINDS: SceneryProp['kind'][] = [
   'wood_table', 'wood_bench', 'bar_stool', 'metal_workbench',
   'stone_steps', 'wood_steps', 'duck_throne', 'nest_cluster', 'egg_nest',
   'berry_bush', 'thorn_bush', 'potted_flower',
+  'ice_block', 'ice_crystal', 'fighter_jet', 'lava_pool', 'lava_fissure',
   'bed', 'table_map_cup', 'table_field_kit', 'wood_chair', 'bedside_cabinet',
 ];
 
@@ -583,17 +678,21 @@ export function drawScenery(ctx: CanvasRenderingContext2D, p: SceneryProp) {
 
   // 底座投影：水面小船投影略窄，车辆偏长，统一用椭圆近似
   const ship = p.kind === 'rowboat' || p.kind === 'fishing_boat' || p.kind === 'speedboat';
+  const jet = p.kind === 'fighter_jet';
+  const lava = p.kind === 'lava_pool' || p.kind === 'lava_fissure';
   const bed = p.kind === 'bed';
   const flat = p.kind === 'wood_table' || p.kind === 'wood_bench' || p.kind === 'stone_steps' || p.kind === 'wood_steps'
-    || p.kind === 'metal_workbench' || p.kind === 'duck_throne' || p.kind === 'nest_cluster' || p.kind === 'hay_bale';
+    || p.kind === 'metal_workbench' || p.kind === 'duck_throne' || p.kind === 'nest_cluster' || p.kind === 'hay_bale' || lava;
   const compact = p.kind === 'table_map_cup' || p.kind === 'table_field_kit' || p.kind === 'wood_chair' || p.kind === 'bedside_cabinet' || p.kind === 'potted_flower' || p.kind === 'egg_nest' || p.kind === 'ice_beacon'
-    || p.kind === 'bar_stool' || p.kind === 'berry_bush' || p.kind === 'thorn_bush' || p.kind === 'crate_stack';
+    || p.kind === 'bar_stool' || p.kind === 'berry_bush' || p.kind === 'thorn_bush' || p.kind === 'crate_stack'
+    || p.kind === 'ice_block' || p.kind === 'ice_crystal';
   const gate = p.kind === 'king_vault_gate';
-  ctx.fillStyle = 'rgba(15,22,10,0.3)';
+  ctx.fillStyle = lava ? 'rgba(30,15,8,0.18)' : 'rgba(15,22,10,0.3)';
   ctx.beginPath();
-  ctx.ellipse(4, 7, ship ? 30 : flat ? 50 : compact ? 34 : gate ? 48 : 42, ship ? 48 : bed ? 48 : flat ? 34 : compact ? 29 : gate ? 38 : 40, 0, 0, TAU);
+  ctx.ellipse(4, 7, ship ? 30 : jet ? 34 : flat ? 50 : compact ? 34 : gate ? 48 : 42,
+    ship ? 48 : jet ? 50 : bed ? 48 : flat ? 34 : compact ? 29 : gate ? 38 : 40, 0, 0, TAU);
   ctx.fill();
-  if (!ship && !compact && !bed && !gate && !flat) { ctx.beginPath(); ctx.ellipse(4, 7, 44, 30, 0, 0, TAU); ctx.fill(); }
+  if (!ship && !jet && !compact && !bed && !gate && !flat) { ctx.beginPath(); ctx.ellipse(4, 7, 44, 30, 0, 0, TAU); ctx.fill(); }
 
   drawAsset(ctx, p.kind);
   ctx.restore();

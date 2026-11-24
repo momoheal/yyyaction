@@ -15,11 +15,13 @@ export default function Portrait({ id, className }: { id: CharacterId | EnemyTyp
   const pos = positions[id];
   const bossPos = bossPositions[id as EnemyType];
   const background = pos ?? bossPos;
+  // The original iron warden portrait is steel blue; tint it to match his black-red in-game palette.
+  const ironTint = id === 'ironGuard' ? { backgroundColor: '#8a1a1e', backgroundBlendMode: 'multiply' as const } : {};
   return <span
     aria-hidden="true"
     className={cn('block shrink-0 rounded-lg border border-white/15 bg-[#252925] bg-no-repeat', className)}
     style={background
-      ? { backgroundImage: `url("${bossPos ? bossAtlas : atlas}")`, backgroundSize: bossPos ? '200% 200%' : '300% 200%', backgroundPosition: background, backgroundOrigin: 'padding-box', backgroundClip: 'padding-box' }
+      ? { backgroundImage: `url("${bossPos ? bossAtlas : atlas}")`, backgroundSize: bossPos ? '200% 200%' : '300% 200%', backgroundPosition: background, backgroundOrigin: 'padding-box', backgroundClip: 'padding-box', ...ironTint }
       : { backgroundImage: 'radial-gradient(circle at 50% 35%, #4a4a4a, #171c1a)' }}
   />;
 }

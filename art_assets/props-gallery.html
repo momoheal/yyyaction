@@ -61,14 +61,15 @@ const LABELS = {
   flatbed: '平板拖车', rowboat: '小木船', fishing_boat: '渔船', speedboat: '快艇',
   barrels: '油桶组', bollard: '系缆桩', crane: '起重机', crate_stack: '木箱堆', hay_bale: '干草捆',
   fountain: '喷泉', duck_king_statue: '鸭王雕像', billboard: '广告牌', vending_machine: '售货机',
-  ice_beacon: '冰晶信标', king_vault_gate: '王陵金库门',
+  ice_beacon: '冰晶信标', ice_block: '冰块堆', ice_crystal: '冰晶簇',
+  fighter_jet: '战斗机', lava_pool: '熔岩池', lava_fissure: '熔岩裂隙',
+  king_vault_gate: '王陵金库门',
   wood_table: '木餐桌', wood_bench: '木长凳', bar_stool: '高脚凳', metal_workbench: '金属工作台',
   stone_steps: '石阶', wood_steps: '木阶', duck_throne: '鸭王王座', nest_cluster: '蛋巢群',
   egg_nest: '蛋巢', berry_bush: '浆果丛', thorn_bush: '荆棘丛', potted_flower: '盆栽',
   bed: '木床', table_map_cup: '地图桌', table_field_kit: '野战桌', wood_chair: '木椅', bedside_cabinet: '床头柜',
 };
-const NEW = new Set(['wood_table', 'wood_bench', 'bar_stool', 'metal_workbench', 'stone_steps', 'wood_steps',
-  'duck_throne', 'nest_cluster', 'berry_bush', 'thorn_bush', 'crate_stack', 'hay_bale']);
+const NEW = new Set(['ice_block', 'ice_crystal', 'fighter_jet', 'lava_pool', 'lava_fissure']);
 const grids = document.getElementById('grid');
 
 for (const kind of window.SCENERY_KINDS) {

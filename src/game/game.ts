@@ -1,13 +1,16 @@
 import {
   ARMORS, CHILL_WEAPONS, CONTAINER_DEFS, ENEMIES, EXPLOSIVE_WEAPONS, EXTRACT_TIME, ITEM_BANDAGE, ITEM_FIRE, ITEM_FLASH, ITEM_GRENADE, ITEM_MEDKIT, ITEM_SMOKE, VENDING_LOOT,
-  LOADOUTS, LOOT, LOOT_BY_RARITY, RAID_TIME, RARITY_COLORS, RARITY_NAMES, SEARCH_TIME, THROWABLE_IDS, THROWABLES, WEAPONS, characterArmor, fmtMoney, getCharacter, weaponItem,
+  LOADOUTS, LOOT, LOOT_BY_RARITY, RAID_TIME, RARITY_COLORS, RARITY_NAMES, SEARCH_TIME, THROWABLE_IDS, THROWABLES, WEAPONS, armorById, characterArmor, fmtMoney, getCharacter, weaponItem,
   type BossSkillKind, type CharacterDef, type CharacterId, type CharacterUpgrades, type EnemyDef, type EnemyType, type ItemDef, type Loadout, type ThrowableId, type WeaponDef,
 } from './data';
 import { buildMap, buildTrainingMap, getRaidMap, F_BULLET, F_MOVE, F_SIGHT, type GameMap, type RaidMapId, type Solid } from './map';
 import { Grid, Nav, segCircle, type Hit } from './physics';
 import type { Sfx } from './audio';
 import type { Input } from './input';
-import { WAREHOUSE_KIT, gearDef, gearMods, modWeapon, raidGearItems, warehouseLoadout, type GearItem, type RaidGear } from './warehouse';
+import {
+  WAREHOUSE_KIT, armorCombatStats, armorModsOf, gearDef, gearMods, modWeapon, normalizeConsumables, normalizeSupplies,
+  raidGearItems, warehouseLoadout, type ConsumableLoadout, type GearItem, type RaidGear,
+} from './warehouse';
 
 export const TAU = Math.PI * 2;
 export const P_SPARK = 0, P_FEATHER = 1, P_SMOKE = 2, P_FIRE = 3, P_DEBRIS = 4, P_CASING = 5, P_RING = 6, P_DUST = 7, P_STAR = 8, P_MUZZLE = 9;
@@ -22,6 +25,7 @@ export interface Player {
   character: CharacterDef;
   x: number; y: number; vx: number; vy: number; kvx: number; kvy: number; r: number; aim: number;
   hp: number; maxHp: number; armor: number; armorMax: number;
+  armorRegen: number; armorAbsorb: number; armorAegis: number; armorInvuln: number; armorAegisCd: number; noHitT: number;
   weapons: (WeaponInst | null)[]; cur: number;
   rollT: number; rollCd: number; rollDx: number; rollDy: number; rollCdMax: number; speedMul: number;
   healT: number; healDur: number; healType: 'bandage' | 'medkit' | null;
@@ -42,7 +46,7 @@ export interface Enemy {
   phase: 0 | 1; skillPhase: 0 | 1; castCount: number; castSkill: BossSkillKind | null;
   dead: boolean; kick: number; hurtT: number; chillT: number; stunT: number;
 }
-export interface Bullet { x: number; y: number; ox: number; oy: number; vx: number; vy: number; dmg: number; life: number; from: 0 | 1; pierce: number; hitIds?: number[]; src: Enemy | null; w: number; crit: boolean; chill?: boolean; explosive?: boolean }
+export interface Bullet { x: number; y: number; ox: number; oy: number; vx: number; vy: number; dmg: number; life: number; from: 0 | 1; pierce: number; hitIds?: number[]; src: Enemy | null; w: number; crit: boolean; chill?: boolean; explosive?: boolean; blastR?: number; blastDmg?: number; antiArmor?: number }
 export interface Particle { x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; max: number; size: number; color: string; type: number; rot: number; vr: number; drag: number; grow: number }
 export interface FText { x: number; y: number; text: string; color: string; life: number; max: number; size: number; vy: number }
 export interface Grenade { x: number; y: number; z: number; vx: number; vy: number; vz: number; fuse: number; spin: number; kind: ThrowableId; egg?: boolean }
@@ -60,6 +64,7 @@ export interface RaidResult {
   training: boolean; mapId: RaidMapId; characterId: CharacterId; outcome: Outcome; items: ResultItem[]; value: number; killScore: number; kills: number; killsBy: Record<string, number>;
   time: number; score: number; kit: string; kitCost: number; best: ResultItem | null;
   cashValue: number; foundGear: GearItem[]; usedGear: GearItem[];
+  foundSupplies: ConsumableLoadout; usedSupplies: ConsumableLoadout;
 }
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
@@ -103,7 +108,7 @@ export const FEATHER_COLORS: Record<EnemyType, string[]> = {
   foundryBoss: ['#cab0a3', '#684836', '#ff9b3d', '#ed7149'],
   broodQueen: ['#f5f3d8', '#b7cf7e', '#ffd86b', '#8ba55a'],
   frostMarshal: ['#d9f3ff', '#7fb9d8', '#e8fbff', '#5b93b5'],
-  ironGuard: ['#b9c5cf', '#6d7b8a', '#d7e3ea', '#45505d'],
+  ironGuard: ['#1b1518', '#4a1014', '#0f0c0e', '#b42024'],
   duckKing: ['#ffe9a8', '#d4a12e', '#fff6d8', '#b56cff'],
 };
 
@@ -253,11 +258,12 @@ export class Game {
 
   private upgrades: CharacterUpgrades = { capacity: 0, rollCd: 0, speed: 0 };
 
-  private makePlayer(x: number, y: number, kit: Loadout, character = getCharacter()): Player {
+  private makePlayer(x: number, y: number, kit: Loadout, character = getCharacter(), armorTune = armorCombatStats([])): Player {
     const armor = characterArmor(character, kit.armor);
     const u = this.upgrades;
     return {
       character, x, y, vx: 0, vy: 0, kvx: 0, kvy: 0, r: 15, aim: 0, hp: 120, maxHp: 120, armor, armorMax: armor,
+      armorRegen: armorTune.regen, armorAbsorb: armorTune.absorb, armorAegis: armorTune.aegis, armorInvuln: 0, armorAegisCd: 0, noHitT: 0,
       weapons: [kit.primary ? this.makeWeapon(kit.primary) : null, this.makeWeapon('pistol')], cur: kit.primary ? 0 : 1,
       rollT: 0, rollCd: 0, rollDx: 0, rollDy: 0, rollCdMax: Math.max(0.37, 0.72 - u.rollCd * 0.07), speedMul: 1 + u.speed * 0.06,
       healT: 0, healDur: 0, healType: null,
@@ -297,7 +303,9 @@ export class Game {
       : LOADOUTS.find((k) => k.id === (training ? LOADOUTS[0].id : kitId)) ?? LOADOUTS[0];
     this.kit = kit;
     const sp = this.map.spawns[Math.floor(Math.random() * this.map.spawns.length)];
-    const p = this.makePlayer(sp.x, sp.y, kit, getCharacter(characterId));
+    const tunedArmor = this.warehouseGear?.armor;
+    const armorTune = armorCombatStats(tunedArmor ? armorModsOf(tunedArmor) : []);
+    const p = this.makePlayer(sp.x, sp.y, kit, getCharacter(characterId), armorTune);
     const weapon = p.weapons[p.cur];
     const tunedGear = this.warehouseGear?.weapon;
     const tunedMods = tunedGear ? gearMods(tunedGear) : [];
@@ -403,7 +411,7 @@ export class Game {
       ];
       out.push(weaponItem(opts[pickIndex(opts.map((o) => o[1]))][0]));
       const r = Math.random();
-      if (r < 0.35) out.push(Math.random() < 0.7 ? ARMORS[0] : ARMORS[1]);
+      if (r < 0.4) out.push(armorById(Math.random() < 0.65 ? 'armor1' : 'armor2')!);
       else if (r < 0.7) out.push(this.rollThrowable());
     } else if (d.special === 'med') {
       out.push(ITEM_BANDAGE);
@@ -450,7 +458,7 @@ export class Game {
         const n = randInt(1, 2);
         for (let i = 0; i < n; i++) out.push(this.rollLoot([18, 34, 28, 14, 5, 1]));
         if (e.weapon && Math.random() < 0.5) out.push(weaponItem(e.weapon.id));
-        if (Math.random() < 0.5) out.push(ARMORS[Math.random() < 0.6 ? 1 : 0]);
+        if (Math.random() < 0.5) out.push(armorById(Math.random() < 0.6 ? 'armor2' : 'armor3')!);
         break;
       }
       case 'hen': {
@@ -463,7 +471,7 @@ export class Game {
         const n = randInt(2, 3);
         for (let i = 0; i < n; i++) out.push(this.rollLoot([14, 30, 30, 18, 6.5, 1.2]));
         if (e.weapon && Math.random() < 0.55) out.push(weaponItem(e.weapon.id));
-        if (Math.random() < 0.35) out.push(ARMORS[Math.random() < 0.6 ? 1 : 0]);
+        if (Math.random() < 0.4) out.push(armorById(Math.random() < 0.6 ? 'armor2' : 'armor3')!);
         if (Math.random() < 0.3) out.push(ITEM_MEDKIT);
         break;
       }
@@ -474,7 +482,7 @@ export class Game {
         out.push(this.rollLoot([0, 0, 30, 40, 22, 8]));
         if (Math.random() < 0.35) out.push(this.rollLoot([0, 0, 0, 0, 0, 1]));
         out.push(weaponItem('lmg'));
-        if (Math.random() < 0.5) out.push(ARMORS[2]);
+        out.push(armorById(Math.random() < 0.6 ? 'armor4' : 'armor5')!);
         break;
       }
     }
@@ -670,6 +678,12 @@ export class Game {
     const p = this.player, inp = this.input;
     if (p.dead) return;
     p.rollCd -= dt; p.hurtT -= dt; p.flash -= dt; p.chillT = Math.max(0, p.chillT - dt);
+    p.armorInvuln = Math.max(0, p.armorInvuln - dt);
+    p.armorAegisCd = Math.max(0, p.armorAegisCd - dt);
+    p.noHitT = Math.max(0, p.noHitT - dt);
+    if (p.armorRegen > 0 && p.noHitT <= 0 && p.armor < p.armorMax) {
+      p.armor = Math.min(p.armorMax, p.armor + p.armorRegen * dt);
+    }
     p.kick *= Math.exp(-dt * 18);
     p.bloom = Math.max(0, p.bloom - dt * 0.35);
     this.dodgeT -= dt;
@@ -1019,6 +1033,8 @@ export class Game {
         dmg: d.dmg * (crit ? 1.8 : 1), life: d.range / sp, from: 0, pierce: d.pierce,
         src: null, w: EXPLOSIVE_WEAPONS.has(d.id) ? 5 : d.pellets > 1 ? 1.7 : d.id === 'sniper' ? 3.4 : 2.3, crit,
         chill: CHILL_WEAPONS.has(d.id), explosive: EXPLOSIVE_WEAPONS.has(d.id),
+        blastR: d.blast?.radius, blastDmg: d.blast ? d.blast.dmg * (crit ? 1.8 : 1) : undefined,
+        antiArmor: d.antiArmor,
       });
     }
     this.stats.shots++;
@@ -1061,7 +1077,7 @@ export class Game {
   }
 
   // ---------------------------------------------------------------- damage & death
-  damageEnemy(e: Enemy, dmg: number, nx: number, ny: number, crit: boolean, hx: number, hy: number, explosive = false) {
+  damageEnemy(e: Enemy, dmg: number, nx: number, ny: number, crit: boolean, hx: number, hy: number, explosive = false, antiArmor = 0) {
     if (e.dead) return;
     if (e.special === 'stun') dmg *= 1.5;
     let hpd = dmg;
@@ -1077,6 +1093,7 @@ export class Game {
         if (front > 0.15) eff = 0.85;      // heavy frontal protection
         else { eff = 0.05; backHit = true; } // soft from the side/back
       }
+      eff *= 1 - antiArmor;
       const absorb = Math.min(e.armor, dmg * eff);
       e.armor -= absorb;
       hpd = dmg - absorb;
@@ -1188,17 +1205,29 @@ export class Game {
 
   damagePlayer(dmg: number, sx: number, sy: number) {
     const p = this.player;
-    if (p.dead || this.ended) return;
+    if (p.dead || this.ended || p.armorInvuln > 0) return;
     if (p.rollT > 0) {
       if (this.dodgeT <= 0) { this.dodgeT = 0.5; this.text(p.x, p.y - 28, '闪避', '#cfe8ff', 14); }
       return;
     }
+    p.noHitT = 4;
     let hpd = dmg;
     if (p.armor > 0) {
-      const absorb = Math.min(p.armor, dmg * 0.6);
+      const absorb = Math.min(p.armor, dmg * p.armorAbsorb);
       p.armor -= absorb;
       hpd = dmg - absorb;
-      if (p.armor <= 0) { p.armor = 0; this.msg('护甲已损坏！', '#7fb2ff'); this.sfx.play('shield'); }
+      if (p.armor <= 0) {
+        p.armor = 0;
+        this.msg('护甲已损坏！', '#7fb2ff');
+        this.text(p.x, p.y - 34, '护甲碎裂', '#9ec5ff', 15);
+        if (p.armorAegis > 0 && p.armorAegisCd <= 0) {
+          p.armorInvuln = p.armorAegis;
+          p.armorAegisCd = 10;
+          this.text(p.x, p.y - 52, '应急护盾！', '#b9f0ff', 18, true);
+          this.msg('破甲应急护盾启动 · 1.2 秒免疫', '#b9f0ff');
+        }
+        this.sfx.play('shield');
+      }
     }
     p.hp -= hpd;
     p.hurtT = 0.3;
@@ -1258,14 +1287,28 @@ export class Game {
       .sort((a, b) => b.value - a.value || b.rarity - a.rarity);
     const value = items.reduce((s, i) => s + i.value, 0);
     const gear = this.warehouseGear ? p.backpack.filter((it) => gearDef(it.def.id)) : [];
-    const cashValue = value - gear.reduce((sum, it) => sum + it.def.value, 0);
+    // Supplies found in the field go back into the warehouse stock, not straight into cash.
+    const foundSupplies = normalizeSupplies({
+      bandages: p.backpack.filter((it) => it.def.kind === 'bandage').length,
+      medkits: p.backpack.filter((it) => it.def.kind === 'medkit').length,
+      throwables: Object.fromEntries(THROWABLE_IDS.map((id) => [
+        id, p.backpack.filter((it) => it.def.throwable === id).length,
+      ])),
+    });
+    const supplyValue = p.backpack.filter((it) => ['bandage', 'medkit', 'grenade'].includes(it.def.kind))
+      .reduce((sum, it) => sum + it.def.value, 0);
+    const cashValue = value - gear.reduce((sum, it) => sum + it.def.value, 0) - supplyValue;
     const extracted = this.outcome === 'extract';
     const score = extracted ? value + this.stats.killScore : Math.floor(this.stats.killScore * 0.3);
+    const usedSupplies = this.warehouseGear ? normalizeConsumables({
+      bandages: this.kit.bandages, medkits: this.kit.medkits, throwables: this.kit.throwables,
+    }) : normalizeConsumables({});
     return {
       training: this.training, mapId: this.mapId, characterId: p.character.id, outcome: this.outcome ?? 'dead', items, value, killScore: this.stats.killScore, kills: this.stats.kills,
       killsBy: { ...this.stats.killsBy }, time: this.t, score, kit: this.kit.id, kitCost: this.kit.cost, best: items[0] ?? null,
       cashValue, foundGear: gear.map((it) => ({ id: it.def.id, tuned: false })),
       usedGear: this.warehouseGear ? raidGearItems(this.warehouseGear) : [],
+      foundSupplies, usedSupplies,
     };
   }
 
@@ -1966,7 +2009,7 @@ export class Game {
         const sp = Math.hypot(b.vx, b.vy) || 1;
         const nx = b.vx / sp, ny = b.vy / sp;
         if (te) {
-          this.damageEnemy(te, b.dmg, nx, ny, b.crit, hx, hy);
+          this.damageEnemy(te, b.dmg, nx, ny, b.crit, hx, hy, false, b.from === 0 ? b.antiArmor ?? 0 : 0);
           this.stats.hits++;
           if (b.chill) {
             te.chillT = 2.4;
@@ -1979,7 +2022,7 @@ export class Game {
           }
           if (b.explosive) {
             // Rockets detonate where they land — damage falls off with distance.
-            this.booms.push({ x: hx, y: hy, t: 0.02, r: 165, dmg: 115 });
+            this.booms.push({ x: hx, y: hy, t: 0.02, r: b.blastR ?? 165, dmg: b.blastDmg ?? 115 });
             bs[i] = bs[bs.length - 1]; bs.pop();
             continue;
           }
@@ -2010,7 +2053,7 @@ export class Game {
         const hx = b.x + dx * tW, hy = b.y + dy * tW;
         this.impact(hx, hy, wnx, wny, ws);
         if (b.explosive) {
-          this.booms.push({ x: hx, y: hy, t: 0.02, r: 165, dmg: 115 });
+          this.booms.push({ x: hx, y: hy, t: 0.02, r: b.blastR ?? 165, dmg: b.blastDmg ?? 115 });
           if (ws.kind === 'barrel' && !ws.dead) { ws.dead = true; this.booms.push({ x: ws.x, y: ws.y, t: 0.1, r: 150, dmg: 130 }); }
           bs[i] = bs[bs.length - 1]; bs.pop();
           continue;
@@ -2025,7 +2068,7 @@ export class Game {
       b.x += dx; b.y += dy;
       b.life -= dt;
       if (b.life <= 0) {
-        if (b.explosive) this.booms.push({ x: b.x, y: b.y, t: 0.02, r: 165, dmg: 115 });
+        if (b.explosive) this.booms.push({ x: b.x, y: b.y, t: 0.02, r: b.blastR ?? 165, dmg: b.blastDmg ?? 115 });
         bs[i] = bs[bs.length - 1]; bs.pop();
       }
     }

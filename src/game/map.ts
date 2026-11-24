@@ -42,6 +42,7 @@ export interface SceneryProp {
       | 'wood_table' | 'wood_bench' | 'bar_stool' | 'metal_workbench'
       | 'stone_steps' | 'wood_steps' | 'duck_throne' | 'nest_cluster'
       | 'berry_bush' | 'thorn_bush' | 'crate_stack' | 'hay_bale'
+      | 'ice_block' | 'ice_crystal' | 'fighter_jet' | 'lava_pool' | 'lava_fissure'
       | 'king_vault_gate';
   x: number;
   y: number;
@@ -224,8 +225,79 @@ const TAU_STATIC = Math.PI * 2;
 
 type BiomeStyle = 'harbor' | 'foundry' | 'hatchery' | 'outpost' | 'mausoleum';
 
+/** Half-extents of each drawn asset in its local 128x128 canvas space. */
+const PROP_FOOTPRINT: Partial<Record<SceneryProp['kind'], [number, number]>> = {
+  delivery_truck: [34, 54], pickup_truck: [34, 52], dump_truck: [34, 54], container_truck: [36, 56], flatbed: [32, 48],
+  rowboat: [32, 56], fishing_boat: [32, 58], speedboat: [32, 58],
+  barrels: [36, 36], bollard: [28, 22], crane: [60, 30],
+  fountain: [50, 36], duck_king_statue: [46, 56], billboard: [46, 42], vending_machine: [28, 58],
+  bed: [44, 50], table_map_cup: [40, 40], table_field_kit: [40, 40], wood_chair: [30, 34],
+  bedside_cabinet: [30, 32], potted_flower: [30, 36], egg_nest: [30, 28], ice_beacon: [28, 52],
+  wood_table: [54, 48], wood_bench: [52, 40], bar_stool: [34, 30], metal_workbench: [50, 44],
+  stone_steps: [56, 50], wood_steps: [56, 50], duck_throne: [50, 46], nest_cluster: [58, 40],
+  berry_bush: [52, 40], thorn_bush: [52, 40], crate_stack: [50, 46], hay_bale: [50, 36],
+  ice_block: [30, 34], ice_crystal: [28, 42], fighter_jet: [56, 56],
+  lava_pool: [54, 54], lava_fissure: [56, 40], king_vault_gate: [52, 42],
+};
+
+function propBox(p: SceneryProp) {
+  const f = PROP_FOOTPRINT[p.kind] ?? [50, 50];
+  const c = Math.abs(Math.cos(p.rot)), s = Math.abs(Math.sin(p.rot));
+  return {
+    x: p.x, y: p.y,
+    hw: (f[0] * c + f[1] * s) * p.scale,
+    hh: (f[0] * s + f[1] * c) * p.scale,
+  };
+}
+
+/** Nudge searchable containers off drawn props; vending machines are intentionally co-located. */
+function separateContainersFromProps(map: GameMap) {
+  const pad = 9;
+  const boxOverlap = (ax: number, ay: number, hw: number, hh: number, b: ReturnType<typeof propBox>) =>
+    Math.abs(ax - b.x) < hw + b.hw + pad && Math.abs(ay - b.y) < hh + b.hh + pad;
+  const inWater = (x: number, y: number, hw: number, hh: number) => map.water.some((w) => w.w && w.h
+    ? Math.abs(x - w.x) < w.w / 2 + hw && Math.abs(y - w.y) < w.h / 2 + hh
+    : Math.hypot(x - w.x, y - w.y) < w.r + Math.max(hw, hh));
+  const inSolid = (x: number, y: number, hw: number, hh: number) => map.solids.some((s) => {
+    // Containers register their own collider; water colliders are handled separately.
+    if (s.kind === 'bound' || s.kind === 'container' || s.kind === 'water' || !(s.f & F_MOVE)) return false;
+    if (s.t === 0) return x + hw > s.x - 4 && x - hw < s.x + s.w + 4 && y + hh > s.y - 4 && y - hh < s.y + s.h + 4;
+    return Math.hypot(Math.max(0, Math.abs(x - s.x) - hw), Math.max(0, Math.abs(y - s.y) - hh)) < s.r + 4;
+  });
+  for (const c of map.containers) {
+    const def = CONTAINER_DEFS[c.type];
+    if (!def) continue;
+    // The vending machine art IS the container, so keep those in place.
+    if (c.type === 'vending' && map.props.some((p) => p.kind === 'vending_machine' && p.x === c.x && p.y === c.y)) continue;
+    const hw = def.w / 2, hh = def.h / 2;
+    const clashes = (x: number, y: number) => map.containers.some((o) => o !== c && (() => {
+      const od = CONTAINER_DEFS[o.type];
+      return od && Math.abs(x - o.x) < hw + od.w / 2 + 12 && Math.abs(y - o.y) < hh + od.h / 2 + 12;
+    })());
+    const hits = (x: number, y: number) => map.props.some((p) => boxOverlap(x, y, hw, hh, propBox(p)));
+    if (!hits(c.x, c.y) && !clashes(c.x, c.y) && !inWater(c.x, c.y, hw, hh) && !inSolid(c.x, c.y, hw, hh)) continue;
+    const originalFloor = map.floors.find((f) => c.x > f.x && c.x < f.x + f.w && c.y > f.y && c.y < f.y + f.h);
+    const best: { x: number; y: number; score: number }[] = [];
+    for (let r = 1; r <= 10; r++) {
+      for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= r; dy++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const nx = c.x + dx * 26, ny = c.y + dy * 26;
+        if (nx < hw + 12 || ny < hh + 12 || nx > map.w - hw - 12 || ny > map.h - hh - 12) continue;
+        if (hits(nx, ny) || clashes(nx, ny) || inWater(nx, ny, hw, hh) || inSolid(nx, ny, hw, hh)) continue;
+        const sameFloor = originalFloor && nx > originalFloor.x && nx < originalFloor.x + originalFloor.w
+          && ny > originalFloor.y && ny < originalFloor.y + originalFloor.h;
+        const score = Math.hypot(dx, dy) + (sameFloor ? 0 : 6);
+        if (!best.length || score < best[0].score) best.splice(0, 1, { x: nx, y: ny, score });
+      }
+      if (best.length) break;
+    }
+    if (best.length) { c.x = Math.round(best[0].x); c.y = Math.round(best[0].y); }
+  }
+}
+
 /** Add deterministic, non-blocking ground art without covering routes or combat landmarks. */
 function withBiomeArt(map: GameMap, biome: BiomeStyle): GameMap {
+  separateContainersFromProps(map);
   const settings: { seed: number; count: number } = {
     harbor: { seed: 31, count: 70 }, foundry: { seed: 47, count: 85 },
     hatchery: { seed: 59, count: 190 }, outpost: { seed: 71, count: 160 }, mausoleum: { seed: 83, count: 180 },
@@ -878,6 +950,13 @@ function buildOutpost(): GameMap {
     { kind: 'crate_stack', x: 2280, y: 1360, rot: 0, scale: 0.95 },
     { kind: 'stone_steps', x: 1900, y: 1120, rot: 0, scale: 0.9 },
     { kind: 'wood_bench', x: 1000, y: 1500, rot: 0, scale: 0.86 },
+    // 双首领战场的程序化氛围道具：冰块、冰晶、停机坪上的战机与熔岩裂隙
+    { kind: 'fighter_jet', x: 2240, y: 320, rot: -0.12, scale: 0.95 },
+    { kind: 'ice_block', x: 520, y: 1480, rot: 0.18, scale: 1.0 },
+    { kind: 'ice_block', x: 240, y: 1320, rot: -0.24, scale: 0.9 },
+    { kind: 'ice_crystal', x: 1320, y: 120, rot: 0.1, scale: 1.05 },
+    { kind: 'lava_pool', x: 1440, y: 560, rot: 0, scale: 1.05 },
+    { kind: 'lava_fissure', x: 1400, y: 1480, rot: -0.16, scale: 1.0 },
   ];
   return withBiomeArt(reframeMap({
     w, h, water, props,

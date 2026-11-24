@@ -1,11 +1,11 @@
 import { RARITY_COLORS, WEAPONS } from './data';
 
-type WeaponShape = 'pistol' | 'compact' | 'shotgun' | 'rifle' | 'sniper' | 'lmg' | 'ak' | 'dmr' | 'minigun' | 'rpg';
+type WeaponShape = 'pistol' | 'compact' | 'shotgun' | 'rifle' | 'sniper' | 'lmg' | 'ak' | 'dmr' | 'minigun' | 'rpg' | 'ironbreaker';
 
 const SHAPES: Record<string, WeaponShape> = {
   pistol: 'pistol', smg: 'compact', mp9: 'compact', frostmp9: 'compact', shotgun: 'shotgun',
   rifle: 'rifle', m4legend: 'rifle', sniper: 'sniper', awmlegend: 'sniper', lmg: 'lmg',
-  ak: 'ak', dmr: 'dmr', minigun: 'minigun', rpg: 'rpg',
+  ak: 'ak', dmr: 'dmr', minigun: 'minigun', rpg: 'rpg', ironbreaker: 'ironbreaker',
 };
 
 /** Small, data-driven hand-painted SVG props shared by the web UI and Canvas renderer. */
@@ -17,9 +17,11 @@ export function weaponIconSvg(id: string): string {
   const legend = (weapon?.rarity ?? 0) >= 5;
   const special = id === 'frostmp9'
     ? '<path d="m62 29 4-7 4 7 7 2-7 3-4 7-4-7-7-3z" fill="#c9f5ff" stroke="#6094a2" stroke-width="1.5"/><path d="m89 36 3-5 3 5 5 2-5 2-3 5-3-5-5-2z" fill="#dffaff"/>'
-    : id === 'm4legend' || id === 'awmlegend'
-      ? '<path d="M49 39q9-13 18-1t18-1" fill="none" stroke="#e0b45c" stroke-width="2" opacity=".9"/><circle cx="68" cy="36" r="2.2" fill="#ffe69a"/>'
-      : '';
+    : id === 'ironbreaker'
+      ? '<path d="m70 22 5 10 11 1-8 7 3 11-11-6-11 6 3-11-8-7 11-1z" fill="#c0262b" stroke="#ffb3a3" stroke-width="1.5"/><circle cx="70" cy="34" r="3" fill="#ff5a4a"/>'
+      : id === 'm4legend' || id === 'awmlegend'
+        ? '<path d="M49 39q9-13 18-1t18-1" fill="none" stroke="#e0b45c" stroke-width="2" opacity=".9"/><circle cx="68" cy="36" r="2.2" fill="#ffe69a"/>'
+        : '';
 
   let silhouette = '';
   if (shape === 'pistol') {
@@ -34,6 +36,8 @@ export function weaponIconSvg(id: string): string {
     silhouette = '<path d="M7 34h33l8 4h72l10-5h12v7h-16l-10 5H48l-10-5H7z"/><path d="M66 44h15l-3 17H64z"/><path d="M44 28h31v5H44z"/><path d="M50 45h23v16H50z" fill="#242b26" stroke="#131815" stroke-width="2"/><path d="M53 48h17M53 52h17M53 56h17" stroke="#7b8779" stroke-width="1.5"/><path d="M35 31h15v3H35z" fill="#c1c9bd"/>';
   } else if (shape === 'ak') {
     silhouette = '<path d="M9 35h29l9 4h71l10-5h14v7h-18l-9 5H48l-11-5H9z"/><path d="M64 45h15l-3 19H62z"/><path d="M10 32h29v5H10z" fill="#8a5b35"/><path d="M40 32h19v4H40z" fill="#9b663c"/><path d="M65 45q6 1 13 1l7 20-11-2-7-12z" fill="#70472d"/><path d="M90 33h26v3H90z" fill="#bdc2b6"/>';
+  } else if (shape === 'ironbreaker') {
+    silhouette = '<path d="M6 33h34l9 5h73l11-5h14v8h-18l-10 5H49l-11-5H6z"/><path d="M64 44h18l-4 18H60z"/><path d="M40 27h34v6H40z" fill="#241a1e"/><path d="M52 45h25v18H52z" fill="#180f12" stroke="#8f1d1d" stroke-width="2"/><path d="M57 48h15M57 53h15M57 58h15" stroke="#b3262c" stroke-width="1.5"/><path d="M33 30h18v5H33z" fill="#5a171b"/><path d="M98 33h26v4H98z" fill="#3a1014"/>';
   } else if (shape === 'minigun') {
     silhouette = '<path d="M38 37h52l8-5h20v8H97l-8 5H40z"/><path d="M46 30h71v3H46zM45 35h75v3H45zM45 40h75v3H45z"/><path d="M115 28h10v17h-10z" fill="#151a18"/><path d="M62 45h15l-4 14H60z"/><circle cx="44" cy="36.5" r="9" fill="#596052" stroke="#151a18" stroke-width="3"/><path d="M47 46h34v7H47z" fill="#252c28"/><path d="M57 54h4v12h-4zM75 54h4v12h-4z" fill="#a8b09b"/>';
   } else if (shape === 'rpg') {
