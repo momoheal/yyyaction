@@ -1,9 +1,10 @@
 node_modules/
 dist/
+dist-en/
 .env
 .env.*
 !.env.example
 .workbuddy/
 .wbapp_*.genie
 .playwright-cli/
-art_assets/.chrome-profile/
+art_assets/.chrome-profile*/

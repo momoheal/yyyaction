@@ -4,6 +4,8 @@
 
 **[在线试玩](https://yyyaction.solidsunbird5.chatgpt.site)** · 使用站点所有者的 ChatGPT 账号访问
 
+Quick 优化版的完整单文件导出已收入仓库，可离线打开体验新增的空军基地、双首领技能、专属战利品和地图美术：[独立 HTML](docs/release/04-quick-optimized.html) · [更新日志](docs/release/04-quick-optimized-changelog.md)。该 HTML 是自包含的编译快照；Quick 未提供源码映射，因此其中的地图与战斗改动保存在此版本文件里，不会自动同步到 `src/` 或微信小游戏源码。
+
 ![正式行动实机截图，玩家在武器箱旁与敌人交火，右上角显示小地图](docs/gameplay.png)
 
 ## 怎么玩

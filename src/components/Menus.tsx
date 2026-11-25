@@ -10,6 +10,7 @@ import LevelPicker from './LevelPicker';
 import LobbyDialog from './LobbyDialog';
 import Portrait from './Portrait';
 import GearIcon from './GearIcon';
+import { getLocale, setLocale, useLocale } from '../i18n';
 
 const OUTCOME: Record<string, { label: string; cls: string }> = {
   extract: { label: '撤离', cls: 'bg-emerald-400/15 text-emerald-300 ring-emerald-400/30' },
@@ -45,6 +46,21 @@ function MuteButton({ muted, onMute }: { muted: boolean; onMute: () => void }) {
   return (
     <button onClick={onMute} className="grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-black/40 text-lg backdrop-blur transition hover:bg-white/10 active:scale-95" aria-label="切换声音">
       {muted ? '🔇' : '🔊'}
+    </button>
+  );
+}
+
+function LanguageButton() {
+  const locale = useLocale();
+  return (
+    <button
+      type="button"
+      onClick={() => setLocale(getLocale() === 'en' ? 'zh' : 'en')}
+      className="grid h-10 min-w-10 place-items-center rounded-full border border-white/15 bg-black/40 px-2 text-xs font-black backdrop-blur transition hover:bg-white/10 active:scale-95"
+      aria-label={locale === 'en' ? 'Switch language' : '切换语言'}
+      title={locale === 'en' ? 'Switch language' : '切换语言'}
+    >
+      {locale === 'en' ? '简中' : 'EN'}
     </button>
   );
 }
@@ -132,13 +148,30 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
   const [debugPassword, setDebugPassword] = useState('');
   const [debugError, setDebugError] = useState(false);
   const debugTitleTaps = useRef({ count: 0, lastAt: 0 });
+  useEffect(() => {
+    const openDebug = () => {
+      setDebugPassword('');
+      setDebugError(false);
+      setPanel('debug');
+    };
+    if (new URLSearchParams(window.location.search).has('debug')) openDebug();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat || !event.shiftKey || !(event.ctrlKey || event.metaKey) || event.code !== 'KeyD') return;
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
+      event.preventDefault();
+      openDebug();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
   const onTitleTap = () => {
     const now = performance.now();
     const taps = debugTitleTaps.current;
     if (now - taps.lastAt > 2000) taps.count = 0;
     taps.lastAt = now;
     taps.count += 1;
-    if (taps.count >= 6) {
+    if (taps.count >= 5) {
       taps.count = 0;
       setDebugPassword('');
       setDebugError(false);
@@ -155,7 +188,7 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
     <div className="scroll-y absolute inset-0 z-10">
       <div className="pointer-events-none fixed inset-0 bg-gradient-to-r from-[#0b0d10]/95 via-[#0b0d10]/75 to-[#0b0d10]/30" />
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(255,210,63,0.12),transparent_55%)]" />
-      <div className="fixed right-4 top-4 z-20"><MuteButton muted={muted} onMute={onMute} /></div>
+      <div className="fixed right-4 top-4 z-20 flex gap-2"><LanguageButton /><MuteButton muted={muted} onMute={onMute} /></div>
       <div className="relative mx-auto flex min-h-full max-w-6xl flex-col gap-3 px-4 py-4 sm:gap-6 sm:px-8 sm:py-8 lg:flex-row lg:items-center lg:gap-12 short:flex-row short:items-center short:gap-5 short:py-3">
         <div className="anim-rise flex-1">
           <div className="inline-flex items-center gap-2 rounded-full border border-[#ffd23f]/30 bg-[#ffd23f]/10 px-3 py-1 font-num text-xs font-bold tracking-[0.25em] text-[#ffd23f]">
@@ -299,7 +332,7 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
           ) : (
             <form onSubmit={(event) => {
               event.preventDefault();
-              if (debugPassword.trim() === DEBUG_PASSWORD) {
+              if (debugPassword.trim().normalize('NFKC').toUpperCase() === DEBUG_PASSWORD) {
                 onDebugMode(true);
                 setDebugPassword('');
                 setDebugError(false);

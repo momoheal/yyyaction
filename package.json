@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:en": "vite build --mode english --outDir dist-en",
     "build:minigame": "vite build --config vite.minigame.config.ts",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",

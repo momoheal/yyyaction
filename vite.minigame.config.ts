@@ -11,7 +11,7 @@ export default defineConfig({
   build: {
     outDir: "minigame",
     emptyOutDir: false,
-    target: "es2020",
+    target: "es2017",
     lib: {
       entry: path.resolve(__dirname, "src/minigame/main.ts"),
       formats: ["iife"],
