@@ -2,7 +2,7 @@
 // 用法：node minigame-opt/build.mjs
 // 步骤：vite 构建 -> 复制小游戏配置 -> 语法/内容/浏览器API残留校验
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, readFileSync, existsSync } from 'node:fs';
+import { copyFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -17,14 +17,27 @@ execFileSync('npx', ['vite', 'build', '--config', 'vite.minigame-opt.config.ts']
   cwd: ROOT, stdio: 'inherit', shell: true,
 });
 
-// 2. 复制小游戏配置（vite 清空 dist 后必须重新放回去）
-console.log('[2/4] 写入小游戏配置...');
+// 2. 清理残留音乐目录 + 复制小游戏配置
+// 优化版用 WebAudio 程序合成音乐，不需要 mp3；vite 的 emptyOutDir 不会删
+// 未被 import 的静态资源目录，且 wx 开发者工具可能重新生成，故每次显式删除。
+console.log('[2/4] 清理残留资源 + 写入小游戏配置...');
+const musicDir = resolve(DIST, 'music');
+if (existsSync(musicDir)) {
+  rmSync(musicDir, { recursive: true, force: true });
+  console.log('  已删除残留 music/ 目录（mp3 非优化版所需）');
+}
 for (const f of ['project.config.json', 'game.json']) {
   copyFileSync(resolve(__dirname, f), resolve(DIST, f));
 }
 
-// 3. 校验 game.js
-console.log('[3/4] 校验 game.js...');
+// 3. 校验产物
+console.log('[3/4] 校验产物...');
+// 3-0. dist 只允许 game.js + 两个配置文件，防止残留资源混入
+const { readdirSync, statSync } = await import('node:fs');
+const files = readdirSync(DIST);
+const extra = files.filter((f) => !['game.js', 'game.json', 'project.config.json'].includes(f));
+if (extra.length) fail(`dist 出现多余文件: ${extra.join(', ')}`);
+// 3a. game.js 体积应远小于 1MB（若混入 mp3 会暴涨）
 const gameJsPath = resolve(DIST, 'game.js');
 if (!existsSync(gameJsPath)) fail('缺少 game.js');
 const js = readFileSync(gameJsPath, 'utf8');
