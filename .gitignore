@@ -1,6 +1,7 @@
 node_modules/
 dist/
 dist-en/
+minigame-opt/dist/
 .env
 .env.*
 !.env.example

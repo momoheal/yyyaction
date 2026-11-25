@@ -8,6 +8,9 @@
     "build": "vite build",
     "build:en": "vite build --mode english --outDir dist-en",
     "build:minigame": "vite build --config vite.minigame.config.ts",
+    "build:minigame-opt": "node minigame-opt/build.mjs",
+    "test:minigame-opt": "node minigame-opt/smoke-test.mjs",
+    "build:optimized": "node optimized/scripts/build.mjs",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "art:props": "node art_assets/build-gallery.mjs"
