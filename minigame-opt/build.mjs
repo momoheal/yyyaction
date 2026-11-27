@@ -26,7 +26,7 @@ if (existsSync(musicDir)) {
   rmSync(musicDir, { recursive: true, force: true });
   console.log('  已删除残留 music/ 目录（mp3 非优化版所需）');
 }
-for (const f of ['project.config.json', 'game.json']) {
+for (const f of ['project.config.json', 'game.json', 'code.fortify.config.json']) {
   copyFileSync(resolve(__dirname, f), resolve(DIST, f));
 }
 
@@ -35,7 +35,7 @@ console.log('[3/4] 校验产物...');
 // 3-0. dist 只允许 game.js + 两个配置文件，防止残留资源混入
 const { readdirSync, statSync } = await import('node:fs');
 const files = readdirSync(DIST);
-const extra = files.filter((f) => !['game.js', 'game.json', 'project.config.json'].includes(f));
+const extra = files.filter((f) => !['game.js', 'game.json', 'project.config.json', 'code.fortify.config.json'].includes(f));
 if (extra.length) fail(`dist 出现多余文件: ${extra.join(', ')}`);
 // 3a. game.js 体积应远小于 1MB（若混入 mp3 会暴涨）
 const gameJsPath = resolve(DIST, 'game.js');
@@ -52,6 +52,7 @@ for (const [name, re] of [
   ['import.meta', /import\.meta/g],
   ['document.currentScript', /currentScript/g],
   ['document.baseURI', /baseURI/g],
+  ['new Audio(', /new Audio\(/g],
 ]) {
   const n = (js.match(re) || []).length;
   if (n > 0) fail(`残留 ${n} 处 ${name}，小游戏环境不支持`);
@@ -64,6 +65,15 @@ for (const kw of ['冰火空军基地', '烈焰王牌', '冰霜雷达官', '补�
 
 // 3d. 语法校验
 execFileSync(process.execPath, ['--check', gameJsPath], { stdio: 'inherit' });
+
+// 3e. Image 依赖必须有垫片
+// core.js 里存在 `new Image`（无参形式，不带括号）。小游戏没有全局 Image，
+// 全靠 src/minigame/adapter.ts 用 wx.createImage 打垫片；垫片一旦漏打包，
+// 真机会抛 ReferenceError: Can't find variable: Image，整局卡在加载页。
+// 静态检查只能查"有没有垫片"，真正的启动验证交给 smoke-test.mjs（不再伪造 Image）。
+const hasImageCall = /(?<![\w.$])new\s+Image\b/.test(js);
+const hasImageShim = js.includes('wx.createImage');
+if (hasImageCall && !hasImageShim) fail('包内调用了 Image 但没有 wx.createImage 垫片，真机会卡启动页');
 
 // 4. 完成
 console.log('[4/4] 全部校验通过');

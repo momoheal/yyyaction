@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   ARMORS, ITEM_BANDAGE, ITEM_MEDKIT, RARITY_COLORS, RARITY_NAMES, THROWABLE_IDS, THROWABLES,
   UPGRADE_INFO, UPGRADE_MAX, WEAPONS, characterArmor, fmtMoney, getCharacter,
-  weaponCategory, weaponItem, weaponTrait, upgradePrice, upgradeValue,
+  weaponCategory, weaponItem, weaponPassiveLabel, weaponTrait, upgradePrice, upgradeValue,
   type ItemDef, type UpgradeKey, type WeaponDef,
 } from '../game/data';
 import type { SaveData } from '../game/storage';
@@ -10,7 +10,7 @@ import {
   ARMOR_TUNE_DESCS, ARMOR_TUNE_LABELS, ARMOR_TUNE_TAGS, ARMOR_TUNE_TYPES, CONSUMABLE_LIMITS,
   TUNE_DESCS, TUNE_LABELS, TUNE_TAGS, armorModsOf, armorModSlots, armorValue, consumableCount,
   gearDef, gearLabel, gearMods, gearSellPrice, gunWithMods, modSlots, modsKey, normalizeConsumables,
-  normalizeSupplies, sameGear, supplySellPrice, tuningPrice, tunesForWeapon,
+  normalizeSupplies, RISKY_TUNES, sameGear, supplySellPrice, tuningPrice, tunesForWeapon, weaponCombo,
   type ArmorTuneType, type GearItem, type SupplyKey, type TuneType,
 } from '../game/warehouse';
 import LobbyDialog from './LobbyDialog';
@@ -48,6 +48,7 @@ function WeaponStats({ base, tuned }: { base: WeaponDef; tuned: WeaponDef }) {
     { label: '装填', value: `${tuned.reload.toFixed(1)} 秒`, changed: tuned.reload !== base.reload },
     { label: '穿透', value: `${tuned.pierce}`, changed: tuned.pierce !== base.pierce },
   ];
+  if (tuned.jamChance) cells.push({ label: '卡壳', value: `${Math.round(tuned.jamChance * 100)}%`, changed: true });
   return (
     <dl className="grid grid-cols-3 gap-1" aria-label="武器属性">
       {cells.map((cell) => (
@@ -268,11 +269,19 @@ export default function Armory({ save, onAction, onClose }: { save: SaveData; on
                                 {def.name} <span className="font-num text-xs text-white/80">×{item.count}</span>
                               </span>
                               {gearLabel(item) && <span className="block truncate text-[11px] font-bold text-[#9fe6ff]">{gearLabel(item)}</span>}
+                              {(() => { const combo = weaponCombo(mods); return combo ? (
+                                <span className="mt-0.5 inline-block rounded bg-[#ffd376]/20 px-1.5 py-0.5 text-[10px] font-bold text-[#ffd376]" title={combo.desc}>
+                                  组合 · {combo.name}<span className="ml-1 font-normal text-[#ffe9b0]/80">{combo.desc}</span>
+                                </span>
+                              ) : null; })()}
                               <span className="block truncate text-xs text-white/65">
                                 {RARITY_NAMES[def.rarity]}{slot === 'armor'
                                   ? ` · 护甲 ${characterArmor(character, armorValue(def.armor ?? 0, aMods))}`
                                   : ` · ${weaponCategory(def.weapon ?? '')} · ${weaponTrait(def.weapon ?? '')}`}
                               </span>
+                              {slot === 'weapon' && weaponPassiveLabel(def.weapon ?? '') && (
+                                <span className="block truncate text-[11px] font-bold text-[#a8e6b0]">先天 · {weaponPassiveLabel(def.weapon ?? '')}</span>
+                              )}
                             </span>
                           </span>
                         </div>
@@ -296,8 +305,11 @@ export default function Armory({ save, onAction, onClose }: { save: SaveData; on
                               const disabled = active || full || save.stash < price;
                               return (
                                 <button key={t} type="button" title={TUNE_DESCS[t]} aria-pressed={active} disabled={disabled}
-                                  className={cn('min-h-7 rounded border px-2 text-[11px] font-bold hover:bg-white/10 disabled:opacity-40', active ? 'border-[#9fe6ff] text-[#9fe6ff] opacity-100' : 'border-white/20 text-white/75')}
+                                  className={cn('min-h-7 rounded border px-2 text-[11px] font-bold hover:bg-white/10 disabled:opacity-40',
+                                    active ? 'border-[#9fe6ff] text-[#9fe6ff] opacity-100'
+                                      : RISKY_TUNES.has(t) ? 'border-[#ff8a5c]/60 text-[#ffb59a]' : 'border-white/20 text-white/75')}
                                   onClick={() => onAction({ type: 'tune', gear: item, mod: t })}>
+                                  {RISKY_TUNES.has(t) && <span className="mr-0.5 text-[#ff8a5c]">!</span>}
                                   {TUNE_LABELS[t]} <span className="font-num text-white/50">{TUNE_TAGS[t]}</span> ¥{fmtMoney(price)}
                                 </button>
                               );

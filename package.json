@@ -9,6 +9,8 @@
     "build:en": "vite build --mode english --outDir dist-en",
     "build:minigame": "vite build --config vite.minigame.config.ts",
     "build:minigame-opt": "node minigame-opt/build.mjs",
+    "code-fortify": "minigame-code-fortify-cli-package-run",
+    "code-fortify:package": "npm run code-fortify && node minigame-opt/after-fortify.mjs",
     "test:minigame-opt": "node minigame-opt/smoke-test.mjs",
     "build:optimized": "node optimized/scripts/build.mjs",
     "typecheck": "tsc --noEmit",
@@ -27,9 +29,21 @@
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "5.1.1",
+    "minigame-code-fortify-cli": "^0.1.8",
     "tailwindcss": "4.1.17",
     "typescript": "5.9.3",
     "vite": "7.3.7",
     "vite-plugin-singlefile": "2.3.0"
+  },
+  "minigame_code_fortify_cli": {
+    "workDir": "./minigame-opt/dist",
+    "outputDir": "./minigame-opt/fortify-output",
+    "options": {
+      "secretConfigPath": "C:/Users/admin/Documents/ChatGPT/duckex/duck-extraction-shooter-game/.workbuddy/fortify/id_rsa.conf",
+      "protectConfigPath": "C:/Users/admin/Documents/ChatGPT/duckex/duck-extraction-shooter-game/minigame-opt/dist/code.fortify.config.json",
+      "networkOptions": {
+        "timeout_minute": 30
+      }
+    }
   }
 }

@@ -1,52 +1,220 @@
 import { RARITY_COLORS, WEAPONS } from './data';
 
-type WeaponShape = 'pistol' | 'compact' | 'shotgun' | 'rifle' | 'sniper' | 'lmg' | 'ak' | 'dmr' | 'minigun' | 'rpg' | 'ironbreaker';
+/**
+ * Weapon icons drawn as small, stylised side-view SVGs in a 144x88 box.
+ * Every gun has its own silhouette so the prototype is recognisable at a glance:
+ * slide & angled grip for the pistol, banana mag for the AK, drum for the AA12,
+ * six barrels for the minigun, flared tube for the RPG, and so on.
+ * Coordinates: receiver around y=34..48, muzzle to the right, stock to the left.
+ */
 
-const SHAPES: Record<string, WeaponShape> = {
-  pistol: 'pistol', smg: 'compact', mp9: 'compact', frostmp9: 'compact', shotgun: 'shotgun',
-  rifle: 'rifle', m4legend: 'rifle', sniper: 'sniper', awmlegend: 'sniper', lmg: 'lmg',
-  ak: 'ak', dmr: 'dmr', minigun: 'minigun', rpg: 'rpg', ironbreaker: 'ironbreaker',
+const WOOD = '#8b5e34';
+const WOOD_LIGHT = '#a97643';
+const POLY = '#2c3430';
+const POLY_LIGHT = '#39433d';
+const STEEL = '#b4beb3';
+const DARK = '#171e1b';
+
+// --- reusable building blocks -------------------------------------------------
+const arBody = (stock: string, rail: string) => `
+  <path d="M14 38h34l5-5h34l6 4h33v5H93l-6 5H51l-5 4H14z"/>
+  <path d="M14 34h32v6H14z" fill="${stock}"/>
+  <path d="M48 29h40v4H48z" fill="${rail}"/>
+  <path d="M61 48h14l-3 19H64z" fill="${POLY}"/>
+  <path d="M114 30h4v9h-4z"/>
+  <path d="M121 36h12v4h-12z" fill="${STEEL}"/>
+  <path d="M54 33h28v2H54z" fill="#8d998f" stroke="none"/>`;
+
+const akBody = `
+  <path d="M8 34 40 33l9 4h56l8-4h21v6h-21l-8 5H52l-11 5H8z"/>
+  <path d="M8 32h32v5H8z" fill="${WOOD}"/>
+  <path d="M40 32h20v5H40z" fill="${WOOD_LIGHT}"/>
+  <path d="M66 46q3 10 12 17l-8 5q-11-8-13-20z" fill="#70472d"/>
+  <path d="M52 28h17v5H52z"/>
+  <path d="M113 32h22l4 4-4 3h-22z" fill="${STEEL}"/>
+  <path d="M45 35h20v2H45z" fill="#6b4a2a" stroke="none"/>`;
+
+const mp9Body = `
+  <path d="M20 38h28l5-5h34l5 4h18v6H91l-5 5H50l-5 4H20z"/>
+  <path d="M18 34h13v11H18z" fill="${POLY_LIGHT}"/>
+  <path d="M61 47h14l-1 16H63z" fill="${POLY}"/>
+  <rect x="64" y="26" width="16" height="8" rx="2" fill="${DARK}" stroke-width="1.8"/>
+  <circle cx="72" cy="30" r="1.8" fill="#e0524b" stroke="none"/>
+  <path d="M94 36h12v4H94z" fill="${STEEL}"/>
+  <path d="M34 34h42v2H34z" fill="#8d998f" stroke="none"/>`;
+
+const sniperBody = `
+  <path d="M8 34 40 32l8 5h66l10-5h12v6h-14l-9 5H51l-11 5H8z"/>
+  <path d="M8 31h32v5H8z" fill="#4f5a4e"/>
+  <rect x="52" y="22" width="30" height="9" rx="4" fill="${DARK}"/>
+  <path d="M50 26h34" stroke="#b7c1b6" stroke-width="2"/>
+  <path d="M70 48h12l-2 14H71z" fill="${POLY}"/>
+  <path d="M48 32h6l-3 8h-5z" fill="#6c7669"/>
+  <path d="M124 32h14v7h-14z" fill="${STEEL}"/>`;
+
+const GUN_ART: Record<string, string> = {
+  // M9 — short slide, exposed muzzle, angled grip, open trigger guard
+  pistol: `
+    <path d="M27 33 88 31l7 4h13v6h-15l-5 4H52l-5-3H27z"/>
+    <path d="M54 46h17l-3 6h-11z" fill="${POLY}"/>
+    <path d="M57 51h14l-4 18H54z" fill="#3b332c"/>
+    <path d="M53 50q-8 1-8 8l4 2 1-7h9z" fill="none" stroke-width="2.4"/>
+    <path d="M32 32h50v3H32z" fill="${STEEL}"/>
+    <path d="M88 35h18v3H88z" fill="#d3dad0"/>
+    <circle cx="104" cy="36.5" r="1.8" fill="#0d1210" stroke="none"/>
+    <path d="M36 38h4m4 0h4" stroke="#6d786f" stroke-width="1.4"/>`,
+
+  // MP5 — slim receiver, long barrel, curved magazine, front sight
+  smg: `
+    <path d="M12 40h24l5-5h38l6 4h30v5H85l-6 5H39l-5 4H12z"/>
+    <path d="M12 36h24v5H12z" fill="${POLY_LIGHT}"/>
+    <path d="M60 49q2 12 10 18l-8 2q-8-9-8-19z" fill="${POLY}"/>
+    <path d="M92 30h4v9h-4z"/>
+    <path d="M69 28h13v5H69z" fill="${POLY_LIGHT}"/>
+    <path d="M116 36h12v4h-12z" fill="${STEEL}"/>
+    <path d="M30 35h44v2H30z" fill="#8d998f" stroke="none"/>`,
+
+  // MP9 — micro SMG, side-folding stock, red-dot sight, short mag
+  mp9: mp9Body,
+
+  // M870 — pump shotgun: barrel + magazine tube, wooden pump and stock
+  shotgun: `
+    <path d="M9 34 38 32l8 5h72l9-4h14v6h-16l-8 5H49l-10-4H9z"/>
+    <path d="M9 31 38 30l3 4H9z" fill="${WOOD}"/>
+    <path d="M48 46h62v5H48z" fill="#6f4a2a"/>
+    <path d="M48 46h62v2H48z" fill="${WOOD_LIGHT}"/>
+    <path d="M50 51h58v4H50z" fill="#5a3a22"/>
+    <path d="M31 33h13v5H31z" fill="${WOOD}"/>
+    <path d="M115 33h17v3h-17z" fill="${STEEL}"/>
+    <path d="M46 35h59v2H46z" fill="#8d998f" stroke="none"/>`,
+
+  // M4A1 — flat-top rail, collapsible stock, STANAG mag, front sight post
+  rifle: arBody(POLY_LIGHT, '#3b443f'),
+
+  // AK47 — wood furniture, curved banana magazine, slanted muzzle brake
+  ak: akBody,
+
+  // AWM — bolt-action, long heavy barrel, large scope, bolt handle
+  sniper: sniperBody,
+
+  // M249 — belt-fed LMG, carry handle, box magazine, bipod
+  lmg: `
+    <path d="M10 35h32l7-5h34l6 4h31v6H89l-6 5H49l-7 4H10z"/>
+    <path d="M10 32h30v5H10z" fill="${POLY_LIGHT}"/>
+    <path d="M43 27h34v6H43z" fill="${POLY}"/>
+    <path d="M60 47h24v18H60z" fill="${POLY}"/>
+    <path d="M64 50h16m-16 4h16m-16 4h16" stroke="#6e7a6d" stroke-width="1.6"/>
+    <path d="M108 45l-6 18m14-18 6 18" stroke="${STEEL}" stroke-width="2.6"/>
+    <path d="M122 34h14v5h-14z" fill="${STEEL}"/>
+    <path d="M46 34h33v2H46z" fill="#8d998f" stroke="none"/>`,
+
+  // SVD — Dragunov: thumbhole wood stock, scope, short curved magazine
+  dmr: `
+    <path d="M12 34 40 32l8 5h54l8-4h22v6h-22l-8 5H51l-10 5H12z"/>
+    <path d="M12 32h28v5H12z" fill="${WOOD}"/>
+    <path d="M44 31h22v5H44z" fill="${WOOD_LIGHT}"/>
+    <rect x="52" y="22" width="28" height="8" rx="3" fill="${DARK}"/>
+    <path d="M50 26h32" stroke="#b7c1b6" stroke-width="2"/>
+    <path d="M68 47q2 9 8 13l-6 4q-8-6-9-15z" fill="#70472d"/>
+    <path d="M114 31h4v8h-4z"/>
+    <path d="M124 33h12v4h-12z" fill="${STEEL}"/>`,
+
+  // Gradient-shadow M4A1 — same profile, gold filigree
+  m4legend: arBody('#4a3a5e', '#6a4e8a'),
+
+  // Dragon AWM — same profile, gold dragon inlay
+  awmlegend: sniperBody,
+
+  // M134 — six rotating barrels, drum housing, ammo box
+  minigun: `
+    <path d="M36 32h58l8-6h20v18h-20l-8-6H36z"/>
+    <circle cx="42" cy="36" r="10" fill="#4a5349"/>
+    <path d="M47 28h74v3H47zM47 33h78v3H47zM47 38h78v3H47z" fill="#889486" stroke-width="1.6"/>
+    <path d="M120 26h14v22h-14z" fill="${DARK}"/>
+    <circle cx="127" cy="37" r="8" fill="#222b26"/>
+    <circle cx="127" cy="37" r="3.2" fill="#0d1210" stroke="none"/>
+    <path d="M60 45h14l-3 14H62z" fill="${POLY}"/>
+    <path d="M68 50h28v10H68z" fill="#242b26"/>
+    <path d="M85 45h4v12h-4z" fill="${STEEL}"/>`,
+
+  // RPG-7 — long tube, flared muzzle, warhead, pistol grip
+  rpg: `
+    <path d="M20 34h76l20 4-20 4H20z"/>
+    <path d="M96 29 116 33l16 5-16 5-20 4z" fill="#b8a06c"/>
+    <path d="M20 33h9v12h-9z" fill="#283027"/>
+    <path d="M40 45h16l-3 14H43z" fill="#2f382f"/>
+    <path d="M60 33h14v4H60z" fill="#4b5746"/>
+    <path d="M30 30h10v4H30z"/>
+    <path d="M112 31v14" stroke="#ded4aa" stroke-width="2"/>`,
+
+  // Frost MP9 — ice-blue micro SMG with crystal shards
+  frostmp9: mp9Body,
+
+  // 玄铁破壁者 — heavy iron anti-material rifle, oversized brake, red core
+  ironbreaker: `
+    <path d="M6 34h36l8-5h46l8 5h28v8H98l-8 5H50l-10 5H6z"/>
+    <path d="M6 31h34v6H6z" fill="#2a2024"/>
+    <path d="M46 26h42v7H46z" fill="#1a1418"/>
+    <rect x="58" y="20" width="26" height="10" rx="3" fill="#171014"/>
+    <path d="M62 46h22v20H62z" fill="#1b1013"/>
+    <path d="M66 49h14m-14 4h14m-14 4h14" stroke="#8f1d1d" stroke-width="1.6"/>
+    <path d="M120 30h18v12h-18z" fill="#2a1416"/>
+    <path d="m72 30 5 6 9 1-7 6 2 9-9-5-9 5 2-9-7-6 9-1z" fill="#c0262b" stroke="#ffb3a3" stroke-width="1.2"/>`,
+
+  // AA12 — automatic shotgun with signature drum magazine
+  aa12: `
+    <path d="M14 37h32l6-5h44l6 4h24v6H98l-6 5H48l-6 4H14z"/>
+    <path d="M14 34h30v5H14z" fill="${POLY_LIGHT}"/>
+    <path d="M44 29h46v5H44z" fill="${POLY}"/>
+    <ellipse cx="70" cy="58" rx="16" ry="13" fill="${POLY}"/>
+    <circle cx="70" cy="58" r="7" fill="#171d1a" stroke="#5c685d" stroke-width="1.6"/>
+    <path d="M118 34h14v5h-14z" fill="${STEEL}"/>
+    <path d="M46 34h45v2H46z" fill="#8d998f" stroke="none"/>`,
+
+  // HK416 — raised continuous rail, angular stock, short barrel
+  hk416: `
+    <path d="M12 38h36l5-5h32l6 4h35v5H91l-6 5H50l-6 4H12z"/>
+    <path d="M12 34h34v6H12z" fill="#2f3833"/>
+    <path d="M46 27h44v5H46z" fill="#38423c"/>
+    <path d="M52 33h30v2H52z" fill="#8d998f" stroke="none"/>
+    <path d="M64 48h13l-3 18H67z" fill="${POLY}"/>
+    <path d="M110 30h4v9h-4z"/>
+    <path d="M120 36h14v4h-14z" fill="${STEEL}"/>
+    <path d="M52 42h8v2h-8z" fill="#1d2421" stroke="none"/>`,
+
+  // Barrett M82 — anti-material rifle, huge muzzle brake, scope, bipod
+  barrett: `
+    <path d="M10 35h34l8-5h52l8 5h20v8h-22l-8 5H52l-10 5H10z"/>
+    <path d="M10 32h32v6H10z" fill="#4b554d"/>
+    <rect x="48" y="21" width="34" height="10" rx="4" fill="${DARK}"/>
+    <path d="M46 25h38" stroke="#b7c1b6" stroke-width="2"/>
+    <path d="M72 48h12l-2 15H74z" fill="${POLY}"/>
+    <path d="M116 30h20v14h-20z" fill="${STEEL}"/>
+    <path d="M118 33h16m-16 4h16" stroke="#4a5349" stroke-width="2"/>
+    <path d="M98 46l-8 18m16-18 8 18" stroke="${STEEL}" stroke-width="2.4"/>`,
+};
+
+// Signature overlays for boss / legendary skins, drawn over the base silhouette.
+const SKIN_ART: Record<string, string> = {
+  frostmp9: '<path d="m58 22 4-7 4 7 7 2-7 3-4 7-4-7-7-3z" fill="#c9f5ff" stroke="#6094a2" stroke-width="1.5"/><path d="m88 42 3-5 3 5 5 2-5 2-3 5-3-5-5-2z" fill="#dffaff"/>',
+  ironbreaker: '<path d="M70 33 78 43l11 1-8 7 3 11-11-6-11 6 3-11-8-7 11-1z" fill="#c0262b" stroke="#ffb3a3" stroke-width="1.2"/>',
+  m4legend: '<path d="M49 40q10-13 19-1t19-1" fill="none" stroke="#e0b45c" stroke-width="2" opacity=".95"/><path d="M55 45q9-8 17 0t17 0" fill="none" stroke="#c77ee0" stroke-width="1.6" opacity=".85"/>',
+  awmlegend: '<path d="M44 39q11-14 24-3t28-2" fill="none" stroke="#e0b45c" stroke-width="2.4" opacity=".95"/><path d="m58 38 5 4 7-2 5 5" fill="none" stroke="#ffdf8a" stroke-width="1.6"/>',
+  aa12: '<path d="M50 40q9-12 18-2t18-2" fill="none" stroke="#e0b45c" stroke-width="2" opacity=".9"/>',
+  hk416: '<path d="M50 39q9-12 18-2t18-2" fill="none" stroke="#e0b45c" stroke-width="2" opacity=".9"/>',
+  barrett: '<path d="M45 39q11-13 21-2t22-2" fill="none" stroke="#e0b45c" stroke-width="2" opacity=".9"/>',
 };
 
 /** Small, data-driven hand-painted SVG props shared by the web UI and Canvas renderer. */
 export function weaponIconSvg(id: string): string {
   const weapon = WEAPONS[id];
-  const shape = SHAPES[id] ?? 'rifle';
   const color = weapon?.color ?? '#3d4640';
   const rarity = RARITY_COLORS[weapon?.rarity ?? 0];
   const legend = (weapon?.rarity ?? 0) >= 5;
-  const special = id === 'frostmp9'
-    ? '<path d="m62 29 4-7 4 7 7 2-7 3-4 7-4-7-7-3z" fill="#c9f5ff" stroke="#6094a2" stroke-width="1.5"/><path d="m89 36 3-5 3 5 5 2-5 2-3 5-3-5-5-2z" fill="#dffaff"/>'
-    : id === 'ironbreaker'
-      ? '<path d="m70 22 5 10 11 1-8 7 3 11-11-6-11 6 3-11-8-7 11-1z" fill="#c0262b" stroke="#ffb3a3" stroke-width="1.5"/><circle cx="70" cy="34" r="3" fill="#ff5a4a"/>'
-      : id === 'm4legend' || id === 'awmlegend'
-        ? '<path d="M49 39q9-13 18-1t18-1" fill="none" stroke="#e0b45c" stroke-width="2" opacity=".9"/><circle cx="68" cy="36" r="2.2" fill="#ffe69a"/>'
-        : '';
+  const art = GUN_ART[id] ?? GUN_ART.rifle;
+  const skin = SKIN_ART[id] ?? '';
 
-  let silhouette = '';
-  if (shape === 'pistol') {
-    silhouette = '<path d="M29 36h16l4-7h31l9 5h25v8H88l-8 6H49l-4-5H29z"/><path d="M68 46h13l-3 18H65z"/><path d="M91 34h27v5H91z"/><path d="M47 31h29v3H47z" fill="#9da7a0"/>';
-  } else if (shape === 'compact') {
-    silhouette = '<path d="M17 33h17l6 4h53l9-5h26v8h-25l-8 6H43l-8-5H17z"/><path d="M65 44h14l-3 18H63z"/><path d="M39 31h42v3H39z" fill="#9da7a0"/><path d="M20 30h21v3H20z" fill="#b1b9b1"/><path d="M97 32h27v4H97z"/>';
-  } else if (shape === 'shotgun') {
-    silhouette = '<path d="M9 35h27l8 4h62l9-5h17v7h-21l-9 5H45l-10-5H9z"/><path d="M64 45h14l-2 18H62z"/><path d="M37 33h13v3H37z" fill="#b98a54"/><path d="M51 46h40v5H51z" fill="#7f552f"/><path d="M51 49h39v3H51z" fill="#c39a62"/>';
-  } else if (shape === 'sniper' || shape === 'dmr') {
-    silhouette = `<path d="M8 34h28l9 4h72l11-5h14v7h-17l-10 5H46l-11-5H8z"/><path d="M68 44h15l-3 19H66z"/><path d="M48 27h30v5H48z"/><rect x="54" y="22" width="20" height="7" rx="3" fill="#18201e" stroke="#111714" stroke-width="2"/><path d="M49 25h28" stroke="#aebbb5" stroke-width="1.5"/><path d="M33 32h17v3H33z" fill="#c0c8bf"/>${shape === 'sniper' ? '<path d="M23 34h19v4H23z" fill="#66765a"/><path d="M92 44 96 61h3l-2-17z" fill="#87928b"/>' : '<path d="M73 44h10l3 14H71z" fill="#202726"/>'}`;
-  } else if (shape === 'lmg') {
-    silhouette = '<path d="M7 34h33l8 4h72l10-5h12v7h-16l-10 5H48l-10-5H7z"/><path d="M66 44h15l-3 17H64z"/><path d="M44 28h31v5H44z"/><path d="M50 45h23v16H50z" fill="#242b26" stroke="#131815" stroke-width="2"/><path d="M53 48h17M53 52h17M53 56h17" stroke="#7b8779" stroke-width="1.5"/><path d="M35 31h15v3H35z" fill="#c1c9bd"/>';
-  } else if (shape === 'ak') {
-    silhouette = '<path d="M9 35h29l9 4h71l10-5h14v7h-18l-9 5H48l-11-5H9z"/><path d="M64 45h15l-3 19H62z"/><path d="M10 32h29v5H10z" fill="#8a5b35"/><path d="M40 32h19v4H40z" fill="#9b663c"/><path d="M65 45q6 1 13 1l7 20-11-2-7-12z" fill="#70472d"/><path d="M90 33h26v3H90z" fill="#bdc2b6"/>';
-  } else if (shape === 'ironbreaker') {
-    silhouette = '<path d="M6 33h34l9 5h73l11-5h14v8h-18l-10 5H49l-11-5H6z"/><path d="M64 44h18l-4 18H60z"/><path d="M40 27h34v6H40z" fill="#241a1e"/><path d="M52 45h25v18H52z" fill="#180f12" stroke="#8f1d1d" stroke-width="2"/><path d="M57 48h15M57 53h15M57 58h15" stroke="#b3262c" stroke-width="1.5"/><path d="M33 30h18v5H33z" fill="#5a171b"/><path d="M98 33h26v4H98z" fill="#3a1014"/>';
-  } else if (shape === 'minigun') {
-    silhouette = '<path d="M38 37h52l8-5h20v8H97l-8 5H40z"/><path d="M46 30h71v3H46zM45 35h75v3H45zM45 40h75v3H45z"/><path d="M115 28h10v17h-10z" fill="#151a18"/><path d="M62 45h15l-4 14H60z"/><circle cx="44" cy="36.5" r="9" fill="#596052" stroke="#151a18" stroke-width="3"/><path d="M47 46h34v7H47z" fill="#252c28"/><path d="M57 54h4v12h-4zM75 54h4v12h-4z" fill="#a8b09b"/>';
-  } else if (shape === 'rpg') {
-    silhouette = '<path d="M17 33h78l12 5-12 5H17z"/><path d="M95 31h17l15 7-15 7H95z" fill="#b8a06c"/><path d="M20 35h73v6H20z" fill="#78845a"/><path d="M34 30h13v16H34z" fill="#3e4938"/><path d="M55 43h17l-2 13H53z"/><path d="M16 32h7v18h-7z" fill="#283027"/><path d="M112 32v11" stroke="#ded4aa" stroke-width="2"/>';
-  } else {
-    silhouette = '<path d="M10 34h26l9 4h74l10-5h13v7h-17l-9 5H47l-11-5H10z"/><path d="M66 44h15l-3 19H64z"/><path d="M41 30h36v4H41z" fill="#a9b4aa"/><path d="M89 33h27v3H89z"/>';
-  }
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#aeb9ad"/><stop offset=".22" stop-color="${color}"/><stop offset="1" stop-color="#171c1a"/></linearGradient><linearGradient id="a" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff" stop-opacity=".8"/><stop offset="1" stop-color="${rarity}" stop-opacity=".5"/></linearGradient></defs><g transform="rotate(-9 72 44)" stroke="#121715" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"><g fill="#1b201e">${silhouette}</g><g fill="url(#g)" stroke-width="2">${silhouette}</g><path d="M28 35h17m30 1h19M46 41h7" stroke="url(#a)" stroke-width="1.7"/>${special}</g>${legend ? `<path d="m117 15 2.5 6.5L126 24l-6.5 2.5L117 33l-2.5-6.5L108 24l6.5-2.5z" fill="#fff0a8"/><circle cx="28" cy="62" r="2" fill="${rarity}"/>` : ''}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#c3cdc0"/><stop offset=".24" stop-color="${color}"/><stop offset="1" stop-color="#171c1a"/></linearGradient></defs><g transform="rotate(-8 72 44)" stroke="#121715" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">${art}${skin}</g>${legend ? `<path d="m117 15 2.5 6.5L126 24l-6.5 2.5L117 33l-2.5-6.5L108 24l6.5-2.5z" fill="#fff0a8"/><circle cx="28" cy="62" r="2" fill="${rarity}"/>` : ''}</svg>`;
 }
 
 export function weaponIconDataUrl(id: string): string {

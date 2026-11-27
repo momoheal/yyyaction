@@ -64,7 +64,7 @@ export function touchLayout(W: number, H: number): TouchLayout {
       button('grenade', '投掷', 170, 148, 20), // right column, mid — clear of aim stick
       button('throwableNext', '切雷', 170, 108, 17), // above throw button — cycle among carried types
       button('swap', '切枪', 170, 220, 20),    // right column, high
-      button('bag', '背包', 96, 268, 21),      // top, far from firing thumb
+      button('bag', 'Bag', 96, 268, 21),      // top, far from firing thumb; short label fits the circle
     ],
     interact: button('interact', '搜索', 214, 78, 25),
     pause: W >= 600

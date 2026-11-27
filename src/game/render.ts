@@ -7,6 +7,31 @@ import { weaponIconDataUrl } from './gear-icons';
 
 const armorIconAtlasUrl = new URL('../assets/armor-icons.webp', import.meta.url).href;
 
+/**
+ * 图片对象工厂：浏览器走原生 Image，微信小游戏没有 DOM Image，必须用 wx.createImage()。
+ * 直接写 `new Image()` 会在小游戏里抛 ReferenceError: Can't find variable: Image，
+ * 且异常发生在 Renderer 构造期，整局卡在启动页。
+ */
+function createImage(): HTMLImageElement {
+  const g = globalThis as unknown as { Image?: typeof Image; wx?: { createImage?: () => HTMLImageElement } };
+  if (typeof g.Image === 'function') return new g.Image();
+  if (g.wx && typeof g.wx.createImage === 'function') return g.wx.createImage();
+  throw new Error('当前环境不支持图片创建（缺少 Image / wx.createImage）');
+}
+
+/** 浏览器 Image 用 complete/naturalWidth，wx.createImage 只保证 width/height，这里统一判定。 */
+function imageReady(img: HTMLImageElement | null | undefined): boolean {
+  if (!img) return false;
+  const a = img as unknown as { complete?: boolean; naturalWidth?: number; width?: number };
+  if (a.complete === false) return false;
+  return (a.naturalWidth || a.width || 0) > 0;
+}
+
+function imageSize(img: HTMLImageElement): { w: number; h: number } {
+  const a = img as unknown as { naturalWidth?: number; naturalHeight?: number; width?: number; height?: number };
+  return { w: a.naturalWidth || a.width || 0, h: a.naturalHeight || a.height || 0 };
+}
+
 const FONT_NUM = 'Rajdhani, "Bahnschrift", "DIN Alternate", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif';
 const FONT_CN = '"PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif';
 const FONT_EMOJI = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
@@ -263,7 +288,7 @@ export class Renderer {
   private glowCache = new Map<string, HTMLCanvasElement>();
   private iconCache = new Map<string, HTMLCanvasElement>();
   private gearIconCache = new Map<string, HTMLImageElement>();
-  private armorIconAtlas = new Image();
+  private armorIconAtlas = createImage();
   private canopies: HTMLCanvasElement[] = [];
   private snowBushCanopies: HTMLCanvasElement[] = [];
   private scorch!: HTMLCanvasElement;
@@ -504,11 +529,11 @@ export class Renderer {
       if (id.startsWith('w_')) {
         let img = this.gearIconCache.get(id);
         if (!img) {
-          img = new Image();
+          img = createImage();
           img.src = weaponIconDataUrl(id.slice(2));
           this.gearIconCache.set(id, img);
         }
-        if (img.complete && img.naturalWidth > 0) {
+        if (imageReady(img)) {
           const iconHeight = size * 88 / 144;
           this.ctx.drawImage(img, x - size / 2, y - iconHeight / 2, size, iconHeight);
           return;
@@ -517,9 +542,10 @@ export class Renderer {
         return;
       }
       const armorArt = ARMOR_ART_CELL[id];
-      if (armorArt !== undefined && this.armorIconAtlas.complete && this.armorIconAtlas.naturalWidth > 0) {
-        const cell = this.armorIconAtlas.naturalWidth / 3;
-        this.ctx.drawImage(this.armorIconAtlas, armorArt * cell, 0, cell, this.armorIconAtlas.naturalHeight, x - size / 2, y - size / 2, size, size);
+      const atlasSize = imageSize(this.armorIconAtlas);
+      if (armorArt !== undefined && imageReady(this.armorIconAtlas) && atlasSize.h > 0) {
+        const cell = atlasSize.w / 3;
+        this.ctx.drawImage(this.armorIconAtlas, armorArt * cell, 0, cell, atlasSize.h, x - size / 2, y - size / 2, size, size);
         return;
       }
       this.ctx.drawImage(this.emoji('🦺'), x - size / 2, y - size / 2, size, size);
@@ -2057,7 +2083,9 @@ export class Renderer {
     let msgY = topY;
     // Dual-boss encounters show every surviving boss, stacked after each other.
     const activeBosses = g.enemies.filter((e) => e.def.boss && !e.dead).slice(0, 3);
-    const barStep = (narrow ? 27 : 33) * u;
+    // Keep enough vertical room between stacked boss bars so the next boss name
+    // never collides with the previous boss's HP/armor bar.
+    const barStep = (narrow ? 40 : 46) * u;
     const skillLabels: Record<string, string> = { charge: '冲撞', slam: '震地', pulse: '冲击', summon: '召唤' };
     for (const [i, b] of activeBosses.entries()) {
       const bw = Math.min(420 * u, W * (narrow ? 0.8 : 0.5)), bx = W / 2 - bw / 2, by = topY + 4 + i * barStep;
@@ -2066,13 +2094,13 @@ export class Renderer {
       const skillTag = skill ? skillLabels[skill] : '';
       const shownSkill = skill ? enc?.skillLabels?.[skill] ?? skillTag : '';
       const bossTint = enc?.ringColor ?? '#ffb37a';
-      this.txt(`👑 ${b.def.name}${enc?.skillName ? ` · ${enc.skillName}` : ''}${shownSkill ? ` · ${shownSkill}` : ''}${enc ? ` · 阶段 ${b.phase + 1}` : ''}`, W / 2, by + 2, (narrow ? 12 : 14) * u, bossTint, 'center', 800);
+      this.txt(`👑 ${b.def.name}${enc?.skillName ? ` · ${enc.skillName}` : ''}${shownSkill ? ` · ${shownSkill}` : ''}${enc ? ` · 阶段 ${b.phase + 1}` : ''}`, W / 2, by + 1, (narrow ? 12 : 14) * u, bossTint, 'center', 800);
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(bx - 2, by + 12 * u, bw + 4, 12 * u + 4);
+      ctx.fillRect(bx - 2, by + 14 * u, bw + 4, 12 * u + 4);
       ctx.fillStyle = '#e8463a';
-      ctx.fillRect(bx, by + 12 * u + 2, bw * Math.max(0, b.hp / b.maxHp), 8 * u);
+      ctx.fillRect(bx, by + 14 * u + 2, bw * Math.max(0, b.hp / b.maxHp), 8 * u);
       ctx.fillStyle = '#7fb2ff';
-      ctx.fillRect(bx, by + 20 * u + 2, bw * Math.max(0, b.armor / b.armorMax), 4 * u);
+      ctx.fillRect(bx, by + 22 * u + 2, bw * Math.max(0, b.armor / b.armorMax), 4 * u);
     }
     if (activeBosses.length) msgY = topY + 4 + activeBosses.length * barStep + 4 * u;
     // --- messages

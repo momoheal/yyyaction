@@ -229,19 +229,19 @@ ht={
     name:"M870 霰弹枪",
     short:"M870",
     tier:2,
-    dmg:15,
-    rate:1.35,
-    mag:6,
-    reload:2.1,
-    spread:.3,
-    pellets:8,
+    dmg:19,
+    rate:1.7,
+    mag:8,
+    reload:1.9,
+    spread:.26,
+    pellets:9,
     speed:1150,
-    range:430,
+    range:450,
     shake:.34,
     kick:9,
     noise:750,
     sound:"shotgun",
-    value:26e3,
+    value:32e3,
     len:24,
     color:"#5a3d26",
     pierce:0,
@@ -275,10 +275,10 @@ ht={
     name:"AWM 狙击步枪",
     short:"AWM",
     tier:4,
-    dmg:150,
-    rate:.9,
-    mag:5,
-    reload:2.6,
+    dmg:185,
+    rate:1.15,
+    mag:6,
+    reload:2.3,
     spread:.004,
     pellets:1,
     speed:2800,
@@ -367,10 +367,10 @@ ht={
     name:"SVD 精确射手步枪",
     short:"SVD",
     tier:4,
-    dmg:62,
-    rate:2.6,
-    mag:12,
-    reload:2.2,
+    dmg:75,
+    rate:3.1,
+    mag:15,
+    reload:2.0,
     spread:.012,
     pellets:1,
     speed:2300,
@@ -402,7 +402,7 @@ ht={
     kick:3,
     noise:810,
     sound:"rifle",
-    value:32e4,
+    value:56e4,
     len:26,
     color:"#8e5bd6",
     pierce:2,
@@ -425,7 +425,7 @@ ht={
     kick:11,
     noise:1150,
     sound:"sniper",
-    value:42e4,
+    value:88e4,
     len:34,
     color:"#c0392b",
     pierce:3,
@@ -448,7 +448,7 @@ ht={
     kick:3,
     noise:1100,
     sound:"lmg",
-    value:38e4,
+    value:72e4,
     len:36,
     color:"#6b4a1e",
     pierce:1,
@@ -460,9 +460,9 @@ ht={
     short:"RPG",
     tier:5,
     dmg:110,
-    rate:.8,
-    mag:2,
-    reload:2.8,
+    rate:.9,
+    mag:3,
+    reload:2.5,
     spread:.008,
     pellets:1,
     speed:820,
@@ -471,14 +471,14 @@ ht={
     kick:11,
     noise:1300,
     sound:"explosion",
-    value:78e4,
+    value:140e4,
     len:40,
     color:"#4d5238",
     pierce:0,
     rarity:5,
     blast:{
-      radius:240,
-      dmg:300
+      radius:260,
+      dmg:340
     }
   },
   frostmp9:{
@@ -498,7 +498,7 @@ ht={
     kick:2,
     noise:560,
     sound:"smg",
-    value:52e4,
+    value:98e4,
     len:18,
     color:"#7fd8ef",
     pierce:0,
@@ -521,12 +521,81 @@ ht={
     kick:4,
     noise:950,
     sound:"lmg",
-    value:76e4,
+    value:140e4,
     len:30,
     color:"#8f1d1d",
     pierce:3,
     rarity:5,
     antiArmor:.5
+  },
+  aa12:{
+    id:"aa12",
+    name:"AA12 雷霆霰弹",
+    short:"AA12",
+    tier:5,
+    dmg:20,
+    rate:2.6,
+    mag:12,
+    reload:2.4,
+    spread:.2,
+    pellets:10,
+    speed:1200,
+    range:500,
+    shake:.36,
+    kick:10,
+    noise:950,
+    sound:"shotgun",
+    value:16e5,
+    len:30,
+    color:"#2d5a52",
+    pierce:0,
+    rarity:5
+  },
+  hk416:{
+    id:"hk416",
+    name:"HK416 疾风突击",
+    short:"HK416",
+    tier:5,
+    dmg:29,
+    rate:12.5,
+    mag:45,
+    reload:1.8,
+    spread:.03,
+    pellets:1,
+    speed:1750,
+    range:1050,
+    shake:.13,
+    kick:3,
+    noise:860,
+    sound:"rifle",
+    value:18e5,
+    len:28,
+    color:"#2f3d4a",
+    pierce:1,
+    rarity:5
+  },
+  barrett:{
+    id:"barrett",
+    name:"巴雷特 M82 重狙",
+    short:"M82",
+    tier:5,
+    dmg:340,
+    rate:.65,
+    mag:5,
+    reload:2.8,
+    spread:.001,
+    pellets:1,
+    speed:3200,
+    range:1900,
+    shake:.6,
+    kick:16,
+    noise:1400,
+    sound:"sniper",
+    value:22e5,
+    len:42,
+    color:"#5a5f45",
+    pierce:4,
+    rarity:5
   }
 };
 function bc(r){
@@ -697,8 +766,8 @@ const Yn={
   goose:{
     id:"goose",
     name:"鹅老大",
-    hp:800,
-    armor:120,
+    hp:1040,
+    armor:140,
     r:26,
     speed:130,
     vision:650,
@@ -706,7 +775,7 @@ const Yn={
     accuracy:.15,
     score:15e3,
     weapons:["lmg"],
-    dmgMul:.2,
+    dmgMul:.24,
     bulletSpeed:700,
     prefMin:150,
     prefMax:380,
@@ -727,23 +796,25 @@ const Yn={
       phases:[{
         windup:1.25,
         cooldown:8,
-        damage:12,
+        damage:14,
         range:300
       },{
         windup:1,
         cooldown:5.5,
-        damage:17,
+        damage:20,
         range:400
       }],
       trophy:Me("goose_crest","鹅老大羽冠","🪶",4,12e4),
-      extraLootWeights:[0,0,0,1,0,0]
+      extraLootWeights:[0,0,0,1,0,0],
+      rewardRolls:[{count:1,weights:[0,0,10,40,50,0]}],
+      weaponDrops:["lmg"]
     }
   },
   harborBoss:{
     id:"harborBoss",
     name:"铁钩船长",
-    hp:640,
-    armor:75,
+    hp:830,
+    armor:90,
     r:24,
     speed:140,
     vision:620,
@@ -751,7 +822,7 @@ const Yn={
     accuracy:.22,
     score:11e3,
     weapons:["shotgun"],
-    dmgMul:.22,
+    dmgMul:.26,
     bulletSpeed:620,
     prefMin:90,
     prefMax:240,
@@ -773,23 +844,25 @@ const Yn={
       phases:[{
         windup:1.15,
         cooldown:9,
-        damage:17,
+        damage:20,
         range:360
       },{
         windup:.85,
         cooldown:6.5,
-        damage:24,
+        damage:29,
         range:470
       }],
       trophy:Me("captain_log","船长航海日志","📕",4,96e3),
-      extraLootWeights:[0,0,0,1,0,0]
+      extraLootWeights:[0,0,0,1,0,0],
+      rewardRolls:[{count:1,weights:[0,0,0,30,60,0]},{count:1,weights:[0,0,10,45,45,0]}],
+      weaponDrops:["sniper"]
     }
   },
   foundryBoss:{
     id:"foundryBoss",
     name:"炉心监工",
-    hp:1e3,
-    armor:180,
+    hp:1300,
+    armor:210,
     r:27,
     speed:112,
     vision:690,
@@ -797,7 +870,7 @@ const Yn={
     accuracy:.16,
     score:22e3,
     weapons:["rifle"],
-    dmgMul:.26,
+    dmgMul:.31,
     bulletSpeed:760,
     prefMin:180,
     prefMax:300,
@@ -825,23 +898,25 @@ const Yn={
       phases:[{
         windup:1.3,
         cooldown:9.5,
-        damage:18,
+        damage:22,
         range:250
       },{
         windup:1.1,
         cooldown:6.5,
-        damage:25,
+        damage:30,
         range:340
       }],
       trophy:Me("furnace_core","封存炉芯","🧿",5,26e4),
-      extraLootWeights:[0,0,0,0,1,0]
+      extraLootWeights:[0,0,0,0,1,0],
+      rewardRolls:[{count:1,weights:[0,0,0,20,70,0]},{count:2,weights:[0,0,10,40,50,0]}],
+      weaponDrops:["dmr"]
     }
   },
   broodQueen:{
     id:"broodQueen",
     name:"孵巢鸭后",
-    hp:1500,
-    armor:150,
+    hp:1950,
+    armor:175,
     r:30,
     speed:100,
     vision:720,
@@ -849,7 +924,7 @@ const Yn={
     accuracy:.16,
     score:32e3,
     weapons:["smg"],
-    dmgMul:.24,
+    dmgMul:.29,
     bulletSpeed:700,
     prefMin:180,
     prefMax:360,
@@ -878,12 +953,12 @@ const Yn={
       phases:[{
         windup:1.4,
         cooldown:9,
-        damage:14,
+        damage:17,
         range:280
       },{
         windup:1.1,
         cooldown:6.5,
-        damage:19,
+        damage:23,
         range:360
       }],
       trophy:Me("queen_egg","鸭后金蛋","🥚",5,62e4),
@@ -904,8 +979,8 @@ const Yn={
   frostMarshal:{
     id:"frostMarshal",
     name:"霜羽元帅",
-    hp:1300,
-    armor:160,
+    hp:1690,
+    armor:185,
     r:28,
     speed:140,
     vision:720,
@@ -913,7 +988,7 @@ const Yn={
     accuracy:.14,
     score:3e4,
     weapons:["frostmp9"],
-    dmgMul:.26,
+    dmgMul:.31,
     bulletSpeed:800,
     prefMin:260,
     prefMax:460,
@@ -937,12 +1012,12 @@ const Yn={
       phases:[{
         windup:1.2,
         cooldown:8.5,
-        damage:20,
+        damage:24,
         range:300
       },{
         windup:.95,
         cooldown:6,
-        damage:27,
+        damage:32,
         range:390
       }],
       trophy:Me("frost_insignia","霜羽元帅徽记","❄️",5,58e4),
@@ -963,8 +1038,8 @@ const Yn={
   ironGuard:{
     id:"ironGuard",
     name:"铁壁统领",
-    hp:1600,
-    armor:260,
+    hp:2080,
+    armor:300,
     r:31,
     speed:88,
     vision:620,
@@ -972,7 +1047,7 @@ const Yn={
     accuracy:.2,
     score:34e3,
     weapons:["lmg"],
-    dmgMul:.26,
+    dmgMul:.31,
     bulletSpeed:720,
     prefMin:120,
     prefMax:280,
@@ -996,12 +1071,12 @@ const Yn={
       phases:[{
         windup:1.3,
         cooldown:8,
-        damage:22,
+        damage:26,
         range:380
       },{
         windup:1,
         cooldown:6,
-        damage:30,
+        damage:36,
         range:480
       }],
       trophy:Me("iron_badge","铁壁统领勋章","🛡️",5,54e4),
@@ -1138,8 +1213,8 @@ const Yn={
   duckKing:{
     id:"duckKing",
     name:"鸭王",
-    hp:2600,
-    armor:240,
+    hp:3380,
+    armor:280,
     r:35,
     speed:120,
     vision:760,
@@ -1147,7 +1222,7 @@ const Yn={
     accuracy:.15,
     score:55e3,
     weapons:["ak"],
-    dmgMul:.28,
+    dmgMul:.34,
     bulletSpeed:820,
     prefMin:200,
     prefMax:400,
@@ -1178,12 +1253,12 @@ const Yn={
       phases:[{
         windup:1.15,
         cooldown:7.5,
-        damage:22,
+        damage:26,
         range:340
       },{
         windup:.9,
         cooldown:5,
-        damage:30,
+        damage:36,
         range:430
       }],
       trophy:Me("duck_throne","鸭王御座","👑",5,18e5),
@@ -4047,8 +4122,7 @@ function my(){
     },{
       type:"weaponcase",
       x:1960,
-      y:1230,
-      fixedItem:"frostmp9"
+      y:1230
     },{
       type:"crate",
       x:1220,
@@ -5267,8 +5341,7 @@ function py(){
     },{
       type:"safe",
       x:1500,
-      y:1490,
-      fixedItem:"frostmp9"
+      y:1490
     },{
       type:"vending",
       x:2600,
@@ -7321,39 +7394,86 @@ function gc(r,a,l){
 function ei(r){
   return r?r.bandages+r.medkits+St.reduce((a,l)=>a+(r.throwables[l]??0),0):0
 }
-const ca="warehouse",
-I1={
-  stable:"稳定枪机",
+const ca="warehouse";
+const PASSIVE_SNIPER=new Set(["sniper","awmlegend","barrett"]),
+PASSIVE_MG=new Set(["lmg","minigun","ironbreaker"]);
+function weaponPassive(id){
+  const w=ht[id];
+  if(!w||w.blast)return null;
+  if(w.pellets>1)return "shotgun";
+  if(PASSIVE_SNIPER.has(id))return "sniper";
+  if(PASSIVE_MG.has(id))return "mg";
+  return null
+}
+const COMBOS=[
+  [["auto","drum"],{id:"barrage",name:"弹幕模式",desc:"弹丸 +2 · 散布 −15%"}],
+  [["scope","rapid"],{id:"mark",name:"精准连射",desc:"射速额外 +10%"}],
+  [["match","bolt"],{id:"hunt",name:"猎杀节奏",desc:"装填额外 −10%"}],
+  [["blast","heavy"],{id:"focus",name:"聚能弹头",desc:"爆炸额外 +10%"}],
+  [["belt","stable"],{id:"hold",name:"定点压制",desc:"压制时长 +0.4 秒"}]
+];
+function weaponCombo(mods){
+  for(const row of COMBOS)if(row[0].every(m=>mods.includes(m)))return row[1]
+}
+const I1={
   damage:"高装药",
-  velocity:"高速弹",
-  pierce:"穿甲弹",
   mag:"扩容弹匣",
-  rapid:"轻量复进",
-  choke:"收束器",
   quick:"快速弹夹",
-  blast:"高爆战斗部"
+  trigger:"轻量扳机",
+  rapid:"轻量复进",
+  stable:"稳定枪机",
+  drum:"扩容弹鼓",
+  pierce:"穿甲弹",
+  overload:"过载枪机",
+  choke:"收束器",
+  auto:"自动化枪机",
+  scope:"战术准镜",
+  match:"竞赛枪管",
+  bolt:"快拉枪机",
+  belt:"弹链箱",
+  blast:"高爆战斗部",
+  heavy:"重型弹头",
+  cluster:"集束弹头"
 },
 gy={
-  stable:"后坐 −35% · 枪口上跳 −20%（不加散布）",
   damage:"伤害 +25% · 爆炸伤害 +25%",
-  velocity:"弹速 +30% · 射程 +10%",
-  pierce:"穿透 +2",
   mag:"弹匣容量 +50%",
-  rapid:"射速 +20%",
-  choke:"散布 −45%（仅霰弹枪）",
   quick:"装填时间 −40%",
-  blast:"爆炸伤害 +40% · 范围 +15%（仅火箭筒）"
+  trigger:"射速 +30%（手枪专属）",
+  rapid:"射速 +20%",
+  stable:"后坐 −35% · 枪口上跳 −20%（不加散布）",
+  drum:"弹匣容量 +100%（冲锋枪/霰弹/机枪专属）",
+  pierce:"穿透 +2",
+  overload:"射速 +40%，但每发有 8% 概率卡壳空放（高风险）",
+  choke:"散布 −45%（霰弹枪专属）",
+  auto:"射速 ×2.2 · 单发伤害 −25% · 散布 +15%（霰弹枪转全自动）",
+  scope:"散布 −40% · 射程 +15%（突击/狙击专属）",
+  match:"伤害 +18% · 射程 +8%（狙击/精确射手专属）",
+  bolt:"射速 +35% · 装填 −20%（狙击枪专属）",
+  belt:"弹匣容量 +75%（机枪专属）",
+  blast:"爆炸伤害 +40% · 范围 +15%（火箭筒专属）",
+  heavy:"直击伤害 +60% · 爆炸伤害 +15%（火箭筒专属）",
+  cluster:"爆炸范围 +45% · 爆炸伤害 −15% · 直击 −15%（火箭筒清群弹头）"
 },
 xy={
-  stable:"后坐−35%",
   damage:"伤害+25%",
-  velocity:"弹速+30%",
-  pierce:"穿透+2",
   mag:"弹匣+50%",
-  rapid:"射速+20%",
-  choke:"散布−45%",
   quick:"装填−40%",
-  blast:"爆炸+40%"
+  trigger:"射速+30%",
+  rapid:"射速+20%",
+  stable:"后坐−35%",
+  drum:"弹匣+100%",
+  pierce:"穿透+2",
+  overload:"射速+40%·会卡壳",
+  choke:"散布−45%",
+  auto:"全自动",
+  scope:"准镜",
+  match:"伤害+18%",
+  bolt:"射速+35%",
+  belt:"弹匣+75%",
+  blast:"爆炸+40%",
+  heavy:"直击+60%",
+  cluster:"范围+45%"
 },
 Ic=["regen","cap","plate","aegis"],
 J1={
@@ -7375,12 +7495,19 @@ wy={
   aegis:"破甲无敌"
 },
 ri=r=>r.startsWith("w_")?r.slice(2):r;
+const PISTOL_IDS=new Set(["pistol"]),SMG_IDS=new Set(["smg","mp9","frostmp9"]),SHOTGUN_IDS=new Set(["shotgun","aa12"]),SNIPER_IDS=new Set(["sniper","awmlegend","barrett","dmr"]),MG_IDS=new Set(["lmg","minigun","ironbreaker"]);
 function Jc(r){
   const a=ht[ri(r)];
   if(!a)return[];
-  const l=["damage","mag","quick"];
-  return a.blast?l.push("blast"):a.pellets>1?l.push("choke","velocity"):(l.push("stable","velocity"),a.rate>=4&&l.push("rapid"),(a.pierce||a.rate>=7||a.mag>=60)&&l.push("pierce")),
-  l
+  const c=["damage","mag","quick"];
+  if(a.blast)return [...c,"blast","heavy","cluster"];
+  const w=ri(r);
+  if(PISTOL_IDS.has(w))return [...c,"trigger"];
+  if(SHOTGUN_IDS.has(w))return [...c,"choke","auto","drum"];
+  if(SNIPER_IDS.has(w))return [...c,"scope","match","bolt","pierce"];
+  if(MG_IDS.has(w))return [...c,"belt","stable","pierce","overload"];
+  if(SMG_IDS.has(w))return [...c,"rapid","stable","drum","overload"];
+  return [...c,"scope","rapid","pierce","overload"]
 }
 function Fc(r){
   const a=ht[ri(r)];
@@ -7419,7 +7546,34 @@ function F1(r,a){
     }
     :void 0
   };
-  for(const s of a)s==="stable"?(l.kick*=.65,l.shake*=.8):s==="damage"?(l.dmg*=1.25,l.blast&&(l.blast.dmg*=1.25)):s==="velocity"?(l.speed*=1.3,l.range*=1.1):s==="pierce"?l.pierce+=2:s==="mag"?l.mag=Math.round(l.mag*1.5):s==="rapid"?l.rate*=1.2:s==="choke"?l.spread*=.55:s==="quick"?l.reload*=.6:s==="blast"&&l.blast&&(l.blast.dmg*=1.4,l.blast.radius*=1.15);
+  for(const s of a){
+    if(s==="damage"){l.dmg*=1.25;l.blast&&(l.blast.dmg*=1.25)}
+    else if(s==="mag")l.mag=Math.round(l.mag*1.5);
+    else if(s==="quick")l.reload*=.6;
+    else if(s==="trigger")l.rate*=1.3;
+    else if(s==="rapid")l.rate*=1.2;
+    else if(s==="stable"){l.kick*=.65;l.shake*=.8}
+    else if(s==="drum")l.mag=Math.round(l.mag*2);
+    else if(s==="pierce")l.pierce+=2;
+    else if(s==="choke")l.spread*=.55;
+    else if(s==="auto"){l.rate*=2.2;l.dmg*=.75;l.spread*=1.15}
+    else if(s==="scope"){l.spread*=.6;l.range*=1.15}
+    else if(s==="match"){l.dmg*=1.18;l.range*=1.08}
+    else if(s==="bolt"){l.rate*=1.35;l.reload*=.8}
+    else if(s==="belt")l.mag=Math.round(l.mag*1.75);
+    else if(s==="overload"){l.rate*=1.4;l.jamChance=(l.jamChance||0)+.08}
+    else if(s==="heavy"){l.dmg*=1.6;l.blast&&(l.blast.dmg*=1.15)}
+    else if(s==="cluster"&&l.blast){l.blast.radius*=1.45;l.blast.dmg*=.85;l.dmg*=.85}
+    else if(s==="blast"&&l.blast){l.blast.dmg*=1.4;l.blast.radius*=1.15}
+  }
+  const cb=weaponCombo(a);
+  if(cb){
+    l.combo=cb.id;
+    if(cb.id==="barrage"){l.pellets+=2;l.spread*=.85}
+    else if(cb.id==="mark")l.rate*=1.1;
+    else if(cb.id==="hunt")l.reload*=.9;
+    else if(cb.id==="focus"&&l.blast)l.blast.dmg*=1.1
+  }
   return l
 }
 function My(r,a){
@@ -8112,7 +8266,9 @@ class Ay{
     const l=Aa[a],
     s=[];
     if(l.special==="weapon"){
-      const i=[["smg",20],["mp9",14],["shotgun",15],["rifle",16],["ak",13],["lmg",7],["sniper",5],["dmr",4.5],["m4legend",2],["awmlegend",1.5],["minigun",1.5]];
+      let i=[["smg",20],["mp9",14],["shotgun",15],["rifle",16],["ak",13],["lmg",7],["sniper",5],["dmr",4.5],["m4legend",2],["awmlegend",1.5],["minigun",1.5],["aa12",1.2],["hk416",1.2],["barrett",0.8]];
+      // 红色武器(rarity 5)限定第5关(霜锋哨站)起才能从容器搜到，前4关过滤掉
+      if(jc.findIndex(q=>q.id===this.mapId)<4)i=i.filter(f=>ht[f[0]].rarity<5);
       s.push(ra(i[wc(i.map(f=>f[1]))][0]));
       const c=Math.random();
       c<.4?s.push(Zl(Math.random()<.65?"armor1":"armor2")):c<.7&&s.push(this.rollThrowable())
@@ -8180,16 +8336,6 @@ class Ay{
         a.weapon&&Math.random()<.55&&l.push(ra(a.weapon.id)),
         Math.random()<.4&&l.push(Zl(Math.random()<.6?"armor2":"armor3")),
         Math.random()<.3&&l.push(Wo);
-        break
-      }
-      case"goose":{
-        l.push(this.rollLoot([0,0,0,0,1,0])),
-        l.push(this.rollLoot([0,0,0,1,0,0])),
-        l.push(this.rollLoot([0,0,30,40,22,8])),
-        l.push(this.rollLoot([0,0,30,40,22,8])),
-        Math.random()<.35&&l.push(this.rollLoot([0,0,0,0,0,1])),
-        l.push(ra("lmg")),
-        l.push(Zl(Math.random()<.6?"armor4":"armor5"));
         break
       }
     }
@@ -8267,6 +8413,7 @@ class Ay{
       kick:0,
       hurtT:0,
       chillT:0,
+      suppressT:0,
       stunT:0,
       phase:0,
       skillPhase:0,
@@ -8761,11 +8908,19 @@ class Ay{
   playerFire(a){
     const l=this.player,
     s=a.def;
+    if(s.jamChance&&Math.random()<s.jamChance){
+      a.cd=1/s.rate,
+      this.text(l.x,l.y-34,"卡壳!","#ff8a5c",14),
+      this.sfx.play("armor");
+      return
+    }
     a.ammo--,
     a.cd=1/s.rate;
     const i=Math.hypot(l.vx,l.vy)>60,
     c=s.spread*(i?1.3:1)+l.bloom;
     s.pellets===1&&(l.bloom=Math.min(l.bloom+s.spread*.22,s.spread*1.6));
+    const pv=weaponPassive(s.id),
+    critMul=pv==="sniper"?2.6:1.8;
     const f=Math.cos(l.aim),
     d=Math.sin(l.aim),
     m=l.r*.6+s.len+4,
@@ -8786,7 +8941,7 @@ class Ay{
         oy:l.y,
         vx:Math.cos(ce)*fe,
         vy:Math.sin(ce)*fe,
-        dmg:s.dmg*(J?1.8:1),
+        dmg:s.dmg*(J?critMul:1),
         life:s.range/fe,
         from:0,
         pierce:s.pierce,
@@ -8796,8 +8951,11 @@ class Ay{
         chill:U1.has(s.id),
         explosive:Oc.has(s.id),
         blastR:s.blast?.radius,
-        blastDmg:s.blast?s.blast.dmg*(J?1.8:1):void 0,
-        antiArmor:s.antiArmor
+        blastDmg:s.blast?s.blast.dmg*(J?critMul:1):void 0,
+        antiArmor:s.antiArmor,
+        shotgun:pv==="shotgun",
+        suppress:pv==="mg",
+        combo:s.combo
       })
     }
     this.stats.shots++,
@@ -9533,6 +9691,11 @@ class Ay{
       a.vx*=g,
       a.vy*=g
     }
+    if(a.suppressT>0){
+      a.suppressT-=l,
+      a.vx*=.72,
+      a.vy*=.72
+    }
     a.x+=(a.vx+a.kvx)*l,
     a.y+=(a.vy+a.kvy)*l,
     a.kvx*=Math.exp(-l*9),
@@ -10080,7 +10243,12 @@ class Ay{
         Q=c.vx/B,
         se=c.vy/B;
         if(v){
-          if(this.damageEnemy(v,c.dmg,Q,se,c.crit,T,H,!1,c.from===0?c.antiArmor??0:0),this.stats.hits++,c.chill){
+          let hitDmg=c.dmg;
+          if(c.shotgun){
+            const tr=Math.hypot(T-c.ox,H-c.oy);
+            tr<=260?hitDmg*=1.35:tr>=430&&(hitDmg*=.8)
+          }
+          if(this.damageEnemy(v,hitDmg,Q,se,c.crit,T,H,!1,c.from===0?c.antiArmor??0:0),this.stats.hits++,c.suppress&&!v.dead&&(v.suppressT<=0&&this.text(T,H-24,"压制!","#ffd166",12),v.suppressT=Math.max(v.suppressT,c.combo==="hold"?1.2:.8)),c.chill){
             v.chillT=2.4,
             this.text(T,H-22,"冰缓!","#9fe6ff",13);
             for(let ie=0;ie<6;ie++){
@@ -12406,34 +12574,28 @@ function Dy(r,a){
   Ry(r,a.kind),
   r.restore()
 }
-const Oy={
-  pistol:"pistol",
-  smg:"compact",
-  mp9:"compact",
-  frostmp9:"compact",
-  shotgun:"shotgun",
-  rifle:"rifle",
-  m4legend:"rifle",
-  sniper:"sniper",
-  awmlegend:"sniper",
-  lmg:"lmg",
-  ak:"ak",
-  dmr:"dmr",
-  minigun:"minigun",
-  rpg:"rpg",
-  ironbreaker:"ironbreaker"
+// Weapon icons: one stylised side-view SVG per prototype (generated from src/game/gear-icons.ts).
+const Py={
+pistol:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#c3cdc0"/><stop offset=".24" stop-color="#2b2b2e"/><stop offset="1" stop-color="#171c1a"/></linearGradient></defs><g transform="rotate(-8 72 44)" stroke="#121715" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">     <path d="M27 33 88 31l7 4h13v6h-15l-5 4H52l-5-3H27z"/>     <path d="M54 46h17l-3 6h-11z" fill="#2c3430"/>     <path d="M57 51h14l-4 18H54z" fill="#3b332c"/>     <path d="M53 50q-8 1-8 8l4 2 1-7h9z" fill="none" stroke-width="2.4"/>     <path d="M32 32h50v3H32z" fill="#b4beb3"/>     <path d="M88 35h18v3H88z" fill="#d3dad0"/>     <circle cx="104" cy="36.5" r="1.8" fill="#0d1210" stroke="none"/>     <path d="M36 38h4m4 0h4" stroke="#6d786f" stroke-width="1.4"/></g></svg>',
+smg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#c3cdc0"/><stop offset=".24" stop-color="#303338"/><stop offset="1" stop-color="#171c1a"/></linearGradient></defs><g transform="rotate(-8 72 44)" stroke="#121715" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">     <path d="M12 40h24l5-5h38l6 4h30v5H85l-6 5H39l-5 4H12z"/>     <path d="M12 36h24v5H12z" fill="#39433d"/>     <path d="M60 49q2 12 10 18l-8 2q-8-9-8-19z" fill="#2c3430"/>     <path d="M92 30h4v9h-4z"/>     <path d="M69 28h13v5H69z" fill="#39433d"/>     <path d="M116 36h12v4h-12z" fill="#b4beb3"/>     <path d="M30 35h44v2H30z" fill="#8d998f" stroke="none"/></g></svg>',
+mp9:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#c3cdc0"/><stop offset=".24" stop-color="#33373d"/><stop offset="1" stop-color="#171c1a"/></linearGradient></defs><g transform="rotate(-8 72 44)" stroke="#121715" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">   <path d="M20 38h28l5-5h34l5 4h18v6H91l-5 5H50l-5 4H20z"/>   <path d="M18 34h13v11H18z" fill="#39433d"/>   <path d="M61 47h14l-1 16H63z" fill="#2c3430"/>   <rect x="64" y="26" width="16" height="8" rx="2" fill="#171e1b" stroke-width="1.8"/>   <circle cx="72" cy="30" r="1.8" fill="#e0524b" stroke="none"/>   <path d="M94 36h12v4H94z" fill="#b4beb3"/>   <path d="M34 34h42v2H34z" fill="#8d998f" stroke="none"/></g></svg>',
+shotgun:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#c3cdc0"/><stop offset=".24" stop-color="#5a3d26"/><stop offset="1" stop-color="#171c1a"/></linearGradient></defs><g transform="rotate(-8 72 44)" stroke="#121715" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">     <path d="M9 34 38 32l8 5h72l9-4h14v6h-16l-8 5H49l-10-4H9z"/>     <path d="M9 31 38 30l3 4H9z" fill="#8b5e34"/>     <path d="M48 46h62v5H48z" fill="#6f4a2a"/>     <path d="M48 46h62v2H48z" fill="#a97643"/>     <path d="M50 51h58v4H50z" fill="#5a3a22"/>     <path d="M31 33h13v5H31z" fill="#8b5e34"/>     <path d="M115 33h17v3h-17z" fill="#b4beb3"/>     <path d="M46 35h59v2H46z" fill="#8d998f" stroke="none"/></g></svg>',
+rifle:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#c3cdc0"/><stop offset=".24" stop-color="#3a3f36"/><stop offset="1" stop-color="#171c1a"/></linearGradient></defs><g transform="rotate(-8 72 44)" stroke="#121715" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">   <path d="M14 38h34l5-5h34l6 4h33v5H93l-6 5H51l-5 4H14z"/>   <path d="M14 34h32v6H14z" fill="#39433d"/>   <path d="M48 29h40v4H48z" fill="#3b443f"/>   <path d="M61 48h14l-3 19H64z" fill="#2c3430"/>   <path d="M114 30h4v9h-4z"/>   <path d="M121 36h12v4h-12z" fill="#b4beb3"/>   <path d="M54 33h28v2H54z" fill="#8d998f" stroke="none"/></g></svg>',
+ak:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#c3cdc0"/><stop offset=".24" stop-color="#4a3324"/><stop offset="1" stop-color="#171c1a"/></linearGradient></defs><g transform="rotate(-8 72 44)" stroke="#121715" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">   <path d="M8 34 40 33l9 4h56l8-4h21v6h-21l-8 5H52l-11 5H8z"/>   <path d="M8 32h32v5H8z" fill="#8b5e34"/>   <path d="M40 32h20v5H40z" fill="#a97643"/>   <path d="M66 46q3 10 12 17l-8 5q-11-8-13-20z" fill="#70472d"/>   <path d="M52 28h17v5H52z"/>   <path d="M113 32h22l4 4-4 3h-22z" fill="#b4beb3"/>   <path d="M45 35h20v2H45z" fill="#6b4a2a" stroke="none"/></g></svg>',
+sniper:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#c3cdc0"/><stop offset=".24" stop-color="#4a5a3a"/><stop offset="1" stop-color="#171c1a"/></linearGradient></defs><g transform="rotate(-8 72 44)" stroke="#121715" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">   <path d="M8 34 40 32l8 5h66l10-5h12v6h-14l-9 5H51l-11 5H8z"/>   <path d="M8 31h32v5H8z" fill="#4f5a4e"/>   <rect x="52" y="22" width="30" height="9" rx="4" fill="#171e1b"/>   <path d="M50 26h34" stroke="#b7c1b6" stroke-width="2"/>   <path d="M70 48h12l-2 14H71z" fill="#2c3430"/>   <path d="M48 32h6l-3 8h-5z" fill="#6c7669"/>   <path d="M124 32h14v7h-14z" fill="#b4beb3"/></g></svg>',
+lmg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#c3cdc0"/><stop offset=".24" stop-color="#2f3230"/><stop offset="1" stop-color="#171c1a"/></linearGradient></defs><g transform="rotate(-8 72 44)" stroke="#121715" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">     <path d="M10 35h32l7-5h34l6 4h31v6H89l-6 5H49l-7 4H10z"/>     <path d="M10 32h30v5H10z" fill="#39433d"/>     <path d="M43 27h34v6H43z" fill="#2c3430"/>     <path d="M60 47h24v18H60z" fill="#2c3430"/>     <path d="M64 50h16m-16 4h16m-16 4h16" stroke="#6e7a6d" stroke-width="1.6"/>     <path d="M108 45l-6 18m14-18 6 18" stroke="#b4beb3" stroke-width="2.6"/>     <path d="M122 34h14v5h-14z" fill="#b4beb3"/>     <path d="M46 34h33v2H46z" fill="#8d998f" stroke="none"/></g></svg>',
+dmr:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#c3cdc0"/><stop offset=".24" stop-color="#3c4631"/><stop offset="1" stop-color="#171c1a"/></linearGradient></defs><g transform="rotate(-8 72 44)" stroke="#121715" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">     <path d="M12 34 40 32l8 5h54l8-4h22v6h-22l-8 5H51l-10 5H12z"/>     <path d="M12 32h28v5H12z" fill="#8b5e34"/>     <path d="M44 31h22v5H44z" fill="#a97643"/>     <rect x="52" y="22" width="28" height="8" rx="3" fill="#171e1b"/>     <path d="M50 26h32" stroke="#b7c1b6" stroke-width="2"/>     <path d="M68 47q2 9 8 13l-6 4q-8-6-9-15z" fill="#70472d"/>     <path d="M114 31h4v8h-4z"/>     <path d="M124 33h12v4h-12z" fill="#b4beb3"/></g></svg>',
+m4legend:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#c3cdc0"/><stop offset=".24" stop-color="#8e5bd6"/><stop offset="1" stop-color="#171c1a"/></linearGradient></defs><g transform="rotate(-8 72 44)" stroke="#121715" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">   <path d="M14 38h34l5-5h34l6 4h33v5H93l-6 5H51l-5 4H14z"/>   <path d="M14 34h32v6H14z" fill="#4a3a5e"/>   <path d="M48 29h40v4H48z" fill="#6a4e8a"/>   <path d="M61 48h14l-3 19H64z" fill="#2c3430"/>   <path d="M114 30h4v9h-4z"/>   <path d="M121 36h12v4h-12z" fill="#b4beb3"/>   <path d="M54 33h28v2H54z" fill="#8d998f" stroke="none"/><path d="M49 40q10-13 19-1t19-1" fill="none" stroke="#e0b45c" stroke-width="2" opacity=".95"/><path d="M55 45q9-8 17 0t17 0" fill="none" stroke="#c77ee0" stroke-width="1.6" opacity=".85"/></g><path d="m117 15 2.5 6.5L126 24l-6.5 2.5L117 33l-2.5-6.5L108 24l6.5-2.5z" fill="#fff0a8"/><circle cx="28" cy="62" r="2" fill="#ff4f4f"/></svg>',
+awmlegend:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#c3cdc0"/><stop offset=".24" stop-color="#c0392b"/><stop offset="1" stop-color="#171c1a"/></linearGradient></defs><g transform="rotate(-8 72 44)" stroke="#121715" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">   <path d="M8 34 40 32l8 5h66l10-5h12v6h-14l-9 5H51l-11 5H8z"/>   <path d="M8 31h32v5H8z" fill="#4f5a4e"/>   <rect x="52" y="22" width="30" height="9" rx="4" fill="#171e1b"/>   <path d="M50 26h34" stroke="#b7c1b6" stroke-width="2"/>   <path d="M70 48h12l-2 14H71z" fill="#2c3430"/>   <path d="M48 32h6l-3 8h-5z" fill="#6c7669"/>   <path d="M124 32h14v7h-14z" fill="#b4beb3"/><path d="M44 39q11-14 24-3t28-2" fill="none" stroke="#e0b45c" stroke-width="2.4" opacity=".95"/><path d="m58 38 5 4 7-2 5 5" fill="none" stroke="#ffdf8a" stroke-width="1.6"/></g><path d="m117 15 2.5 6.5L126 24l-6.5 2.5L117 33l-2.5-6.5L108 24l6.5-2.5z" fill="#fff0a8"/><circle cx="28" cy="62" r="2" fill="#ff4f4f"/></svg>',
+minigun:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#c3cdc0"/><stop offset=".24" stop-color="#6b4a1e"/><stop offset="1" stop-color="#171c1a"/></linearGradient></defs><g transform="rotate(-8 72 44)" stroke="#121715" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">     <path d="M36 32h58l8-6h20v18h-20l-8-6H36z"/>     <circle cx="42" cy="36" r="10" fill="#4a5349"/>     <path d="M47 28h74v3H47zM47 33h78v3H47zM47 38h78v3H47z" fill="#889486" stroke-width="1.6"/>     <path d="M120 26h14v22h-14z" fill="#171e1b"/>     <circle cx="127" cy="37" r="8" fill="#222b26"/>     <circle cx="127" cy="37" r="3.2" fill="#0d1210" stroke="none"/>     <path d="M60 45h14l-3 14H62z" fill="#2c3430"/>     <path d="M68 50h28v10H68z" fill="#242b26"/>     <path d="M85 45h4v12h-4z" fill="#b4beb3"/></g><path d="m117 15 2.5 6.5L126 24l-6.5 2.5L117 33l-2.5-6.5L108 24l6.5-2.5z" fill="#fff0a8"/><circle cx="28" cy="62" r="2" fill="#ff4f4f"/></svg>',
+rpg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#c3cdc0"/><stop offset=".24" stop-color="#4d5238"/><stop offset="1" stop-color="#171c1a"/></linearGradient></defs><g transform="rotate(-8 72 44)" stroke="#121715" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">     <path d="M20 34h76l20 4-20 4H20z"/>     <path d="M96 29 116 33l16 5-16 5-20 4z" fill="#b8a06c"/>     <path d="M20 33h9v12h-9z" fill="#283027"/>     <path d="M40 45h16l-3 14H43z" fill="#2f382f"/>     <path d="M60 33h14v4H60z" fill="#4b5746"/>     <path d="M30 30h10v4H30z"/>     <path d="M112 31v14" stroke="#ded4aa" stroke-width="2"/></g><path d="m117 15 2.5 6.5L126 24l-6.5 2.5L117 33l-2.5-6.5L108 24l6.5-2.5z" fill="#fff0a8"/><circle cx="28" cy="62" r="2" fill="#ff4f4f"/></svg>',
+frostmp9:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#c3cdc0"/><stop offset=".24" stop-color="#7fd8ef"/><stop offset="1" stop-color="#171c1a"/></linearGradient></defs><g transform="rotate(-8 72 44)" stroke="#121715" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">   <path d="M20 38h28l5-5h34l5 4h18v6H91l-5 5H50l-5 4H20z"/>   <path d="M18 34h13v11H18z" fill="#39433d"/>   <path d="M61 47h14l-1 16H63z" fill="#2c3430"/>   <rect x="64" y="26" width="16" height="8" rx="2" fill="#171e1b" stroke-width="1.8"/>   <circle cx="72" cy="30" r="1.8" fill="#e0524b" stroke="none"/>   <path d="M94 36h12v4H94z" fill="#b4beb3"/>   <path d="M34 34h42v2H34z" fill="#8d998f" stroke="none"/><path d="m58 22 4-7 4 7 7 2-7 3-4 7-4-7-7-3z" fill="#c9f5ff" stroke="#6094a2" stroke-width="1.5"/><path d="m88 42 3-5 3 5 5 2-5 2-3 5-3-5-5-2z" fill="#dffaff"/></g><path d="m117 15 2.5 6.5L126 24l-6.5 2.5L117 33l-2.5-6.5L108 24l6.5-2.5z" fill="#fff0a8"/><circle cx="28" cy="62" r="2" fill="#ff4f4f"/></svg>',
+ironbreaker:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#c3cdc0"/><stop offset=".24" stop-color="#8f1d1d"/><stop offset="1" stop-color="#171c1a"/></linearGradient></defs><g transform="rotate(-8 72 44)" stroke="#121715" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">     <path d="M6 34h36l8-5h46l8 5h28v8H98l-8 5H50l-10 5H6z"/>     <path d="M6 31h34v6H6z" fill="#2a2024"/>     <path d="M46 26h42v7H46z" fill="#1a1418"/>     <rect x="58" y="20" width="26" height="10" rx="3" fill="#171014"/>     <path d="M62 46h22v20H62z" fill="#1b1013"/>     <path d="M66 49h14m-14 4h14m-14 4h14" stroke="#8f1d1d" stroke-width="1.6"/>     <path d="M120 30h18v12h-18z" fill="#2a1416"/>     <path d="m72 30 5 6 9 1-7 6 2 9-9-5-9 5 2-9-7-6 9-1z" fill="#c0262b" stroke="#ffb3a3" stroke-width="1.2"/><path d="M70 33 78 43l11 1-8 7 3 11-11-6-11 6 3-11-8-7 11-1z" fill="#c0262b" stroke="#ffb3a3" stroke-width="1.2"/></g><path d="m117 15 2.5 6.5L126 24l-6.5 2.5L117 33l-2.5-6.5L108 24l6.5-2.5z" fill="#fff0a8"/><circle cx="28" cy="62" r="2" fill="#ff4f4f"/></svg>',
+aa12:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#c3cdc0"/><stop offset=".24" stop-color="#2d5a52"/><stop offset="1" stop-color="#171c1a"/></linearGradient></defs><g transform="rotate(-8 72 44)" stroke="#121715" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">     <path d="M14 37h32l6-5h44l6 4h24v6H98l-6 5H48l-6 4H14z"/>     <path d="M14 34h30v5H14z" fill="#39433d"/>     <path d="M44 29h46v5H44z" fill="#2c3430"/>     <ellipse cx="70" cy="58" rx="16" ry="13" fill="#2c3430"/>     <circle cx="70" cy="58" r="7" fill="#171d1a" stroke="#5c685d" stroke-width="1.6"/>     <path d="M118 34h14v5h-14z" fill="#b4beb3"/>     <path d="M46 34h45v2H46z" fill="#8d998f" stroke="none"/><path d="M50 40q9-12 18-2t18-2" fill="none" stroke="#e0b45c" stroke-width="2" opacity=".9"/></g><path d="m117 15 2.5 6.5L126 24l-6.5 2.5L117 33l-2.5-6.5L108 24l6.5-2.5z" fill="#fff0a8"/><circle cx="28" cy="62" r="2" fill="#ff4f4f"/></svg>',
+hk416:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#c3cdc0"/><stop offset=".24" stop-color="#2f3d4a"/><stop offset="1" stop-color="#171c1a"/></linearGradient></defs><g transform="rotate(-8 72 44)" stroke="#121715" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">     <path d="M12 38h36l5-5h32l6 4h35v5H91l-6 5H50l-6 4H12z"/>     <path d="M12 34h34v6H12z" fill="#2f3833"/>     <path d="M46 27h44v5H46z" fill="#38423c"/>     <path d="M52 33h30v2H52z" fill="#8d998f" stroke="none"/>     <path d="M64 48h13l-3 18H67z" fill="#2c3430"/>     <path d="M110 30h4v9h-4z"/>     <path d="M120 36h14v4h-14z" fill="#b4beb3"/>     <path d="M52 42h8v2h-8z" fill="#1d2421" stroke="none"/><path d="M50 39q9-12 18-2t18-2" fill="none" stroke="#e0b45c" stroke-width="2" opacity=".9"/></g><path d="m117 15 2.5 6.5L126 24l-6.5 2.5L117 33l-2.5-6.5L108 24l6.5-2.5z" fill="#fff0a8"/><circle cx="28" cy="62" r="2" fill="#ff4f4f"/></svg>',
+barrett:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#c3cdc0"/><stop offset=".24" stop-color="#5a5f45"/><stop offset="1" stop-color="#171c1a"/></linearGradient></defs><g transform="rotate(-8 72 44)" stroke="#121715" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">     <path d="M10 35h34l8-5h52l8 5h20v8h-22l-8 5H52l-10 5H10z"/>     <path d="M10 32h32v6H10z" fill="#4b554d"/>     <rect x="48" y="21" width="34" height="10" rx="4" fill="#171e1b"/>     <path d="M46 25h38" stroke="#b7c1b6" stroke-width="2"/>     <path d="M72 48h12l-2 15H74z" fill="#2c3430"/>     <path d="M116 30h20v14h-20z" fill="#b4beb3"/>     <path d="M118 33h16m-16 4h16" stroke="#4a5349" stroke-width="2"/>     <path d="M98 46l-8 18m16-18 8 18" stroke="#b4beb3" stroke-width="2.4"/><path d="M45 39q11-13 21-2t22-2" fill="none" stroke="#e0b45c" stroke-width="2" opacity=".9"/></g><path d="m117 15 2.5 6.5L126 24l-6.5 2.5L117 33l-2.5-6.5L108 24l6.5-2.5z" fill="#fff0a8"/><circle cx="28" cy="62" r="2" fill="#ff4f4f"/></svg>'
 };
-function jy(r){
-  const a=ht[r],
-  l=Oy[r]??"rifle",
-  s=a?.color??"#3d4640",
-  i=_e[a?.rarity??0],
-  c=(a?.rarity??0)>=5,
-  f=r==="frostmp9"?'<path d="m62 29 4-7 4 7 7 2-7 3-4 7-4-7-7-3z" fill="#c9f5ff" stroke="#6094a2" stroke-width="1.5"/><path d="m89 36 3-5 3 5 5 2-5 2-3 5-3-5-5-2z" fill="#dffaff"/>':r==="ironbreaker"?'<path d="m70 22 5 10 11 1-8 7 3 11-11-6-11 6 3-11-8-7 11-1z" fill="#c0262b" stroke="#ffb3a3" stroke-width="1.5"/><circle cx="70" cy="34" r="3" fill="#ff5a4a"/>':r==="m4legend"||r==="awmlegend"?'<path d="M49 39q9-13 18-1t18-1" fill="none" stroke="#e0b45c" stroke-width="2" opacity=".9"/><circle cx="68" cy="36" r="2.2" fill="#ffe69a"/>':"";
-  let d="";
-  return l==="pistol"?d='<path d="M29 36h16l4-7h31l9 5h25v8H88l-8 6H49l-4-5H29z"/><path d="M68 46h13l-3 18H65z"/><path d="M91 34h27v5H91z"/><path d="M47 31h29v3H47z" fill="#9da7a0"/>':l==="compact"?d='<path d="M17 33h17l6 4h53l9-5h26v8h-25l-8 6H43l-8-5H17z"/><path d="M65 44h14l-3 18H63z"/><path d="M39 31h42v3H39z" fill="#9da7a0"/><path d="M20 30h21v3H20z" fill="#b1b9b1"/><path d="M97 32h27v4H97z"/>':l==="shotgun"?d='<path d="M9 35h27l8 4h62l9-5h17v7h-21l-9 5H45l-10-5H9z"/><path d="M64 45h14l-2 18H62z"/><path d="M37 33h13v3H37z" fill="#b98a54"/><path d="M51 46h40v5H51z" fill="#7f552f"/><path d="M51 49h39v3H51z" fill="#c39a62"/>':l==="sniper"||l==="dmr"?d=`<path d="M8 34h28l9 4h72l11-5h14v7h-17l-10 5H46l-11-5H8z"/><path d="M68 44h15l-3 19H66z"/><path d="M48 27h30v5H48z"/><rect x="54" y="22" width="20" height="7" rx="3" fill="#18201e" stroke="#111714" stroke-width="2"/><path d="M49 25h28" stroke="#aebbb5" stroke-width="1.5"/><path d="M33 32h17v3H33z" fill="#c0c8bf"/>${l==="sniper"?'<path d="M23 34h19v4H23z" fill="#66765a"/><path d="M92 44 96 61h3l-2-17z" fill="#87928b"/>':'<path d="M73 44h10l3 14H71z" fill="#202726"/>'}`:l==="lmg"?d='<path d="M7 34h33l8 4h72l10-5h12v7h-16l-10 5H48l-10-5H7z"/><path d="M66 44h15l-3 17H64z"/><path d="M44 28h31v5H44z"/><path d="M50 45h23v16H50z" fill="#242b26" stroke="#131815" stroke-width="2"/><path d="M53 48h17M53 52h17M53 56h17" stroke="#7b8779" stroke-width="1.5"/><path d="M35 31h15v3H35z" fill="#c1c9bd"/>':l==="ak"?d='<path d="M9 35h29l9 4h71l10-5h14v7h-18l-9 5H48l-11-5H9z"/><path d="M64 45h15l-3 19H62z"/><path d="M10 32h29v5H10z" fill="#8a5b35"/><path d="M40 32h19v4H40z" fill="#9b663c"/><path d="M65 45q6 1 13 1l7 20-11-2-7-12z" fill="#70472d"/><path d="M90 33h26v3H90z" fill="#bdc2b6"/>':l==="ironbreaker"?d='<path d="M6 33h34l9 5h73l11-5h14v8h-18l-10 5H49l-11-5H6z"/><path d="M64 44h18l-4 18H60z"/><path d="M40 27h34v6H40z" fill="#241a1e"/><path d="M52 45h25v18H52z" fill="#180f12" stroke="#8f1d1d" stroke-width="2"/><path d="M57 48h15M57 53h15M57 58h15" stroke="#b3262c" stroke-width="1.5"/><path d="M33 30h18v5H33z" fill="#5a171b"/><path d="M98 33h26v4H98z" fill="#3a1014"/>':l==="minigun"?d='<path d="M38 37h52l8-5h20v8H97l-8 5H40z"/><path d="M46 30h71v3H46zM45 35h75v3H45zM45 40h75v3H45z"/><path d="M115 28h10v17h-10z" fill="#151a18"/><path d="M62 45h15l-4 14H60z"/><circle cx="44" cy="36.5" r="9" fill="#596052" stroke="#151a18" stroke-width="3"/><path d="M47 46h34v7H47z" fill="#252c28"/><path d="M57 54h4v12h-4zM75 54h4v12h-4z" fill="#a8b09b"/>':l==="rpg"?d='<path d="M17 33h78l12 5-12 5H17z"/><path d="M95 31h17l15 7-15 7H95z" fill="#b8a06c"/><path d="M20 35h73v6H20z" fill="#78845a"/><path d="M34 30h13v16H34z" fill="#3e4938"/><path d="M55 43h17l-2 13H53z"/><path d="M16 32h7v18h-7z" fill="#283027"/><path d="M112 32v11" stroke="#ded4aa" stroke-width="2"/>':d='<path d="M10 34h26l9 4h74l10-5h13v7h-17l-9 5H47l-11-5H10z"/><path d="M66 44h15l-3 19H64z"/><path d="M41 30h36v4H41z" fill="#a9b4aa"/><path d="M89 33h27v3H89z"/>',
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 88" fill="none"><defs><linearGradient id="g" x1="20" y1="24" x2="112" y2="62" gradientUnits="userSpaceOnUse"><stop stop-color="#aeb9ad"/><stop offset=".22" stop-color="${s}"/><stop offset="1" stop-color="#171c1a"/></linearGradient><linearGradient id="a" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff" stop-opacity=".8"/><stop offset="1" stop-color="${i}" stop-opacity=".5"/></linearGradient></defs><g transform="rotate(-9 72 44)" stroke="#121715" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"><g fill="#1b201e">${d}</g><g fill="url(#g)" stroke-width="2">${d}</g><path d="M28 35h17m30 1h19M46 41h7" stroke="url(#a)" stroke-width="1.7"/>${f}</g>${c?`<path d="m117 15 2.5 6.5L126 24l-6.5 2.5L117 33l-2.5-6.5L108 24l6.5-2.5z" fill="#fff0a8"/><circle cx="28" cy="62" r="2" fill="${i}"/>`:""}</svg>`
-}
+function jy(r){return Py[r]||Py.rifle}
 function n2(r){
   return`data:image/svg+xml,${encodeURIComponent(jy(r))}`
 }
@@ -13314,8 +13476,9 @@ class Gy{
   resize(a,l,s){
     this.W=a,
     this.H=l;
-    const i=this.quality>=2?2:this.quality===1?1.5:1;
-    this.dpr=Math.min(window.devicePixelRatio||1,i),
+    // 小游戏固定 2x 分辨率：原自适应会在真机低帧时把 quality 降到 0（dpr=1），
+    // 导致文字/图标发糊。这里锁定 2x，性能自适应仅继续影响粒子数量。
+    this.dpr=2,
     this.canvas.width=Math.round(a*this.dpr),
     this.canvas.height=Math.round(l*this.dpr);
     const c=this.touchDevice?8e5:1e6;

@@ -25,6 +25,7 @@ interface RewardedVideoAd {
 
 interface WxMiniGame {
   createCanvas(): HTMLCanvasElement;
+  createImage(): HTMLImageElement;
   createWebAudioContext(): AudioContext;
   getSystemInfoSync(): { windowWidth: number; windowHeight: number; pixelRatio: number; platform: string };
   getWindowInfo?(): { windowWidth: number; windowHeight: number; pixelRatio: number };

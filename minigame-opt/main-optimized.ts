@@ -197,6 +197,10 @@ function handleUiTap(id: string) {
   if (id === 'closehelp') { helpOpen = false; sfx.play('ui'); return; }
   if (helpOpen) return;
   sfx.play('ui');
+  if (id === 'nav:chars') { screen = 'chars'; return; }
+  if (id === 'nav:maps') { screen = 'maps'; return; }
+  if (id === 'nav:kits') { screen = 'kits'; return; }
+  if (id === 'back') { screen = 'menu'; return; }
   if (id === 'mute') { commit({ ...save, muted: !save.muted } as SaveData); sfx.setMuted(save.muted); music.setMuted(save.muted); return; }
   if (id === 'adcoin') { void watchAd('coins'); return; }
   if (id === 'revive') { void watchAd('revive'); return; }
@@ -260,7 +264,7 @@ function loop() {
   input.dropLowestEnabled = game.player.backpack.length > 0;
   input.bagOpen = screen === 'playing' && game.bagOpen && !game.player.dead && !game.ended;
   if (screen === 'playing') game.update(step);
-  else if (screen === 'menu') game.updateDemo(step);
+  else if (screen === 'menu' || screen === 'chars' || screen === 'maps' || screen === 'kits') game.updateDemo(step);
   else game.updateIdle(step);
 
   music.update(dt);
@@ -272,7 +276,7 @@ function loop() {
     const extracting = (!!game.exZone && game.exProg > 0) || (game.ended && game.outcome === 'extract');
     const bossType = game.boss && !game.boss.dead ? game.boss.type : null;
     music.play(trackFor(game.mode, game.mapId, bossType, musicCombatHold > 0, extracting));
-  } else if (screen === 'menu') {
+  } else if (screen === 'menu' || screen === 'chars' || screen === 'maps' || screen === 'kits') {
     music.play('menu');
   }
 
@@ -281,7 +285,7 @@ function loop() {
     screen, save, kit, mapId, characterId: save.characterId, result,
     stats: stats(), muted: save.muted, coinAdsToday: coinAdsToday(),
   } as UiState;
-  hits = drawUi(renderer.ctx, W, H, renderer.dpr, state, helpOpen);
+  hits = drawUi(renderer.ctx, W, H, renderer.dpr, state, helpOpen, (icon, x, y, size) => renderer.drawIcon(icon, x, y, size));
   requestAnimationFrame(loop);
 }
 

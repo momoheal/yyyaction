@@ -2,6 +2,7 @@ node_modules/
 dist/
 dist-en/
 minigame-opt/dist/
+minigame-opt/fortify-output/
 .env
 .env.*
 !.env.example
@@ -9,3 +10,23 @@ minigame-opt/dist/
 .wbapp_*.genie
 .playwright-cli/
 art_assets/.chrome-profile*/
+
+# 本地备份文件（非成果）
+*.bak-*
+
+# 3D 项目（three-game）构建产物
+three-game/android/**/build/
+three-game/android/.gradle/
+three-game/android/local.properties
+three-game/android/app/src/main/assets/public/index.html
+
+# 宣发素材：只保留最终成片，排除中间产物
+宣发素材/page@*.webm
+宣发素材/promo-*-raw.webm
+宣发素材/promo-raw.webm
+宣发素材/mix-*.wav
+宣发素材/promo-v*-cut*.mp4
+宣发素材/_join*.jpg
+宣发素材/captions.ass
+宣发素材/capture-*.json
+宣发素材/鸭鸭鸭行动3D-完整宣发视频-旧版.mp4

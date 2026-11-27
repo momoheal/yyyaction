@@ -3,8 +3,22 @@ import {
   armorById, weaponItem, type ItemDef, type Loadout, type ThrowableId, type WeaponDef,
 } from './data';
 
-/** Weapon mods are now role-specific: a choke only fits a shotgun, blast tuning only fits a launcher. */
-export type TuneType = 'stable' | 'damage' | 'velocity' | 'pierce' | 'mag' | 'rapid' | 'choke' | 'quick' | 'blast';
+/**
+ * Weapon mods are role-specific: each gun family gets its own tuning list so a
+ * shotgun can be converted to full-auto while a sniper can take a match barrel.
+ * The old catch-all "high-velocity ammo" was removed — it was a stat filler that
+ * made every gun feel the same.
+ */
+export type TuneType =
+  | 'damage' | 'mag' | 'quick'
+  | 'trigger' | 'rapid' | 'stable' | 'drum' | 'pierce' | 'overload'
+  | 'choke' | 'auto'
+  | 'scope' | 'match' | 'bolt'
+  | 'belt'
+  | 'blast' | 'heavy' | 'cluster';
+
+/** Negative mods cost something in exchange for raw output; the UI flags them. */
+export const RISKY_TUNES: ReadonlySet<TuneType> = new Set<TuneType>(['overload']);
 export type ArmorTuneType = 'regen' | 'cap' | 'plate' | 'aegis';
 export type SupplyKey = 'bandages' | 'medkits' | ThrowableId;
 
@@ -117,27 +131,64 @@ export function consumableCost(c: ConsumableLoadout | undefined): number {
 }
 
 export const WAREHOUSE_KIT = 'warehouse';
-export const TUNE_TYPES: TuneType[] = ['stable', 'damage', 'velocity', 'pierce', 'mag', 'rapid', 'choke', 'quick', 'blast'];
+export const TUNE_TYPES: TuneType[] = [
+  'damage', 'mag', 'quick',
+  'trigger', 'rapid', 'stable', 'drum', 'pierce', 'overload',
+  'choke', 'auto', 'scope', 'match', 'bolt', 'belt',
+  'blast', 'heavy', 'cluster',
+];
 
 export const TUNE_LABELS: Record<TuneType, string> = {
-  stable: '稳定枪机', damage: '高装药', velocity: '高速弹', pierce: '穿甲弹', mag: '扩容弹匣',
-  rapid: '轻量复进', choke: '收束器', quick: '快速弹夹', blast: '高爆战斗部',
+  damage: '高装药', mag: '扩容弹匣', quick: '快速弹夹',
+  trigger: '轻量扳机', rapid: '轻量复进', stable: '稳定枪机', drum: '扩容弹鼓', pierce: '穿甲弹', overload: '过载枪机',
+  choke: '收束器', auto: '自动化枪机',
+  scope: '战术准镜', match: '竞赛枪管', bolt: '快拉枪机',
+  belt: '弹链箱',
+  blast: '高爆战斗部', heavy: '重型弹头', cluster: '集束弹头',
 };
 export const TUNE_DESCS: Record<TuneType, string> = {
-  stable: '后坐 −35% · 枪口上跳 −20%（不加散布）',
   damage: '伤害 +25% · 爆炸伤害 +25%',
-  velocity: '弹速 +30% · 射程 +10%',
-  pierce: '穿透 +2',
   mag: '弹匣容量 +50%',
-  rapid: '射速 +20%',
-  choke: '散布 −45%（仅霰弹枪）',
   quick: '装填时间 −40%',
-  blast: '爆炸伤害 +40% · 范围 +15%（仅火箭筒）',
+  trigger: '射速 +30%（手枪专属）',
+  rapid: '射速 +20%',
+  stable: '后坐 −35% · 枪口上跳 −20%（不加散布）',
+  drum: '弹匣容量 +100%（冲锋枪/霰弹/机枪专属）',
+  pierce: '穿透 +2',
+  overload: '射速 +40%，但每发有 8% 概率卡壳空放（高风险）',
+  choke: '散布 −45%（霰弹枪专属）',
+  auto: '射速 ×1.8 · 单发伤害 −25% · 散布 +15%（霰弹枪转全自动）',
+  scope: '散布 −40% · 射程 +15%（突击/狙击专属）',
+  match: '伤害 +18% · 射程 +8%（狙击/精确射手专属）',
+  bolt: '射速 +35% · 装填 −20%（狙击枪专属）',
+  belt: '弹匣容量 +75%（机枪专属）',
+  blast: '爆炸伤害 +40% · 范围 +15%（火箭筒专属）',
+  heavy: '直击伤害 +60% · 爆炸伤害 +15%（火箭筒专属）',
+  cluster: '爆炸范围 +45% · 爆炸伤害 −15% · 直击 −15%（火箭筒清群弹头）',
 };
 export const TUNE_TAGS: Record<TuneType, string> = {
-  stable: '后坐−35%', damage: '伤害+25%', velocity: '弹速+30%', pierce: '穿透+2',
-  mag: '弹匣+50%', rapid: '射速+20%', choke: '散布−45%', quick: '装填−40%', blast: '爆炸+40%',
+  damage: '伤害+25%', mag: '弹匣+50%', quick: '装填−40%',
+  trigger: '射速+30%', rapid: '射速+20%', stable: '后坐−35%', drum: '弹匣+100%', pierce: '穿透+2', overload: '射速+40%·会卡壳',
+  choke: '散布−45%', auto: '全自动', scope: '准镜', match: '伤害+18%', bolt: '射速+35%',
+  belt: '弹匣+75%', blast: '爆炸+40%', heavy: '直击+60%', cluster: '范围+45%',
 };
+
+export interface WeaponCombo { id: string; name: string; desc: string }
+
+/** Combos fire when two specific mods share a gun — the reason to build around one weapon. */
+export const WEAPON_COMBOS: { combo: WeaponCombo; needs: TuneType[] }[] = [
+  { combo: { id: 'barrage', name: '弹幕模式', desc: '弹丸 +1 · 散布 −15%' }, needs: ['auto', 'drum'] },
+  { combo: { id: 'mark', name: '精准连射', desc: '射速额外 +10%' }, needs: ['scope', 'rapid'] },
+  { combo: { id: 'hunt', name: '猎杀节奏', desc: '装填额外 −10%' }, needs: ['match', 'bolt'] },
+  { combo: { id: 'focus', name: '聚能弹头', desc: '爆炸额外 +10%' }, needs: ['blast', 'heavy'] },
+  { combo: { id: 'hold', name: '定点压制', desc: '压制时长 +0.4 秒' }, needs: ['belt', 'stable'] },
+];
+
+/** Combo unlocked by the installed mods, if any. */
+export function weaponCombo(mods: TuneType[]): WeaponCombo | undefined {
+  const set = new Set(mods);
+  return WEAPON_COMBOS.find((row) => row.needs.every((m) => set.has(m)))?.combo;
+}
 
 export const ARMOR_TUNE_TYPES: ArmorTuneType[] = ['regen', 'cap', 'plate', 'aegis'];
 export const ARMOR_TUNE_LABELS: Record<ArmorTuneType, string> = {
@@ -155,21 +206,30 @@ export const ARMOR_TUNE_TAGS: Record<ArmorTuneType, string> = {
 
 const weaponId = (id: string) => id.startsWith('w_') ? id.slice(2) : id;
 
-/** Only mods that make sense for this gun are offered or kept in old saves. */
+/** Gun families used to hand out role-specific tuning options. */
+const PISTOL_IDS = new Set(['pistol']);
+const SMG_IDS = new Set(['smg', 'mp9', 'frostmp9']);
+const SHOTGUN_IDS = new Set(['shotgun', 'aa12']);
+const SNIPER_IDS = new Set(['sniper', 'awmlegend', 'barrett', 'dmr']);
+const MG_IDS = new Set(['lmg', 'minigun', 'ironbreaker']);
+
+/**
+ * Each family gets a short list with a clear identity instead of the old
+ * one-size-fits-all spread. Universal picks stay (damage/mag/reload) so any gun
+ * can still be pushed toward DPS, but the rest is what makes the class feel unique.
+ */
 export function tunesForWeapon(id: string): TuneType[] {
   const w = WEAPONS[weaponId(id)];
   if (!w) return [];
-  const out: TuneType[] = ['damage', 'mag', 'quick'];
-  if (w.blast) out.push('blast');
-  else {
-    if (w.pellets > 1) out.push('choke', 'velocity');
-    else {
-      out.push('stable', 'velocity');
-      if (w.rate >= 4) out.push('rapid');
-      if (w.pierce || w.rate >= 7 || w.mag >= 60) out.push('pierce');
-    }
-  }
-  return out;
+  const wid = weaponId(id);
+  const common: TuneType[] = ['damage', 'mag', 'quick'];
+  if (w.blast) return [...common, 'blast', 'heavy', 'cluster'];
+  if (PISTOL_IDS.has(wid)) return [...common, 'trigger'];
+  if (SHOTGUN_IDS.has(wid)) return [...common, 'choke', 'auto', 'drum'];
+  if (SNIPER_IDS.has(wid)) return [...common, 'scope', 'match', 'bolt', 'pierce'];
+  if (MG_IDS.has(wid)) return [...common, 'belt', 'stable', 'pierce', 'overload'];
+  if (SMG_IDS.has(wid)) return [...common, 'rapid', 'stable', 'drum', 'overload'];
+  return [...common, 'scope', 'rapid', 'pierce', 'overload'];
 }
 
 /** Every weapon can take two mods; legendary guns get a third slot. */
@@ -216,15 +276,33 @@ export function gearLabel(item: GearItem | undefined): string {
 export function modWeapon(base: WeaponDef, mods: TuneType[]): WeaponDef {
   const def: WeaponDef = { ...base, blast: base.blast ? { ...base.blast } : undefined };
   for (const mod of mods) {
-    if (mod === 'stable') { def.kick *= 0.65; def.shake *= 0.8; }
-    else if (mod === 'damage') { def.dmg *= 1.25; if (def.blast) def.blast.dmg *= 1.25; }
-    else if (mod === 'velocity') { def.speed *= 1.3; def.range *= 1.1; }
-    else if (mod === 'pierce') def.pierce += 2;
+    if (mod === 'damage') { def.dmg *= 1.25; if (def.blast) def.blast.dmg *= 1.25; }
     else if (mod === 'mag') def.mag = Math.round(def.mag * 1.5);
-    else if (mod === 'rapid') def.rate *= 1.2;
-    else if (mod === 'choke') def.spread *= 0.55;
     else if (mod === 'quick') def.reload *= 0.6;
+    else if (mod === 'trigger') def.rate *= 1.3;
+    else if (mod === 'rapid') def.rate *= 1.2;
+    else if (mod === 'stable') { def.kick *= 0.65; def.shake *= 0.8; }
+    else if (mod === 'drum') def.mag = Math.round(def.mag * 2);
+    else if (mod === 'pierce') def.pierce += 2;
+    else if (mod === 'choke') def.spread *= 0.55;
+    else if (mod === 'auto') { def.rate *= 1.8; def.dmg *= 0.75; def.spread *= 1.15; }
+    else if (mod === 'scope') { def.spread *= 0.6; def.range *= 1.15; }
+    else if (mod === 'match') { def.dmg *= 1.18; def.range *= 1.08; }
+    else if (mod === 'bolt') { def.rate *= 1.35; def.reload *= 0.8; }
+    else if (mod === 'belt') def.mag = Math.round(def.mag * 1.75);
+    else if (mod === 'overload') { def.rate *= 1.4; def.jamChance = (def.jamChance ?? 0) + 0.08; }
     else if (mod === 'blast' && def.blast) { def.blast.dmg *= 1.4; def.blast.radius *= 1.15; }
+    else if (mod === 'heavy') { def.dmg *= 1.6; if (def.blast) def.blast.dmg *= 1.15; }
+    else if (mod === 'cluster' && def.blast) { def.blast.radius *= 1.45; def.blast.dmg *= 0.85; def.dmg *= 0.85; }
+  }
+  // Mod combos: two specific mods on the same gun unlock an extra perk and tag the weapon.
+  const combo = weaponCombo(mods);
+  if (combo) {
+    def.combo = combo.id;
+    if (combo.id === 'barrage') { def.pellets += 1; def.spread *= 0.85; }
+    else if (combo.id === 'mark') def.rate *= 1.1;
+    else if (combo.id === 'hunt') def.reload *= 0.9;
+    else if (combo.id === 'focus' && def.blast) def.blast.dmg *= 1.1;
   }
   return def;
 }

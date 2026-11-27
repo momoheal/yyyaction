@@ -20,6 +20,7 @@ const wx=new Proxy({
   getWindowInfo:()=>({windowWidth:1280,windowHeight:720,pixelRatio:2}),
   getSystemInfoSync:()=>({windowWidth:1280,windowHeight:720,pixelRatio:2}),
   createCanvas:()=>canvas,
+  createImage:()=>({width:0,height:0,complete:false,addEventListener:noop,removeEventListener:noop}),
   createWebAudioContext:()=>({createOscillator:()=>({connect:noop,start:noop,stop:noop,frequency:{value:0},type:''}),createGain:()=>({connect:noop,gain:{value:0,setValueAtTime:noop,linearRampToValueAtTime:noop}}),destination:{},currentTime:0,resume:noop}),
   getStorageSync:()=>null, setStorageSync:noop, removeStorageSync:noop,
   onTouchStart:(f)=>{listeners.ts=f}, onTouchMove:(f)=>{listeners.tm=f}, onTouchEnd:(f)=>{listeners.te=f}, onTouchCancel:noop,
@@ -27,15 +28,14 @@ const wx=new Proxy({
   createRewardedVideoAd:()=>({load:()=>Promise.resolve(),show:()=>Promise.resolve(),onClose:noop,offClose:noop}),
   getLaunchOptionsSync:()=>({scene:1001,query:{}}),
 }, { get:(t,k)=> k in t ? t[k] : ()=>{} });
+// 注意：不要在这里伪造 document / window / navigator / Path2D / Image。
+// 真机小游戏环境里这些都不存在，全靠 src/minigame/adapter.ts 补齐；
+// 一旦测试替身兜住了，适配层漏补就会漏检（v1.1.0 的 "Can't find variable: Image" 即由此漏到线上）。
 const sandbox={
-  console, wx, Math, Date, JSON, Object, Array, Number, String, Boolean, Set, Map, WeakMap, Uint8Array, Uint8ClampedArray, Float32Array, Int32Array, Promise, Proxy, Symbol, RegExp, Error, isFinite, parseInt, parseFloat,
+  console, wx, Math, Date, JSON, Object, Array, Number, String, Boolean, Set, Map, WeakMap, Uint8Array, Uint8ClampedArray, Float32Array, Int32Array, Promise, Proxy, Symbol, RegExp, Error, TypeError, isFinite, parseInt, parseFloat,
   setTimeout, clearTimeout,
-  document:{ createElement:(t)=>t==='canvas'?{getContext:()=>ctx,style:{},width:1280,height:720}:{style:{},appendChild:noop,setAttribute:noop}, addEventListener:noop, removeEventListener:noop, getElementById:()=>({style:{}}) },
-  navigator:{maxTouchPoints:5},
-  Image:class{constructor(){this.style={}} set src(v){this._s=v;} get src(){return this._s}},
-  Path2D:class{moveTo(){}lineTo(){}arc(){}closePath(){}},
 };
-sandbox.window=sandbox; sandbox.globalThis=sandbox;
+sandbox.globalThis=sandbox;
 let errors=[];
 process.on('uncaughtException', e=>{ errors.push('uncaught: '+e.message); });
 const code=readFileSync(resolve(__dirname,'dist/game.js'),'utf8');

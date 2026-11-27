@@ -92,6 +92,31 @@ export const fakeElement = {
   releasePointerCapture() { /* no-op */ },
 };
 
+/**
+ * 往全局对象注入浏览器垫片。
+ * 真机上这些名字都不存在，直接赋值即可；但微信开发者工具的模拟器里
+ * window / navigator / document 是只读访问器（"which has only a getter"），
+ * 直接赋值会抛 TypeError 让整包在加载期挂掉。所以这里按三级降级：
+ * 赋值 → defineProperty 覆盖 → 逐属性打到已有对象上。
+ */
+function installGlobal(name: string, value: unknown) {
+  const g = globalThis as unknown as Record<string, unknown>;
+  try {
+    g[name] = value;
+    if (g[name] === value) return;
+  } catch { /* 只读访问器，继续降级 */ }
+  try {
+    Object.defineProperty(g, name, { value, configurable: true, writable: true });
+    if (g[name] === value) return;
+  } catch { /* 不可配置，继续降级 */ }
+  const target = g[name];
+  if (target && typeof target === 'object' && value && typeof value === 'object') {
+    for (const key of Object.keys(value as Record<string, unknown>)) {
+      try { (target as Record<string, unknown>)[key] = (value as Record<string, unknown>)[key]; } catch { /* 单个属性也只读，放弃 */ }
+    }
+  }
+}
+
 export function installAdapter() {
   const g = globalThis as unknown as Record<string, unknown>;
   const info = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
@@ -101,8 +126,8 @@ export function installAdapter() {
   fakeWindow.AudioContext = wx.createWebAudioContext as unknown as typeof AudioContext;
   fakeWindow.webkitAudioContext = fakeWindow.AudioContext;
 
-  g.window = fakeWindow;
-  g.document = {
+  installGlobal('window', fakeWindow);
+  installGlobal('document', {
     createElement(tag: string) {
       if (tag === 'canvas') return createCanvas();
       return { style: {}, appendChild() {}, setAttribute() {} };
@@ -112,17 +137,24 @@ export function installAdapter() {
     hidden: false,
     documentElement: { requestFullscreen: undefined, style: {} },
     fullscreenElement: null,
-  };
-  g.navigator = { maxTouchPoints: 5 };
-  g.localStorage = {
+  });
+  installGlobal('navigator', { maxTouchPoints: 5 });
+  installGlobal('localStorage', {
     getItem(key: string) { try { return wx.getStorageSync<string>(key) ?? null; } catch { return null; } },
     setItem(key: string, value: string) { try { wx.setStorageSync(key, value); } catch { /* ignore */ } },
     removeItem(key: string) { try { wx.removeStorageSync(key); } catch { /* ignore */ } },
-  };
-  g.Path2D = MiniPath2D;
-  g.requestAnimationFrame = (cb: FrameRequestCallback) => setTimeout(() => cb(Date.now()), 16) as unknown as number;
-  g.cancelAnimationFrame = (id: number) => clearTimeout(id);
-  g.performance = g.performance ?? { now: () => Date.now() };
+  });
+  installGlobal('Path2D', MiniPath2D);
+  // 小游戏没有 DOM Image。不补这一层，任何 new Image() 都会抛
+  // ReferenceError: Can't find variable: Image，且在启动期就中断，整局卡在加载页。
+  if (typeof g.Image !== 'function') {
+    installGlobal('Image', function MiniImage() {
+      return wx.createImage();
+    });
+  }
+  installGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => setTimeout(() => cb(Date.now()), 16) as unknown as number);
+  installGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id));
+  if (!g.performance) installGlobal('performance', { now: () => Date.now() });
 
   wx.onTouchStart((e) => {
     for (const t of e.changedTouches) dispatch('el', 'pointerdown', pointerLike(t, 'touch'));

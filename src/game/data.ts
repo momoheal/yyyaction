@@ -147,27 +147,39 @@ export interface WeaponDef {
   blast?: { radius: number; dmg: number };
   /** Fraction of armour ignored on every hit (signature trait of the iron breaker). */
   antiArmor?: number;
+  /** Per-trigger chance to jam and skip a shot (trade-off of the overload bolt). */
+  jamChance?: number;
+  /** Active mod-combo id resolved at tuning time (e.g. 'barrage'). */
+  combo?: string;
 }
 
 export const WEAPONS: Record<string, WeaponDef> = {
   pistol: { id: 'pistol', name: 'M9 鸭牌手枪', short: 'M9', tier: 0, dmg: 26, rate: 4.6, mag: 12, reload: 1.0, spread: 0.035, pellets: 1, speed: 1350, range: 720, shake: 0.1, kick: 3, noise: 520, sound: 'pistol', value: 3000, len: 12, color: '#2b2b2e', pierce: 0, rarity: 0 },
   smg: { id: 'smg', name: 'MP5 冲锋枪', short: 'MP5', tier: 1, dmg: 17, rate: 11, mag: 30, reload: 1.5, spread: 0.075, pellets: 1, speed: 1400, range: 680, shake: 0.085, kick: 2.5, noise: 600, sound: 'smg', value: 18000, len: 18, color: '#303338', pierce: 0, rarity: 1 },
-  shotgun: { id: 'shotgun', name: 'M870 霰弹枪', short: 'M870', tier: 2, dmg: 15, rate: 1.35, mag: 6, reload: 2.1, spread: 0.3, pellets: 8, speed: 1150, range: 430, shake: 0.34, kick: 9, noise: 750, sound: 'shotgun', value: 26000, len: 24, color: '#5a3d26', pierce: 0, rarity: 2 },
+  shotgun: { id: 'shotgun', name: 'M870 霰弹枪', short: 'M870', tier: 2, dmg: 19, rate: 1.7, mag: 8, reload: 1.9, spread: 0.26, pellets: 9, speed: 1150, range: 450, shake: 0.34, kick: 9, noise: 750, sound: 'shotgun', value: 32000, len: 24, color: '#5a3d26', pierce: 0, rarity: 2 },
   rifle: { id: 'rifle', name: 'M4A1 突击步枪', short: 'M4A1', tier: 3, dmg: 28, rate: 8.5, mag: 30, reload: 1.9, spread: 0.04, pellets: 1, speed: 1650, range: 950, shake: 0.13, kick: 3.5, noise: 800, sound: 'rifle', value: 42000, len: 25, color: '#3a3f36', pierce: 0, rarity: 2 },
-  sniper: { id: 'sniper', name: 'AWM 狙击步枪', short: 'AWM', tier: 4, dmg: 150, rate: 0.9, mag: 5, reload: 2.6, spread: 0.004, pellets: 1, speed: 2800, range: 1500, shake: 0.45, kick: 12, noise: 1100, sound: 'sniper', value: 88000, len: 33, color: '#4a5a3a', pierce: 2, rarity: 3 },
+  sniper: { id: 'sniper', name: 'AWM 狙击步枪', short: 'AWM', tier: 4, dmg: 185, rate: 1.15, mag: 6, reload: 2.3, spread: 0.004, pellets: 1, speed: 2800, range: 1500, shake: 0.45, kick: 12, noise: 1100, sound: 'sniper', value: 88000, len: 33, color: '#4a5a3a', pierce: 2, rarity: 3 },
   lmg: { id: 'lmg', name: 'M249 轻机枪', short: 'M249', tier: 4, dmg: 24, rate: 12, mag: 80, reload: 3.4, spread: 0.085, pellets: 1, speed: 1550, range: 900, shake: 0.15, kick: 3.5, noise: 900, sound: 'lmg', value: 76000, len: 29, color: '#2f3230', pierce: 0, rarity: 3 },
   // --- extra weapons: finer tiers plus three legendaries ---
   mp9: { id: 'mp9', name: 'MP9 冲锋枪', short: 'MP9', tier: 1, dmg: 20, rate: 13, mag: 26, reload: 1.35, spread: 0.065, pellets: 1, speed: 1450, range: 640, shake: 0.08, kick: 2.2, noise: 580, sound: 'smg', value: 21000, len: 17, color: '#33373d', pierce: 0, rarity: 1 },
   ak: { id: 'ak', name: 'AK47 突击步枪', short: 'AK47', tier: 3, dmg: 36, rate: 7.2, mag: 30, reload: 2.0, spread: 0.05, pellets: 1, speed: 1700, range: 980, shake: 0.16, kick: 5, noise: 850, sound: 'rifle', value: 52000, len: 27, color: '#4a3324', pierce: 1, rarity: 2 },
-  dmr: { id: 'dmr', name: 'SVD 精确射手步枪', short: 'SVD', tier: 4, dmg: 62, rate: 2.6, mag: 12, reload: 2.2, spread: 0.012, pellets: 1, speed: 2300, range: 1250, shake: 0.22, kick: 7, noise: 1000, sound: 'sniper', value: 84000, len: 31, color: '#3c4631', pierce: 1, rarity: 3 },
+  dmr: { id: 'dmr', name: 'SVD 精确射手步枪', short: 'SVD', tier: 4, dmg: 75, rate: 3.1, mag: 15, reload: 2.0, spread: 0.012, pellets: 1, speed: 2300, range: 1250, shake: 0.22, kick: 7, noise: 1000, sound: 'sniper', value: 84000, len: 31, color: '#3c4631', pierce: 1, rarity: 3 },
   // Legendary (rarity 5, tier 5)
-  m4legend: { id: 'm4legend', name: '渐变之影 M4A1', short: 'M4·影', tier: 5, dmg: 42, rate: 9.2, mag: 35, reload: 1.7, spread: 0.028, pellets: 1, speed: 1750, range: 1050, shake: 0.12, kick: 3, noise: 810, sound: 'rifle', value: 320000, len: 26, color: '#8e5bd6', pierce: 2, rarity: 5 },
-  awmlegend: { id: 'awmlegend', name: '龙纹 AWM', short: 'AWM·龙', tier: 5, dmg: 190, rate: 1.0, mag: 6, reload: 2.4, spread: 0.002, pellets: 1, speed: 3000, range: 1600, shake: 0.42, kick: 11, noise: 1150, sound: 'sniper', value: 420000, len: 34, color: '#c0392b', pierce: 3, rarity: 5 },
-  minigun: { id: 'minigun', name: 'M134 火神炮', short: 'M134', tier: 5, dmg: 30, rate: 16, mag: 150, reload: 4.2, spread: 0.1, pellets: 1, speed: 1600, range: 950, shake: 0.18, kick: 3, noise: 1100, sound: 'lmg', value: 380000, len: 36, color: '#6b4a1e', pierce: 1, rarity: 5 },
-  rpg: { id: 'rpg', name: 'RPG 火箭筒', short: 'RPG', tier: 5, dmg: 110, rate: 0.8, mag: 2, reload: 2.8, spread: 0.008, pellets: 1, speed: 820, range: 1100, shake: 0.5, kick: 11, noise: 1300, sound: 'explosion', value: 780000, len: 40, color: '#4d5238', pierce: 0, rarity: 5, blast: { radius: 240, dmg: 300 } },
-  frostmp9: { id: 'frostmp9', name: '冰风 MP9', short: '冰MP9', tier: 5, dmg: 22, rate: 13, mag: 32, reload: 1.4, spread: 0.045, pellets: 1, speed: 1500, range: 700, shake: 0.08, kick: 2, noise: 560, sound: 'smg', value: 520000, len: 18, color: '#7fd8ef', pierce: 0, rarity: 5 },
+  // Legendary prices are deliberately detached from raw DPS: high drop rates make them
+  // attainable through raids, so the price gap is a progression/status signal, not value.
+  m4legend: { id: 'm4legend', name: '渐变之影 M4A1', short: 'M4·影', tier: 5, dmg: 42, rate: 9.2, mag: 35, reload: 1.7, spread: 0.028, pellets: 1, speed: 1750, range: 1050, shake: 0.12, kick: 3, noise: 810, sound: 'rifle', value: 560000, len: 26, color: '#8e5bd6', pierce: 2, rarity: 5 },
+  awmlegend: { id: 'awmlegend', name: '龙纹 AWM', short: 'AWM·龙', tier: 5, dmg: 190, rate: 1.0, mag: 6, reload: 2.4, spread: 0.002, pellets: 1, speed: 3000, range: 1600, shake: 0.42, kick: 11, noise: 1150, sound: 'sniper', value: 880000, len: 34, color: '#c0392b', pierce: 3, rarity: 5 },
+  minigun: { id: 'minigun', name: 'M134 火神炮', short: 'M134', tier: 5, dmg: 30, rate: 16, mag: 150, reload: 4.2, spread: 0.1, pellets: 1, speed: 1600, range: 950, shake: 0.18, kick: 3, noise: 1100, sound: 'lmg', value: 720000, len: 36, color: '#6b4a1e', pierce: 1, rarity: 5 },
+  rpg: { id: 'rpg', name: 'RPG 火箭筒', short: 'RPG', tier: 5, dmg: 110, rate: 0.9, mag: 3, reload: 2.5, spread: 0.008, pellets: 1, speed: 820, range: 1100, shake: 0.5, kick: 11, noise: 1300, sound: 'explosion', value: 1400000, len: 40, color: '#4d5238', pierce: 0, rarity: 5, blast: { radius: 260, dmg: 340 } },
+  // Boss-exclusive: the frost marquee SMG is no longer placed in maps or loot pools.
+  frostmp9: { id: 'frostmp9', name: '冰风 MP9', short: '冰MP9', tier: 5, dmg: 22, rate: 13, mag: 32, reload: 1.4, spread: 0.045, pellets: 1, speed: 1500, range: 700, shake: 0.08, kick: 2, noise: 560, sound: 'smg', value: 980000, len: 18, color: '#7fd8ef', pierce: 0, rarity: 5 },
   // Guaranteed drop from the iron warden: heavy, armour-shredding belt-fed gun.
-  ironbreaker: { id: 'ironbreaker', name: '玄铁破壁者', short: '破壁者', tier: 5, dmg: 48, rate: 8.5, mag: 90, reload: 2.6, spread: 0.055, pellets: 1, speed: 1700, range: 1050, shake: 0.15, kick: 4, noise: 950, sound: 'lmg', value: 760000, len: 30, color: '#8f1d1d', pierce: 3, rarity: 5, antiArmor: 0.5 },
+  ironbreaker: { id: 'ironbreaker', name: '玄铁破壁者', short: '破壁者', tier: 5, dmg: 48, rate: 8.5, mag: 90, reload: 2.6, spread: 0.055, pellets: 1, speed: 1700, range: 1050, shake: 0.15, kick: 4, noise: 950, sound: 'lmg', value: 1400000, len: 30, color: '#8f1d1d', pierce: 3, rarity: 5, antiArmor: 0.5 },
+  // --- boss-exclusive tier-5 fillers: high-damage shotgun, high-ROF assault, heavy sniper ---
+  // Keep the boss-grade shotgun dominant up close without eclipsing the other legendary guns.
+  aa12: { id: 'aa12', name: 'AA12 雷霆霰弹', short: 'AA12', tier: 5, dmg: 17, rate: 2.4, mag: 12, reload: 2.4, spread: 0.2, pellets: 9, speed: 1200, range: 500, shake: 0.36, kick: 10, noise: 950, sound: 'shotgun', value: 1600000, len: 30, color: '#2d5a52', pierce: 0, rarity: 5 },
+  hk416: { id: 'hk416', name: 'HK416 疾风突击', short: 'HK416', tier: 5, dmg: 29, rate: 12.5, mag: 45, reload: 1.8, spread: 0.03, pellets: 1, speed: 1750, range: 1050, shake: 0.13, kick: 3, noise: 860, sound: 'rifle', value: 1800000, len: 28, color: '#2f3d4a', pierce: 1, rarity: 5 },
+  barrett: { id: 'barrett', name: '巴雷特 M82 重狙', short: 'M82', tier: 5, dmg: 340, rate: 0.65, mag: 5, reload: 2.8, spread: 0.001, pellets: 1, speed: 3200, range: 1900, shake: 0.6, kick: 16, noise: 1400, sound: 'sniper', value: 2200000, len: 42, color: '#5a5f45', pierce: 4, rarity: 5 },
 };
 
 /** Short category label used by warehouse filters and mod eligibility. */
@@ -200,6 +212,45 @@ export function weaponTrait(id: string): string {
 export const CHILL_WEAPONS = new Set(['frostmp9']);
 /** Weapons whose bullets explode on impact. */
 export const EXPLOSIVE_WEAPONS = new Set(['rpg']);
+
+/**
+ * Innate family perks that exist outside the mod system, so each gun class
+ * feels different before the player ever tunes it.
+ * - shotgun: bonus damage at point-blank, falloff past mid range
+ * - sniper: higher crit multiplier on the built-in 10% crit roll
+ * - mg: hits slow the target (suppression)
+ */
+export type WeaponPassive = 'shotgun' | 'sniper' | 'mg' | null;
+
+const SNIPER_PASSIVE_IDS = new Set(['sniper', 'awmlegend', 'barrett']);
+const MG_PASSIVE_IDS = new Set(['lmg', 'minigun', 'ironbreaker']);
+
+export function weaponPassive(id: string): WeaponPassive {
+  const w = WEAPONS[id];
+  if (!w) return null;
+  if (w.blast) return null;
+  if (w.pellets > 1) return 'shotgun';
+  if (SNIPER_PASSIVE_IDS.has(id)) return 'sniper';
+  if (MG_PASSIVE_IDS.has(id)) return 'mg';
+  return null;
+}
+
+/** Damage multipliers for the shotgun's range-based passive. */
+export const SHOTGUN_CLOSE_RANGE = 260;
+export const SHOTGUN_CLOSE_BONUS = 1.35;
+export const SHOTGUN_FAR_RANGE = 430;
+export const SHOTGUN_FAR_FALLOFF = 0.8;
+/** Crit multiplier for sniper-class guns (normal guns use 1.8). */
+export const SNIPER_CRIT_MULT = 2.6;
+
+/** Short label for the innate family perk, shown in the armory next to the weapon trait. */
+export function weaponPassiveLabel(id: string): string {
+  const p = weaponPassive(id);
+  if (p === 'shotgun') return `近距 +${Math.round((SHOTGUN_CLOSE_BONUS - 1) * 100)}%`;
+  if (p === 'sniper') return `暴击 ×${SNIPER_CRIT_MULT}`;
+  if (p === 'mg') return '命中压制';
+  return '';
+}
 
 export function weaponItem(id: string): ItemDef {
   const w = WEAPONS[id];
@@ -237,7 +288,7 @@ export interface BossEncounter {
   phaseAt: number;
   phases: [BossPhase, BossPhase];
   trophy: ItemDef;
-  extraLootWeights: number[];
+  extraLootWeights?: number[];
   /** Guaranteed high-tier reward rolls, in addition to the trophy and base bonus. */
   rewardRolls?: { count: number; weights: number[] }[];
   /** Signature guns awarded when this boss is defeated. */
@@ -279,54 +330,63 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
   shield: { id: 'shield', name: '盾卫鸭', hp: 115, armor: 200, r: 18, speed: 92, vision: 480, reaction: 0.7, accuracy: 0.18, score: 2400, weapons: ['smg'], dmgMul: 0.22, bulletSpeed: 700, prefMin: 110, prefMax: 240, burst: [3, 5], melee: 0, boss: false, frontArmor: true },
   hen: { id: 'hen', name: '投弹母鸡', hp: 70, armor: 0, r: 15, speed: 130, vision: 560, reaction: 0.6, accuracy: 0, score: 2100, weapons: [], dmgMul: 0, bulletSpeed: 0, prefMin: 240, prefMax: 420, burst: [0, 0], melee: 5, boss: false, thrower: true },
   goose: {
-    id: 'goose', name: '鹅老大', hp: 800, armor: 120, r: 26, speed: 130, vision: 650, reaction: 0.4,
-    accuracy: 0.15, score: 15000, weapons: ['lmg'], dmgMul: 0.2, bulletSpeed: 700,
+    id: 'goose', name: '鹅老大', hp: 1040, armor: 140, r: 26, speed: 130, vision: 650, reaction: 0.4,
+    accuracy: 0.15, score: 15000, weapons: ['lmg'], dmgMul: 0.24, bulletSpeed: 700,
     prefMin: 150, prefMax: 380, burst: [10, 16], melee: 0, boss: true,
     encounter: {
       skill: 'slam', warning: '震地波无视掩体并击退，翻滚可躲；它会呼叫附近同伴围攻',
       phaseWarning: '震地更频繁、范围更大，呼叫的鸭匪更多', phaseAt: 0.5,
       phases: [
-        { windup: 1.25, cooldown: 8, damage: 12, range: 300 },
-        { windup: 1.0, cooldown: 5.5, damage: 17, range: 400 },
+        { windup: 1.25, cooldown: 8, damage: 14, range: 300 },
+        { windup: 1.0, cooldown: 5.5, damage: 20, range: 400 },
       ],
       trophy: L('goose_crest', '鹅老大羽冠', '🪶', 4, 120000),
-      extraLootWeights: [0, 0, 0, 1, 0, 0],
+      weaponDrops: ['aa12'],
     },
   },
   harborBoss: {
-    id: 'harborBoss', name: '铁钩船长', hp: 640, armor: 75, r: 24, speed: 140, vision: 620, reaction: 0.5,
-    accuracy: 0.22, score: 11000, weapons: ['shotgun'], dmgMul: 0.22, bulletSpeed: 620,
+    id: 'harborBoss', name: '铁钩船长', hp: 830, armor: 90, r: 24, speed: 140, vision: 620, reaction: 0.5,
+    accuracy: 0.22, score: 11000, weapons: ['shotgun'], dmgMul: 0.26, bulletSpeed: 620,
     prefMin: 90, prefMax: 240, burst: [1, 1], melee: 0, boss: true,
     encounter: {
       skill: 'charge', warning: '看到红色冲撞路线后横向闪避，引它撞上货柜',
       phaseWarning: '冲撞预警缩短，冲得更远', phaseAt: 0.5,
       phases: [
-        { windup: 1.15, cooldown: 9, damage: 17, range: 360 },
-        { windup: 0.85, cooldown: 6.5, damage: 24, range: 470 },
+        { windup: 1.15, cooldown: 9, damage: 20, range: 360 },
+        { windup: 0.85, cooldown: 6.5, damage: 29, range: 470 },
       ],
       trophy: L('captain_log', '船长航海日志', '📕', 4, 96000),
       extraLootWeights: [0, 0, 0, 1, 0, 0],
+      rewardRolls: [
+        { count: 1, weights: [0, 0, 0, 0, 0, 1] },
+      ],
+      weaponDrops: ['hk416'],
     },
   },
   foundryBoss: {
-    id: 'foundryBoss', name: '炉心监工', hp: 1000, armor: 180, r: 27, speed: 112, vision: 690, reaction: 0.42,
-    accuracy: 0.16, score: 22000, weapons: ['rifle'], dmgMul: 0.26, bulletSpeed: 760,
+    id: 'foundryBoss', name: '炉心监工', hp: 1300, armor: 210, r: 27, speed: 112, vision: 690, reaction: 0.42,
+    accuracy: 0.16, score: 22000, weapons: ['rifle'], dmgMul: 0.31, bulletSpeed: 760,
     prefMin: 180, prefMax: 300, burst: [5, 8], melee: 0, boss: true,
     encounter: {
       skill: 'pulse', warning: '橙圈内会受到热浪冲击，退圈或躲到实墙后',
       phaseWarning: '热浪范围扩大，间隔缩短', phaseAt: 0.45,
       phases: [
-        { windup: 1.3, cooldown: 9.5, damage: 18, range: 250 },
-        { windup: 1.1, cooldown: 6.5, damage: 25, range: 340 },
+        { windup: 1.3, cooldown: 9.5, damage: 22, range: 250 },
+        { windup: 1.1, cooldown: 6.5, damage: 30, range: 340 },
       ],
       trophy: L('furnace_core', '封存炉芯', '🧿', 5, 260000),
       extraLootWeights: [0, 0, 0, 0, 1, 0],
+      rewardRolls: [
+        { count: 1, weights: [0, 0, 0, 0, 0, 1] },
+        { count: 2, weights: [0, 0, 0, 0, 1, 0] },
+      ],
+      weaponDrops: ['barrett'],
     },
   },
   // --- 追加战区首领：难度按 孵化场 → 哨站双首领 → 王陵 递增 ---
   broodQueen: {
-    id: 'broodQueen', name: '孵巢鸭后', hp: 1500, armor: 150, r: 30, speed: 100, vision: 720, reaction: 0.36,
-    accuracy: 0.16, score: 32000, weapons: ['smg'], dmgMul: 0.24, bulletSpeed: 700,
+    id: 'broodQueen', name: '孵巢鸭后', hp: 1950, armor: 175, r: 30, speed: 100, vision: 720, reaction: 0.36,
+    accuracy: 0.16, score: 32000, weapons: ['smg'], dmgMul: 0.29, bulletSpeed: 700,
     prefMin: 180, prefMax: 360, burst: [5, 8], melee: 0, boss: true,
     encounter: {
       skill: 'summon', skillName: '孵巢潮', skillLabels: { summon: '孵巢爆发' }, hitText: '鸭后孵巢翻涌！', ringColor: 'rgba(180,255,140,0.95)',
@@ -348,16 +408,16 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
     },
   },
   frostMarshal: {
-    id: 'frostMarshal', name: '霜羽元帅', hp: 1300, armor: 160, r: 28, speed: 140, vision: 720, reaction: 0.35,
-    accuracy: 0.14, score: 30000, weapons: ['frostmp9'], dmgMul: 0.26, bulletSpeed: 800,
+    id: 'frostMarshal', name: '霜羽元帅', hp: 1690, armor: 185, r: 28, speed: 140, vision: 720, reaction: 0.35,
+    accuracy: 0.14, score: 30000, weapons: ['frostmp9'], dmgMul: 0.31, bulletSpeed: 800,
     prefMin: 260, prefMax: 460, burst: [6, 10], melee: 0, boss: true,
     encounter: {
       skill: 'pulse', skillName: '极夜寒潮', skillLabels: { pulse: '霜环爆发' }, hitText: '霜羽释放寒潮！', ringColor: 'rgba(105,215,255,0.98)',
       warning: '冰蓝圈内会被寒潮击退，且它的子弹会减速；霜羽元帅与铁壁统领同场',
       phaseWarning: '寒潮范围扩大、预警缩短', phaseAt: 0.45,
       phases: [
-        { windup: 1.2, cooldown: 8.5, damage: 20, range: 300 },
-        { windup: 0.95, cooldown: 6, damage: 27, range: 390 },
+        { windup: 1.2, cooldown: 8.5, damage: 24, range: 300 },
+        { windup: 0.95, cooldown: 6, damage: 32, range: 390 },
       ],
       trophy: L('frost_insignia', '霜羽元帅徽记', '❄️', 5, 580000),
       extraLootWeights: [0, 0, 0, 0, 1, 0],
@@ -370,16 +430,16 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
     },
   },
   ironGuard: {
-    id: 'ironGuard', name: '铁壁统领', hp: 1900, armor: 280, r: 31, speed: 88, vision: 620, reaction: 0.45,
-    accuracy: 0.2, score: 34000, weapons: ['lmg'], dmgMul: 0.26, bulletSpeed: 720,
+    id: 'ironGuard', name: '铁壁统领', hp: 2470, armor: 320, r: 31, speed: 88, vision: 620, reaction: 0.45,
+    accuracy: 0.2, score: 34000, weapons: ['lmg'], dmgMul: 0.31, bulletSpeed: 720,
     prefMin: 120, prefMax: 280, burst: [8, 12], melee: 0, boss: true, frontArmor: true,
     encounter: {
       skill: 'charge', skillName: '钢铁破阵', skillLabels: { charge: '铁壁冲锋' }, ringColor: 'rgba(255,92,72,0.98)',
       warning: '黑红重甲正面免疫大半伤害，绕后或将它的护甲打穿；击杀必掉传说武器「玄铁破壁者」',
       phaseWarning: '冲撞更频繁、距离更远', phaseAt: 0.5,
       phases: [
-        { windup: 1.3, cooldown: 8, damage: 22, range: 380 },
-        { windup: 1.0, cooldown: 6, damage: 30, range: 480 },
+        { windup: 1.3, cooldown: 8, damage: 26, range: 380 },
+        { windup: 1.0, cooldown: 6, damage: 36, range: 480 },
       ],
       trophy: L('iron_badge', '铁壁统领勋章', '🛡️', 5, 540000),
       extraLootWeights: [0, 0, 0, 0, 1, 0],
@@ -392,8 +452,8 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
     },
   },
   duckKing: {
-    id: 'duckKing', name: '鸭王', hp: 2600, armor: 240, r: 35, speed: 120, vision: 760, reaction: 0.3,
-    accuracy: 0.15, score: 55000, weapons: ['ak'], dmgMul: 0.28, bulletSpeed: 820,
+    id: 'duckKing', name: '鸭王', hp: 3380, armor: 280, r: 35, speed: 120, vision: 760, reaction: 0.3,
+    accuracy: 0.15, score: 55000, weapons: ['ak'], dmgMul: 0.34, bulletSpeed: 820,
     prefMin: 200, prefMax: 400, burst: [6, 10], melee: 0, boss: true,
     encounter: {
       skill: 'slam', skillCycle: ['slam', 'summon', 'charge', 'pulse'], skillName: '王权轮招',
@@ -403,8 +463,8 @@ export const ENEMIES: Record<EnemyType, EnemyDef> = {
       warning: '鸭王轮换震地、召集成员、冲撞与王权冲击四种招式，注意识别预警形状',
       phaseWarning: '四连招式全面提速，召唤更多护卫', phaseAt: 0.45,
       phases: [
-        { windup: 1.15, cooldown: 7.5, damage: 22, range: 340 },
-        { windup: 0.9, cooldown: 5, damage: 30, range: 430 },
+        { windup: 1.15, cooldown: 7.5, damage: 26, range: 340 },
+        { windup: 0.9, cooldown: 5, damage: 36, range: 430 },
       ],
       trophy: L('duck_throne', '鸭王御座', '👑', 5, 1800000),
       extraLootWeights: [0, 0, 0, 0, 0, 1],
