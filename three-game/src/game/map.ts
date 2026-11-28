@@ -120,6 +120,7 @@ export interface RaidMapDef {
   bosses?: EnemyType[];
   /** Short difficulty label shown in the lobby. */
   difficulty: string;
+  weaponCacheBonus?: readonly string[];
   build: () => GameMap;
 }
 
@@ -128,15 +129,15 @@ function withDriveableVehicles(map: GameMap, spots: readonly VehicleSpot[]): Gam
 }
 
 export const RAID_MAPS: readonly RaidMapDef[] = [
-  { id: 'island', name: '鸭鸭岛', requiredExtracts: 0, theme: '农场与军事基地', loot: '通用补给、军械和保险箱', boss: 'goose', difficulty: '入门', build: () => withDriveableVehicles(buildMap(), [
+  { id: 'island', name: '鸭鸭岛', requiredExtracts: 0, theme: '农场与军事基地', loot: '通用补给、军械和保险箱', boss: 'goose', weaponCacheBonus: ['m1911', 'revolver'], difficulty: '入门', build: () => withDriveableVehicles(buildMap(), [
     { kind: 'pickupF150', x: 1000, y: 1000, heading: 0, paint: '#456276' },
     { kind: 'sedanCrownVic', x: 2025, y: 675, heading: Math.PI, paint: '#c8cbc4' },
   ]) },
-  { id: 'harbor', name: '盐雾货港', requiredExtracts: 1, theme: '水道、装卸场与集装箱', loot: '码头补给、武器箱和船长航海日志', boss: 'harborBoss', difficulty: '普通', build: () => withDriveableVehicles(buildHarbor(), [
+  { id: 'harbor', name: '盐雾货港', requiredExtracts: 1, theme: '水道、装卸场与集装箱', loot: '码头补给、武器箱和船长航海日志', boss: 'harborBoss', weaponCacheBonus: ['s12k'], difficulty: '普通', build: () => withDriveableVehicles(buildHarbor(), [
     { kind: 'pickupSilverado', x: 675, y: 675, heading: -Math.PI / 2, paint: '#a69a7c' },
     { kind: 'sedanCharger', x: 525, y: 1525, heading: Math.PI, paint: '#5d4142' },
   ]) },
-  { id: 'foundry', name: '赤炉工厂', requiredExtracts: 3, theme: '铸造线、炉前广场与控制室', loot: '控制室机箱、保险箱和封存炉芯', boss: 'foundryBoss', difficulty: '困难', build: () => withDriveableVehicles(buildFoundry(), [
+  { id: 'foundry', name: '赤炉工厂', requiredExtracts: 3, theme: '铸造线、炉前广场与控制室', loot: '控制室机箱、保险箱和封存炉芯', boss: 'foundryBoss', weaponCacheBonus: ['mini14', 'm79'], difficulty: '困难', build: () => withDriveableVehicles(buildFoundry(), [
     { kind: 'sedanCrownVic', x: 760, y: 1560, heading: 0, paint: '#8c8b81' },
     { kind: 'pickupF150', x: 2025, y: 775, heading: Math.PI, paint: '#6a5550' },
   ]) },
@@ -144,7 +145,7 @@ export const RAID_MAPS: readonly RaidMapDef[] = [
     { kind: 'pickupSilverado', x: 200, y: 1240, heading: 0, paint: '#716b52' },
     { kind: 'pickupF150', x: 1800, y: 1960, heading: Math.PI, paint: '#5d624b' },
   ]) },
-  { id: 'outpost', name: '霜锋哨站', requiredExtracts: 8, theme: '冰封机库、雷达站与冻土广场', loot: '军械库、传说枪械与双首领战利品', boss: 'frostMarshal', bosses: ['frostMarshal', 'ironGuard'], difficulty: '噩梦 · 双首领', build: () => withDriveableVehicles(buildOutpost(), [
+  { id: 'outpost', name: '霜锋哨站', requiredExtracts: 8, theme: '冰封机库、雷达站与冻土广场', loot: '军械库、传说枪械与双首领战利品', boss: 'frostMarshal', bosses: ['frostMarshal', 'ironGuard'], weaponCacheBonus: ['sr25'], difficulty: '噩梦 · 双首领', build: () => withDriveableVehicles(buildOutpost(), [
     { kind: 'pickupF150', x: 120, y: 1320, heading: 0, paint: '#b9c3bd' },
     { kind: 'sedanCrownVic', x: 760, y: 120, heading: Math.PI / 2, paint: '#d6dad4' },
     // Perimeter pull-offs in world coordinates. Each arrival route has nearby armor.
@@ -158,7 +159,7 @@ export const RAID_MAPS: readonly RaidMapDef[] = [
     { kind: 'howitzer', x: 2060, y: 1450, heading: -3 * Math.PI / 4, paint: '#92a9a1' },
     { kind: 'howitzer', x: 2135, y: 1075, heading: -3 * Math.PI / 4, hostile: true },
   ]) },
-  { id: 'airbase', name: '冰火空军基地', requiredExtracts: 10, theme: '熔岩焦土、冰霜雪原与中央跑道', loot: '机库军械、双传说保险箱与 RPG', boss: 'flameAce', bosses: ['flameAce', 'radarWarden'], difficulty: '噩梦 · 冰火双首领', build: () => withDriveableVehicles(buildAirbase(), [
+  { id: 'airbase', name: '冰火空军基地', requiredExtracts: 10, theme: '熔岩焦土、冰霜雪原与中央跑道', loot: '机库军械、双传说保险箱与 RPG', boss: 'flameAce', bosses: ['flameAce', 'radarWarden'], weaponCacheBonus: ['m79', 'm32'], difficulty: '噩梦 · 冰火双首领', build: () => withDriveableVehicles(buildAirbase(), [
     { kind: 'pickupSilverado', x: 840, y: 120, heading: 0, paint: '#59634f' },
     { kind: 'sedanCharger', x: 1880, y: 120, heading: Math.PI, paint: '#46575a' },
   ]) },

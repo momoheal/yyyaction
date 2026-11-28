@@ -145,6 +145,15 @@ const ENTRIES: [string, string][] = [
   ['携带补给', 'Carried supplies'], ['战术标记', 'Tactical markers'], ['无护甲', 'No armor'],
   ['选择配装', 'Choose a loadout'], ['单发伤害', 'Damage per shot'],
   ['实际装备费', 'Actual gear cost'], ['去商店买一把武器', 'Buy a weapon in the shop'],
+  ['角色', 'Operator'], ['战区', 'Zone'], ['武器专精', 'Weapon specialty'], ['人物特性', 'Operator trait'],
+  ['护甲按二级甲计算', 'Armor shown with a level 2 vest'], ['推荐预算', 'Suggested budget'],
+  ['突击步枪伤害 +12%', '+12% assault rifle damage'], ['换弹时间 −8%', '−8% reload time'],
+  ['霰弹近距伤害 +12% · 发射器爆炸半径 +10%', '+12% close-range shotgun damage · +10% launcher blast radius'],
+  ['受到爆炸伤害 −12%', '−12% incoming blast damage'], ['冲锋枪与狙击枪伤害 +12%', '+12% SMG and sniper damage'],
+  ['移动速度 +4%', '+4% movement speed'],
+  ['M1911 铁脊手枪', 'M1911 Ironback'], ['响尾蛇左轮', 'Sidewinder Revolver'], ['S12K 战术霰弹', 'S12K Tactical'],
+  ['Mini14 白桦精确步枪', 'Mini14 Birch'], ['SR25 灰隼精确步枪', 'SR25 Grey Falcon'],
+  ['M79 短管榴弹', 'M79 Short-Tube Launcher'], ['M32 转轮榴弹', 'M32 Rotary Launcher'],
 ];
 
 const EN = new Map(ENTRIES);

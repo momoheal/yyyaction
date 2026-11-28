@@ -1,7 +1,7 @@
 import { supplyIcon } from '../game/supply-icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '../utils/cn';
-import { CHARACTERS, KIT_STYLES, THROWABLE_IDS, THROWABLES, WEAPONS, budgetLoadout, findLoadout, RARITY_COLORS, RARITY_NAMES, RARITY_RGB, characterArmor, fmtMoney, fmtTime, getCharacter, type CharacterId, type Loadout } from '../game/data';
+import { KIT_STYLES, THROWABLE_IDS, THROWABLES, WEAPONS, budgetLoadout, findLoadout, RARITY_COLORS, RARITY_NAMES, RARITY_RGB, characterArmor, characterWeaponBonus, weaponCategory, fmtMoney, fmtTime, getCharacter, type CharacterId, type Loadout } from '../game/data';
 import { getRaidMap, type RaidMapId } from '../game/map';
 import { availableGear, gearDef, gearMods, gunWithMods, hasWarehouseLoadout, WAREHOUSE_KIT } from '../game/warehouse';
 import type { ScoreEntry, SaveData } from '../game/storage';
@@ -11,15 +11,10 @@ import LevelPicker from './LevelPicker';
 import LobbyDialog from './LobbyDialog';
 import GearIcon from './GearIcon';
 import GunPreview3D from './GunPreview3D';
+import { BudgetCrown, OperatorCarousel, tacticalClick } from './TacticalLobby';
 import { weaponIconDataUrl } from '../game/gear-icons';
 import { getLocale, setLocale, useLocale } from '../i18n';
 import privacyPolicy from '../../../docs/release/taptap-privacy/index.html?raw';
-
-const operatorArt: Record<CharacterId, string> = {
-  duck: new URL('../assets/operator-duck.webp', import.meta.url).href,
-  tank: new URL('../assets/operator-tank.webp', import.meta.url).href,
-  scout: new URL('../assets/operator-scout.webp', import.meta.url).href,
-};
 
 const OUTCOME: Record<string, { label: string; cls: string }> = {
   extract: { label: '撤离', cls: 'bg-emerald-400/15 text-emerald-300 ring-emerald-400/30' },
@@ -162,6 +157,12 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
   onDeploy: () => void; onTraining: () => void; onDebugMode: (enabled: boolean) => void; muted: boolean; onMute: () => void;
 }) {
   const [step, setStep] = useState<'home' | 'character' | 'equipment' | 'map'>('home');
+  const [direction, setDirection] = useState<'forward' | 'back'>('forward');
+  const steps = ['home', 'character', 'equipment', 'map'] as const;
+  const goToStep = (next: typeof step) => {
+    setDirection(steps.indexOf(next) < steps.indexOf(step) ? 'back' : 'forward');
+    setStep(next);
+  };
   const [panel, setPanel] = useState<'warehouse' | 'loadout' | 'settings' | 'rank' | 'help' | 'debug' | 'privacy' | null>(null);
   const [debugError, setDebugError] = useState(false);
   const [training, setTraining] = useState(false);
@@ -194,7 +195,6 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
   const canStartRaid = save.trainingCompleted || save.debugMode;
   const character = getCharacter(save.characterId);
   const map = getRaidMap(mapId);
-  const others = CHARACTERS.filter((candidate) => candidate.id !== character.id);
   const gear = availableGear(save.warehouse);
   const hasCustom = hasWarehouseLoadout(gear);
   const equippedWeapon = sel.id === WAREHOUSE_KIT ? gear.weapon : undefined;
@@ -210,7 +210,7 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
   }, [weaponId, previewWeaponId]);
   const startPreparation = (isTraining: boolean) => {
     setTraining(isTraining);
-    setStep('character');
+    goToStep('character');
   };
   const [kitStyle, setKitStyle] = useState(() => KIT_STYLES.find((style) => sel.id.startsWith(`budget-${style.id}-`))?.id ?? 'balanced');
   const [budget, setBudget] = useState(() => Math.max(35000, sel.cost));
@@ -231,7 +231,7 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
   const kitCost = sel.cost ? `¥${fmtMoney(sel.cost)}` : sel.id === WAREHOUSE_KIT ? '无装备费' : '免费部署';
 
   return (
-    <main className="lobby" data-stage={step}>
+    <main className="lobby tactical-lobby" data-stage={step} onClickCapture={tacticalClick}>
       <div className="lobby-layout">
         <header className="lobby-header">
           {step === 'home'
@@ -239,12 +239,15 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
             : <h2 id="lobby-step" ref={stepHeading} tabIndex={-1}>{stepTitle[step]}</h2>}
           <nav className="lobby-tools" aria-label="大厅功能">
             {step !== 'home' && !training && (
-                <ol className="lobby-progress" aria-label="出击准备">
-                  {(['character', 'equipment', 'map'] as const).map((stage, i) => (
-                    <li key={stage} aria-current={step === stage ? 'step' : undefined}>{i + 1}<span className="sr-only"> {stepTitle[stage]}</span></li>
-                  ))}
-                </ol>
-              )}
+              <ol className="stepper" aria-label="出击准备">
+                <li className="stepper-glider" aria-hidden="true" style={{ translate: `${(steps.indexOf(step) - 1) * 100}% 0` }} />
+                {(['character', 'equipment', 'map'] as const).map((stage, i) => (
+                  <li key={stage}><button type="button" aria-label={stepTitle[stage]} aria-current={step === stage ? 'step' : undefined} onClick={() => goToStep(stage)}>
+                    {i + 1} <span>{['角色', '装备', '战区'][i]}</span>
+                  </button></li>
+                ))}
+              </ol>
+            )}
             <button type="button" className="lobby-button" aria-haspopup="dialog" onClick={() => setPanel('warehouse')}><LobbyGlyph kind="bag" />背包</button>
             <button type="button" className="lobby-button" aria-haspopup="dialog" onClick={() => setPanel('settings')}><LobbyGlyph kind="settings" />设置</button>
             <MuteButton muted={muted} onMute={onMute} />
@@ -264,32 +267,21 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
           </div>
         ) : (
           <section className="lobby-preparation" aria-labelledby="lobby-step">
-            <div ref={stepBody} className="lobby-step-body scroll-y">
-              {step === 'character' && (
-                <div className="operator-fan" role="group" aria-label="选择角色">
-                  {[others[0], character, others[1]].map((candidate) => (
-                    <button key={candidate.id} type="button" aria-pressed={candidate.id === character.id}
-                      className="lobby-card lobby-operator" onClick={() => onCharacter(candidate.id)}>
-                      <img src={operatorArt[candidate.id]} className="lobby-operator-art" alt="" draggable={false} />
-                      <strong>{candidate.name}</strong>
-                      <span className="operator-role">{candidate.role}</span>
-                      <span className="lobby-caption">移速 {Math.round(100 * candidate.speed / CHARACTERS[0].speed)}%</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div key={step} ref={stepBody} className="lobby-step-body step-view scroll-y" data-direction={direction}>
+              {step === 'character' && <OperatorCarousel character={character} onSelect={onCharacter} />}
 
               {step === 'equipment' && (
                 <div className="kit-console">
-                  <section className="kit-preview">
+                  <section className="kit-preview glass-panel stagger-in">
                     <div className="kit-inspection" aria-live="polite">
                       <h3>{weapon.name}</h3>
+                      <p className="kit-specialty">{weaponCategory(weaponId)} · {character.specialty.categories.includes(weaponCategory(weaponId)) ? character.specialty.description : character.trait.description}</p>
                       <div className="kit-weapon-stage">
                         <img className="kit-weapon-fallback" alt="" src={weaponIconDataUrl(weapon.id)} draggable={false} />
                         <GunPreview3D weaponId={previewWeaponId} className="kit-weapon-3d" />
                       </div>
                       <dl className="kit-stats">
-                        <div><dt>单发伤害</dt><dd>{previewWeapon.dmg}</dd></div>
+                        <div><dt>单发伤害</dt><dd>{Math.round(previewWeapon.dmg * characterWeaponBonus(character, weaponId).damage)}</dd></div>
                         <div><dt>射速</dt><dd>{Math.round(previewWeapon.rate * 60)} <small>RPM</small></dd></div>
                         <div><dt>护甲</dt><dd>{characterArmor(character, sel.armor)}</dd></div>
                       </dl>
@@ -302,14 +294,10 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
                         </li>
                       ))}
                     </ul>
-                    <div className="kit-budget">
-                      <label htmlFor="raid-budget">出击预算 <output>¥{fmtMoney(shownBudget)}</output></label>
-                      <input id="raid-budget" type="range" min={0} max={sliderMax} step={500} disabled={!sliderMax}
-                        value={shownBudget} onChange={(event) => chooseBudget(kitStyle, Number(event.currentTarget.value))} />
-                      <span>可用余额 ¥{fmtMoney(save.stash)}</span>
-                    </div>
+                    <BudgetCrown amount={shownBudget} max={sliderMax} balance={save.stash}
+                      onChange={(amount) => chooseBudget(kitStyle, amount)} />
                   </section>
-                  <section className="kit-options" aria-label="选择配装">
+                  <section className="kit-options stagger-in" aria-label="选择配装">
                     <div className="kit-doctrines" role="group" aria-label="配装风格">
                       {[KIT_STYLES[1], KIT_STYLES[0], KIT_STYLES[2]].map((style) => (
                         <button key={style.id} type="button" className="kit-doctrine"
@@ -342,11 +330,11 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
               )}
             </div>
             <footer className="lobby-step-actions">
-              <button type="button" className="lobby-button" onClick={() => setStep(step === 'map' ? 'equipment' : step === 'equipment' ? 'character' : 'home')}>返回</button>
+              <button type="button" className="lobby-button" onClick={() => goToStep(step === 'map' ? 'equipment' : step === 'equipment' ? 'character' : 'home')}>返回</button>
               <button type="button" className="lobby-button lobby-primary" onClick={
                 step === 'map' ? onDeploy
-                  : step === 'equipment' ? () => setStep('map')
-                    : training ? onTraining : () => setStep('equipment')
+                  : step === 'equipment' ? () => goToStep('map')
+                    : training ? onTraining : () => goToStep('equipment')
               }>
                 {step === 'map' ? '开始行动' : step === 'equipment' ? '下一步：选择战区' : training ? '进入新手行动' : '下一步：选择装备'}
               </button>
@@ -359,7 +347,7 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
         <Armory key={panel} mode={panel === 'loadout' ? 'loadout' : 'inventory'} save={save} onAction={onWarehouse} onClose={closePanel} />
       )}
       {panel === 'settings' && (
-        <LobbyDialog title="设置" onClose={closePanel}>
+        <LobbyDialog variant="sheet" title="设置" onClose={closePanel}>
           <div className="lobby-settings">
             <div className="lobby-setting"><span>语言</span><LanguageButton /></div>
             <button type="button" className="lobby-button" onClick={() => setPanel('help')}>操作与规则</button>
@@ -452,7 +440,7 @@ export function GameOverScreen({ data, scores, onRetry, onMenu, canRetryKit }: {
   if (r.training) {
     const reward = data.stashAfter - data.stashBefore;
     return (
-      <div className="scroll-y absolute inset-0 z-20 bg-black/65 backdrop-blur-sm">
+      <div onClickCapture={tacticalClick} className="scroll-y absolute inset-0 z-20 bg-black/65 backdrop-blur-sm">
         <div className="grid min-h-full place-items-center p-4">
           <section className="anim-pop w-full max-w-md rounded-2xl border border-white/15 bg-[#121418] p-5">
             <h2 className="title-font text-4xl text-[#ffd23f]">{ok ? '新手行动完成' : '新手行动结束'}</h2>
@@ -473,7 +461,7 @@ export function GameOverScreen({ data, scores, onRetry, onMenu, canRetryKit }: {
   const counts = [0, 0, 0, 0, 0, 0];
   for (const it of r.items) counts[it.rarity]++;
   return (
-    <div className="scroll-y absolute inset-0 z-20 bg-black/60 backdrop-blur-sm">
+    <div onClickCapture={tacticalClick} className="scroll-y absolute inset-0 z-20 bg-black/60 backdrop-blur-sm">
       <div className="mx-auto flex min-h-full max-w-4xl flex-col justify-center gap-4 p-4 sm:p-6 short:p-2">
         <div className={cn('anim-pop relative overflow-hidden rounded-2xl border p-5 sm:p-6', ok ? 'border-emerald-400/30 bg-gradient-to-br from-emerald-900/70 to-[#101317]/95' : 'border-red-400/25 bg-gradient-to-br from-red-950/70 to-[#101317]/95')}>
           <div className="flex flex-wrap items-end justify-between gap-3">

@@ -1145,3 +1145,257 @@ canvas {
 }
 .armory-3d-stage { flex: 1; min-height: 0; }
 .armory-3d-tip { margin: 0; padding: 5px 12px; text-align: center; color: #ffffff80; font-size: 11px; }
+
+/* Tactical lobby. Reuse the live stage and the game's equipment art. */
+:root {
+  --tac-bg: #08110d;
+  --tac-panel: #11201cdb;
+  --tac-edge: #8fab9761;
+  --tac-gold: #f5b82e;
+  --tac-cream: #ffdf83;
+  --tac-text: #edf4ec;
+  --tac-muted: #b4c5b9;
+  --tac-ease: cubic-bezier(.2,.75,.2,1);
+}
+
+.tactical-lobby { --hud-gold: var(--tac-gold); --hud-muted: var(--tac-muted); --hud-rule: var(--tac-edge); }
+.tactical-lobby[data-stage]:not([data-stage="home"]) {
+  background: radial-gradient(ellipse at 43% 38%, #0e231d6b, #06100de9 90%);
+  backdrop-filter: blur(2px);
+}
+.tactical-lobby[data-stage]:not([data-stage="home"])::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent 0 4px, #d2e8cd08 4px 5px);
+}
+.tactical-lobby .lobby-layout { position: relative; }
+.tactical-lobby .glass-panel {
+  background: linear-gradient(145deg, #253a2fbc, var(--tac-panel) 59%, #0b1714ec);
+  border: 1px solid var(--tac-edge);
+  border-radius: 12px;
+  box-shadow: inset 0 1px #d8ebce12, 0 7px 24px #03090768;
+}
+.tactical-lobby .lobby-button { background: #172a22eb; border-color: var(--tac-edge); border-radius: 6px; }
+.tactical-lobby .lobby-primary { background: linear-gradient(110deg, var(--tac-cream), var(--tac-gold)); color: #14160e; }
+.tactical-lobby .lobby-tools button { white-space: nowrap; }
+.stepper {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--tac-edge);
+  background: #0b1814ed;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-inline-end: clamp(2px, 1vw, 12px);
+}
+.stepper li:not(.stepper-glider) { z-index: 1; min-width: 0; }
+.stepper button {
+  width: 100%;
+  padding: 0 clamp(7px, 1vw, 15px);
+  white-space: nowrap;
+  font-weight: 750;
+  font-size: 12px;
+  color: var(--tac-muted);
+}
+.stepper button[aria-current] { color: #11180f; }
+.stepper-glider {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: calc(100% / 3);
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--tac-cream), var(--tac-gold));
+  transition: translate .36s var(--tac-ease);
+  pointer-events: none;
+}
+.tactical-lobby button:focus-visible { outline: 2px solid var(--tac-cream); outline-offset: -3px; }
+.step-view { --step-shift: 16px; animation: tactical-step-in .32s var(--tac-ease) both; }
+.step-view[data-direction="back"] { --step-shift: -16px; }
+@keyframes tactical-step-in { from { opacity: .45; translate: var(--step-shift) 0; } }
+.stagger-in { animation: tactical-reveal .38s var(--tac-ease) both; }
+.stagger-in:nth-child(2) { animation-delay: .07s; }
+@keyframes tactical-reveal { from { opacity: 0; translate: 0 8px; } }
+button:has(> .fx-ripple) { position: relative; overflow: hidden; }
+.fx-ripple {
+  position: absolute;
+  width: 150%;
+  aspect-ratio: 1;
+  border: 1px solid #ffde82b0;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffe09d45, #ffe09d13 55%, transparent 70%);
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(.05);
+  animation: tactical-ripple .42s ease-out both;
+}
+@keyframes tactical-ripple { to { transform: translate(-50%, -50%) scale(1.12); opacity: 0; } }
+
+.operator-layout {
+  --card-width: clamp(147px, min(27vw, 45dvh), 310px);
+  --card-offset: calc(var(--card-width) * .8);
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(200px, 3fr);
+  min-height: 100%;
+  gap: var(--hud-gap);
+  align-items: center;
+}
+.carousel-shell {
+  height: min(100%, 490px);
+  min-height: clamp(220px, 58dvh, 440px);
+  display: grid;
+  align-items: center;
+  perspective: 950px;
+  touch-action: pan-y;
+}
+.carousel-track { display: grid; place-items: center; transform-style: preserve-3d; position: relative; }
+.tactical-char {
+  --offset: 0px;
+  --yaw: 0deg;
+  --depth: 18px;
+  --card-scale: 1;
+  grid-area: 1 / 1;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  width: var(--card-width);
+  height: clamp(210px, 58dvh, 430px);
+  align-items: end;
+  overflow: hidden;
+  text-align: left;
+  background: #162b24;
+  border: 1px solid var(--tac-edge);
+  border-radius: 15px;
+  box-shadow: 0 16px 28px #0009;
+  transform: translate3d(var(--offset), 0, var(--depth)) rotateY(calc(var(--yaw) + var(--tilt-y, 0deg))) rotateX(var(--tilt-x, 0deg)) scale(var(--card-scale));
+  transition: transform .33s var(--tac-ease), filter .3s, border-color .3s;
+}
+.tactical-char[data-position="-1"] { --offset: calc(-1 * var(--card-offset)); --yaw: 14deg; --depth: 4px; --card-scale: .91; }
+.tactical-char[data-position="1"] { --offset: var(--card-offset); --yaw: -14deg; --depth: 4px; --card-scale: .91; }
+.tactical-char:not([aria-pressed="true"]) { filter: brightness(.78) saturate(.8); }
+.tactical-char[aria-pressed="true"] { z-index: 1; border-color: var(--tac-gold); box-shadow: 0 12px 30px #0009, 0 0 23px #e6ae2c36; }
+.tactical-char > img, .tactical-char::before, .char-holo-glare { position: absolute; inset: 0; width: 100%; height: 100%; }
+.tactical-char > img { z-index: -3; object-fit: cover; object-position: center 34%; }
+.tactical-char::before { content: ""; z-index: -2; background: linear-gradient(0deg, #07120ff7, #0a1812b3 39%, transparent 73%); }
+.char-holo-glare {
+  z-index: -1;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 30%), #e8f8dc52, transparent 60%);
+}
+.tactical-char[data-position="1"] .tactical-char-copy { text-align: right; }
+.tactical-char[aria-pressed="true"] .char-holo-glare { opacity: 1; }
+.tactical-char-copy { display: grid; gap: 4px; padding: clamp(8px, 1.4vw, 18px); color: var(--tac-text); }
+.tactical-char-copy > span:first-child { font-size: 12px; color: var(--tac-cream); }
+.tactical-char-copy > strong { font-size: clamp(20px, 3vw, 37px); line-height: 1.03; }
+.char-bars { display: grid; gap: 6px; grid-template-columns: repeat(2, minmax(0, 1fr)); font-size: 12px; }
+.char-bars meter { display: block; width: 100%; height: 7px; accent-color: var(--tac-gold); }
+.char-bars meter::-webkit-meter-optimum-value { background: var(--tac-gold); }
+.char-card-perks { font-size: 11px; color: var(--tac-muted); }
+.tactical-char:not([aria-pressed="true"]) .char-bars, .tactical-char:not([aria-pressed="true"]) .char-card-perks { visibility: hidden; }
+.operator-dossier { display: grid; gap: clamp(7px, 1.7dvh, 14px); padding: clamp(12px, 2vw, 26px); }
+.operator-dossier h3 { color: var(--tac-cream); font-weight: 850; font-size: clamp(20px, 2.4vw, 32px); }
+.operator-dossier div { border-top: 1px solid var(--tac-edge); padding-top: 5px; display: grid; gap: 3px; }
+.operator-dossier strong { font-size: clamp(13px, 1.3vw, 17px); }
+.operator-dossier :is(span, small) { color: var(--tac-muted); font-size: 12px; }
+
+.kit-specialty { font-size: 11px; color: var(--tac-muted); }
+.tactical-lobby .kit-weapon-stage { min-height: clamp(65px, calc(177 * var(--hud-unit)), 200px); }
+.tactical-lobby .kit-doctrine { background: linear-gradient(108deg, #2b4237df, #11241ce8 85%); border-radius: 8px; }
+.tactical-lobby .kit-doctrine[aria-pressed="true"] { background: linear-gradient(100deg, #4b3d20, #222b1f 80%); border-color: var(--tac-gold); }
+.tactical-lobby .kit-custom { background: #111e17e3; }
+.tactical-lobby .kit-budget {
+  display: grid;
+  grid-template-columns: clamp(38px, 9dvh, 65px) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+.watch-dial-shell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  touch-action: none;
+  cursor: ew-resize;
+  border-radius: 50%;
+  border: 1px solid #a88545;
+  background: radial-gradient(circle, #293529, #0b1610 72%);
+  box-shadow: inset 0 0 8px #000, 0 2px 6px #020804;
+}
+.watch-dial-shell::after { content: ""; position: absolute; top: -2px; width: 2px; height: 8px; background: var(--tac-cream); box-shadow: 0 0 6px var(--tac-gold); }
+.watch-dial-ticks {
+  width: 86%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, #ffe09a 0deg 2deg, transparent 2deg 16deg);
+  mask: radial-gradient(circle, transparent 52%, #000 55% 69%, transparent 72%);
+  transition: rotate .09s linear;
+}
+.budget-readout { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; column-gap: 6px; }
+.budget-readout label { justify-content: start; white-space: nowrap; }
+.budget-readout label output { font-variant-numeric: tabular-nums; }
+.lobby .budget-readout input { grid-column: 1 / -1; }
+.budget-readout > span { grid-area: 1 / 2; color: var(--tac-muted); font-size: 11px; }
+
+.tactical-lobby .war-table-chart { padding: var(--hud-gap); }
+.tactical-lobby .war-table-roster { gap: 6px; }
+.tactical-lobby .zone-card {
+  text-align: left;
+  grid-template-columns: 8px minmax(0, 1fr) minmax(72px, .52fr);
+  border-radius: 7px;
+  background: #172d24ed;
+}
+.tactical-lobby .zone-card[aria-pressed="true"] { border-color: var(--tac-gold); background: #3e3825; box-shadow: inset 3px 0 var(--tac-gold); }
+.zone-card-title { display: grid; gap: 2px; }
+.zone-card-title strong { color: var(--tac-text); font-size: 14px; }
+.zone-card-title small, .zone-budget { font-size: 11px; color: var(--tac-muted); }
+.zone-boss-chip { display: flex; align-items: center; gap: 5px; color: var(--tac-cream); }
+.sheet-drawer[open] {
+  bottom: env(safe-area-inset-bottom);
+  top: auto;
+  transform: translateX(calc((env(safe-area-inset-left) - env(safe-area-inset-right)) / 2));
+  max-height: min(660px, calc(100dvh - 14px - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+  padding-bottom: 4px;
+  background: linear-gradient(#193028, #101d17 40%);
+  border-radius: 16px 16px 5px 5px;
+  border-color: var(--tac-edge);
+  animation: tactical-drawer-in .28s var(--tac-ease) both;
+}
+.sheet-drawer[data-variant="armory"] { height: min(630px, calc(100dvh - 14px - env(safe-area-inset-top) - env(safe-area-inset-bottom))); }
+.sheet-drawer .lobby-dialog-header { background: #1b3027; }
+.sheet-drawer .lobby-dialog-heading h2::before { content: ""; display: inline-block; width: 4px; height: .85em; background: var(--tac-gold); margin-inline-end: 7px; }
+@keyframes tactical-drawer-in { from { translate: 0 30px; opacity: .45; } }
+@media (orientation: landscape) and (max-height: 440px) {
+  .operator-layout { --card-width: clamp(142px, 21vw, 185px); grid-template-columns: minmax(0, 7fr) minmax(175px, 3fr); }
+  .carousel-shell { min-height: 0; }
+  .tactical-char { height: clamp(176px, 59dvh, 252px); }
+  .tactical-lobby .kit-preview { padding: 6px 8px; gap: 3px; }
+  .tactical-lobby .budget-readout { column-gap: 4px; }
+  .tactical-lobby .kit-budget { gap: 5px; }
+}
+@media (orientation: portrait) {
+  .operator-layout { grid-template-columns: minmax(0, 1fr); --card-width: clamp(143px, 44vw, 240px); --card-offset: calc(var(--card-width) * .66); }
+  .carousel-shell { min-height: clamp(225px, 48dvh, 410px); }
+  .tactical-char { height: clamp(208px, 43dvh, 380px); }
+}
+@media (max-width: 640px) {
+  .stepper button span { display: none; }
+  .tactical-lobby .lobby-tools { gap: 2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.tactical-lobby, .sheet-drawer) :is(.step-view, .stagger-in, .fx-ripple),
+  .sheet-drawer[open] { animation: none; }
+  .stepper-glider, .tactical-char, .watch-dial-ticks { transition: none; }
+}
+
+@media (orientation: landscape) and (max-height: 440px) {
+  .tactical-lobby .kit-weapon-stage { min-height: 68px; }
+  .tactical-lobby .kit-weapon-fallback { position: absolute; }
+}
+
+@media (orientation: landscape) {
+  .tactical-lobby .war-table { height: 100%; grid-template-rows: minmax(0, 1fr); }
+  .tactical-lobby .war-table-chart,
+  .tactical-lobby .war-table-roster { max-height: 100%; overflow-y: auto; overscroll-behavior: contain; }
+}

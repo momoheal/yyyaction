@@ -6,7 +6,7 @@ export default function LobbyDialog({ title, children, onClose, accessory, toolb
   onClose: () => void;
   accessory?: ReactNode;
   toolbar?: ReactNode;
-  variant?: 'armory';
+  variant?: 'armory' | 'sheet';
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -20,7 +20,7 @@ export default function LobbyDialog({ title, children, onClose, accessory, toolb
       ref={dialog}
       aria-labelledby="lobby-dialog-title"
       onCancel={(event) => { event.preventDefault(); onClose(); }}
-      className="lobby-dialog"
+      className={variant ? "lobby-dialog sheet-drawer" : "lobby-dialog"}
       data-variant={variant}
     >
       <header className="lobby-dialog-header">

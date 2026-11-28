@@ -53,6 +53,44 @@ const sniperBody = `
   <path d="M124 32h14v7h-14z" fill="${STEEL}"/>`;
 
 const GUN_ART: Record<string, string> = {
+  m1911: `
+    <path d="M25 31h79v12H69l-9 6H29l-4-7z"/>
+    <path d="M52 46h19l-8 25H46z" fill="${WOOD}"/>
+    <path d="M67 45h17l-5 10H67" fill="none"/>
+    <path d="M42 31v8m5-8v8m5-8v8M87 32h12" stroke="${STEEL}"/>`,
+  revolver: `
+    <path d="M34 36h24l11-7h43v9H74l-7 10H39z"/>
+    <path d="M35 45h17l-5 24H32l-6-5z" fill="${WOOD}"/>
+    <ellipse cx="63" cy="41" rx="10" ry="8" fill="#a8a091"/>
+    <path d="M62 36v9m-4-9v9M71 29h38" stroke="${STEEL}"/>
+    <path d="M51 47q7 14 15 0" fill="none"/>`,
+  s12k: `
+    ${akBody}
+    <path d="M61 45h21l-1 23H65z" fill="${POLY_LIGHT}"/>
+    <path d="M86 34h37v10H86z" fill="#697660"/>
+    <path d="M91 36h22m-22 4h22" stroke="${DARK}"/>`,
+  mini14: `
+    <path d="M10 46l6-12h42l10-3h55v7H93l-12 9H47l-9 8H13z" fill="${WOOD_LIGHT}"/>
+    <path d="M58 30h39v8H58zM103 29h33v4h-33z"/>
+    <path d="M68 45h13l-1 14H70z" fill="${POLY}"/>
+    <path d="M51 30h6v-6h3v6m57 0v-6h4v6" stroke="${STEEL}"/>`,
+  sr25: `
+    ${arBody('#555d60', '#242d35')}
+    <rect x="49" y="21" width="38" height="10" rx="3" fill="${DARK}"/>
+    <path d="M55 23h24m-18 8v4m18-4v4" stroke="${STEEL}"/>
+    <path d="m94 43-8 14m10-14 8 12" stroke="#879694"/>`,
+  m79: `
+    <path d="M12 42l8-11h44l9 6v11H47l-12 10H13z" fill="${WOOD}"/>
+    <path d="M62 30h58v16H62z"/><path d="M114 29h10v18h-10z" fill="${DARK}"/>
+    <path d="M75 32h35m-33 9h21" stroke="${STEEL}"/>
+    <path d="M59 48q7 14 18 0M93 28v-8h9v8" fill="none"/>`,
+  m32: `
+    <path d="M11 34h33l10 5h59v-8h16v12h-22l-10 6H38l-10-6H11z"/>
+    <path d="M55 46h11l-6 18H49z" fill="${POLY}"/>
+    <rect x="67" y="36" width="30" height="24" rx="8" fill="#68765e"/>
+    <path d="M71 43h22m-22 7h22m-19 6h16M50 30h49" stroke="${DARK}"/>
+    <path d="M107 34h17" stroke="${STEEL}"/>`,
+
   // M9 — short slide, exposed muzzle, angled grip, open trigger guard
   pistol: `
     <path d="M27 33 88 31l7 4h13v6h-15l-5 4H52l-5-3H27z"/>

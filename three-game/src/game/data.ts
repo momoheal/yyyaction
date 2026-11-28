@@ -183,19 +183,26 @@ export const WEAPONS: Record<string, WeaponDef> = {
   aa12: { id: 'aa12', name: 'AA12 雷霆霰弹', short: 'AA12', tier: 5, dmg: 17, rate: 2.4, mag: 12, reload: 2.4, spread: 0.2, pellets: 9, speed: 1200, range: 500, shake: 0.36, kick: 10, noise: 950, sound: 'shotgun', value: 1600000, len: 30, color: '#2d5a52', pierce: 0, rarity: 5 },
   hk416: { id: 'hk416', name: 'HK416 疾风突击', short: 'HK416', tier: 5, dmg: 29, rate: 12.5, mag: 45, reload: 1.8, spread: 0.03, pellets: 1, speed: 1750, range: 1050, shake: 0.13, kick: 3, noise: 860, sound: 'rifle', value: 1800000, len: 28, color: '#2f3d4a', pierce: 1, rarity: 5 },
   barrett: { id: 'barrett', name: '巴雷特 M82 重狙', short: 'M82', tier: 5, dmg: 340, rate: 0.65, mag: 5, reload: 2.8, spread: 0.001, pellets: 1, speed: 3200, range: 1900, shake: 0.6, kick: 16, noise: 1400, sound: 'sniper', value: 2200000, len: 42, color: '#5a5f45', pierce: 4, rarity: 5 },
+  m1911: { id: 'm1911', name: 'M1911 铁脊手枪', short: 'M1911', tier: 0, dmg: 33, rate: 3.9, mag: 8, reload: 1.15, spread: 0.037, pellets: 1, speed: 1320, range: 700, shake: 0.12, kick: 3.8, noise: 565, sound: 'pistol', value: 6500, len: 13, color: '#5e6262', pierce: 0, rarity: 0 },
+  revolver: { id: 'revolver', name: '响尾蛇左轮', short: '响尾蛇', tier: 1, dmg: 49, rate: 2.8, mag: 6, reload: 1.7, spread: 0.03, pellets: 1, speed: 1430, range: 760, shake: 0.16, kick: 5.2, noise: 640, sound: 'pistol', value: 9500, len: 15, color: '#706557', pierce: 0, rarity: 1 },
+  s12k: { id: 's12k', name: 'S12K 战术霰弹', short: 'S12K', tier: 3, dmg: 17, rate: 2.3, mag: 9, reload: 2.0, spread: 0.225, pellets: 8, speed: 1190, range: 482, shake: 0.32, kick: 8.2, noise: 795, sound: 'shotgun', value: 49000, len: 26, color: '#56604d', pierce: 0, rarity: 2 },
+  mini14: { id: 'mini14', name: 'Mini14 白桦精确步枪', short: 'Mini14', tier: 3, dmg: 52, rate: 3.8, mag: 18, reload: 1.75, spread: 0.023, pellets: 1, speed: 1950, range: 1100, shake: 0.17, kick: 5.8, noise: 845, sound: 'sniper', value: 57000, len: 27, color: '#71674c', pierce: 1, rarity: 2 },
+  sr25: { id: 'sr25', name: 'SR25 灰隼精确步枪', short: 'SR25', tier: 4, dmg: 81, rate: 3.0, mag: 16, reload: 2.1, spread: 0.011, pellets: 1, speed: 2410, range: 1320, shake: 0.23, kick: 7.8, noise: 960, sound: 'sniper', value: 96000, len: 32, color: '#505a63', pierce: 1, rarity: 3 },
+  m79: { id: 'm79', name: 'M79 短管榴弹', short: 'M79', tier: 3, dmg: 30, rate: 1.0, mag: 1, reload: 2.25, spread: 0.026, pellets: 1, speed: 730, range: 740, shake: 0.24, kick: 6, noise: 845, sound: 'explosion', value: 73000, len: 22, color: '#65503a', pierce: 0, rarity: 3, blast: { radius: 105, dmg: 112 } },
+  m32: { id: 'm32', name: 'M32 转轮榴弹', short: 'M32', tier: 4, dmg: 38, rate: 1.35, mag: 4, reload: 3.4, spread: 0.035, pellets: 1, speed: 785, range: 830, shake: 0.28, kick: 7.5, noise: 930, sound: 'explosion', value: 119000, len: 28, color: '#5c654e', pierce: 0, rarity: 4, blast: { radius: 125, dmg: 108 } },
 };
 
 /** Short category label used by warehouse filters and mod eligibility. */
 export function weaponCategory(id: string): string {
   const w = WEAPONS[id];
   if (!w) return '其他';
-  if (EXPLOSIVE_WEAPONS.has(id)) return '发射器';
+  if (w.blast) return '发射器';
+  if (w.sound === 'pistol') return '手枪';
   if (w.pellets > 1) return '霰弹枪';
-  if (id === 'pistol') return '手枪';
-  if (id === 'dmr') return '精确射手';
-  if (w.rate <= 1.2) return '狙击枪';
-  if (w.rate >= 10) return '冲锋枪';
-  if (w.mag >= 60) return '机枪';
+  if (id === 'dmr' || id === 'mini14' || id === 'sr25') return '精确射手';
+  if (w.sound === 'sniper') return '狙击枪';
+  if (w.sound === 'lmg') return '机枪';
+  if (w.sound === 'smg') return '冲锋枪';
   return '突击步枪';
 }
 
@@ -214,7 +221,7 @@ export function weaponTrait(id: string): string {
 /** Weapons whose bullets slow enemies on hit. */
 export const CHILL_WEAPONS = new Set(['frostmp9']);
 /** Weapons whose bullets explode on impact. */
-export const EXPLOSIVE_WEAPONS = new Set(['rpg']);
+export const EXPLOSIVE_WEAPONS = new Set(Object.values(WEAPONS).filter((weapon) => weapon.blast).map((weapon) => weapon.id));
 
 /**
  * Innate family perks that exist outside the mod system, so each gun class
@@ -225,16 +232,11 @@ export const EXPLOSIVE_WEAPONS = new Set(['rpg']);
  */
 export type WeaponPassive = 'shotgun' | 'sniper' | 'mg' | null;
 
-const SNIPER_PASSIVE_IDS = new Set(['sniper', 'awmlegend', 'barrett']);
-const MG_PASSIVE_IDS = new Set(['lmg', 'minigun', 'ironbreaker']);
-
 export function weaponPassive(id: string): WeaponPassive {
-  const w = WEAPONS[id];
-  if (!w) return null;
-  if (w.blast) return null;
-  if (w.pellets > 1) return 'shotgun';
-  if (SNIPER_PASSIVE_IDS.has(id)) return 'sniper';
-  if (MG_PASSIVE_IDS.has(id)) return 'mg';
+  const category = weaponCategory(id);
+  if (category === '霰弹枪') return 'shotgun';
+  if (category === '狙击枪') return 'sniper';
+  if (category === '机枪') return 'mg';
   return null;
 }
 
@@ -561,12 +563,20 @@ export interface CharacterDef {
   armorBonus: number;
   minArmor: number;
   feathers: string[];
+  specialty: { categories: string[]; damageBonus: number; blastRadiusBonus?: number; description: string };
+  trait: { type: 'explosionResistance' | 'reloadSpeed' | 'moveSpeed'; value: number; description: string };
 }
 
 export const CHARACTERS: readonly CharacterDef[] = [
-  { id: 'duck', name: '小黄', role: '均衡', speed: 240, armorScale: 1, armorBonus: 0, minArmor: 25, feathers: ['#ffd43b', '#fff1a8', '#ffffff', '#f2c12e'] },
-  { id: 'tank', name: '铁头', role: '重甲', speed: 192, armorScale: 1, armorBonus: 45, minArmor: 0, feathers: ['#b0bca1', '#728573', '#d8dbb9'] },
-  { id: 'scout', name: '快羽', role: '侦察', speed: 288, armorScale: 0.55, armorBonus: 0, minArmor: 15, feathers: ['#a2e1ea', '#63aec1', '#d8f3f3'] },
+  { id: 'duck', name: '小黄', role: '均衡', speed: 240, armorScale: 1, armorBonus: 0, minArmor: 25, feathers: ['#ffd43b', '#fff1a8', '#ffffff', '#f2c12e'],
+    specialty: { categories: ['突击步枪'], damageBonus: 0.12, description: '突击步枪伤害 +12%' },
+    trait: { type: 'reloadSpeed', value: 0.08, description: '换弹时间 −8%' } },
+  { id: 'tank', name: '铁头', role: '重甲', speed: 192, armorScale: 1, armorBonus: 45, minArmor: 0, feathers: ['#b0bca1', '#728573', '#d8dbb9'],
+    specialty: { categories: ['霰弹枪', '发射器'], damageBonus: 0.12, blastRadiusBonus: 0.10, description: '霰弹近距伤害 +12% · 发射器爆炸半径 +10%' },
+    trait: { type: 'explosionResistance', value: 0.12, description: '受到爆炸伤害 −12%' } },
+  { id: 'scout', name: '快羽', role: '侦察', speed: 288, armorScale: 0.55, armorBonus: 0, minArmor: 15, feathers: ['#a2e1ea', '#63aec1', '#d8f3f3'],
+    specialty: { categories: ['冲锋枪', '狙击枪'], damageBonus: 0.12, description: '冲锋枪与狙击枪伤害 +12%' },
+    trait: { type: 'moveSpeed', value: 0.04, description: '移动速度 +4%' } },
 ];
 
 export function getCharacter(id?: string): CharacterDef {
@@ -575,6 +585,20 @@ export function getCharacter(id?: string): CharacterDef {
 
 export function characterArmor(character: CharacterDef, armor: number) {
   return Math.max(character.minArmor, Math.round(armor * character.armorScale) + character.armorBonus);
+}
+
+export function characterWeaponBonus(character: CharacterDef, weaponId: string) {
+  const specialty = character.specialty;
+  const category = weaponCategory(weaponId);
+  const base = { damage: 1, blastRadius: 1, closeDamage: 1 };
+  if (!specialty.categories.includes(category)) return base;
+  if (category === '发射器') return { ...base, blastRadius: 1 + (specialty.blastRadiusBonus ?? 0) };
+  if (category === '霰弹枪') return { ...base, closeDamage: 1 + specialty.damageBonus };
+  return { ...base, damage: 1 + specialty.damageBonus };
+}
+
+export function characterMoveSpeed(character: CharacterDef) {
+  return character.speed * (1 + (character.trait.type === 'moveSpeed' ? character.trait.value : 0));
 }
 
 export interface Loadout {
@@ -598,11 +622,11 @@ export const LOADOUTS: Loadout[] = [
 
 export const KIT_STYLES = [
   { id: 'balanced', name: '均衡', note: '火力、护甲与补给均衡', pack: 2,
-    tiers: [[null, 1, 1, 0, {}], ['smg', 2, 2, 0, { grenade: 1 }], ['ak', 3, 2, 1, { grenade: 1, smoke: 1 }], ['dmr', 4, 3, 1, { grenade: 2, smoke: 1 }], ['hk416', 5, 3, 2, { grenade: 2, smoke: 2 }]] },
+    tiers: [['m1911', 1, 1, 0, {}], ['smg', 2, 2, 0, { grenade: 1 }], ['rifle', 3, 2, 1, { grenade: 1, smoke: 1 }], ['mini14', 4, 3, 1, { grenade: 2, smoke: 1 }], ['sr25', 5, 3, 2, { grenade: 2, smoke: 2 }]] },
   { id: 'breach', name: '强攻', note: '优先武器与投掷物', pack: 1,
-    tiers: [[null, 0, 1, 0, { grenade: 1 }], ['mp9', 1, 1, 0, { grenade: 2, flash: 1 }], ['ak', 1, 2, 0, { grenade: 2, flash: 2, fire: 1 }], ['dmr', 2, 2, 1, { grenade: 3, flash: 2, fire: 1 }], ['hk416', 2, 3, 1, { grenade: 3, flash: 1, fire: 2 }]] },
+    tiers: [['revolver', 0, 1, 0, { grenade: 1 }], ['mp9', 1, 1, 0, { grenade: 2, flash: 1 }], ['s12k', 1, 2, 0, { grenade: 2, flash: 2, fire: 1 }], ['m79', 2, 2, 1, { grenade: 3, flash: 2, fire: 1 }], ['m32', 2, 3, 1, { grenade: 3, flash: 1, fire: 2 }]] },
   { id: 'armor', name: '厚甲', note: '优先护甲与治疗', pack: 3,
-    tiers: [[null, 1, 2, 0, {}], ['smg', 3, 2, 1, {}], ['smg', 4, 3, 2, { smoke: 1 }], ['ak', 5, 3, 2, { smoke: 1 }], ['dmr', 6, 3, 3, { smoke: 2 }]] },
+    tiers: [['pistol', 1, 2, 0, {}], ['shotgun', 3, 2, 1, {}], ['ak', 4, 3, 2, { smoke: 1 }], ['lmg', 5, 3, 2, { smoke: 1 }], ['sniper', 6, 3, 3, { smoke: 2 }]] },
 ] satisfies { id: string; name: string; note: string; pack: number; tiers: [string | null, number, number, number, Partial<Record<ThrowableId, number>>][] }[];
 
 const budgetKits = KIT_STYLES.flatMap((style) => style.tiers.map(([primary, grade, bandages, medkits, items], i): Loadout => {
@@ -612,7 +636,7 @@ const budgetKits = KIT_STYLES.flatMap((style) => style.tiers.map(([primary, grad
     + bandages * ITEM_BANDAGE.value + medkits * ITEM_MEDKIT.value
     + THROWABLE_IDS.reduce((sum, id) => sum + (throwables[id] ?? 0) * THROWABLES[id].value, 0);
   return { id: `budget-${style.id}-${i}`, name: style.name, tag: style.note,
-    desc: armor?.name ?? '无护甲', cost, primary, armor: armor?.armor ?? 0, bandages, medkits, throwables };
+    desc: `${WEAPONS[primary ?? 'pistol'].name} · ${armor?.name ?? '无护甲'}`, cost, primary: primary === 'pistol' ? null : primary, armor: armor?.armor ?? 0, bandages, medkits, throwables };
 }));
 
 export function findLoadout(id: string) {

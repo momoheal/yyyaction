@@ -1,6 +1,7 @@
+import { WEAPON_CACHE_LOOT } from './warehouse';
 import {
   ARMORS, CHILL_WEAPONS, CONTAINER_DEFS, ENEMIES, EXPLOSIVE_WEAPONS, EXTRACT_TIME, ITEM_BANDAGE, ITEM_FIRE, ITEM_FLASH, ITEM_GRENADE, ITEM_MEDKIT, ITEM_SMOKE, VENDING_LOOT,
-  LOADOUTS, findLoadout, LOOT, LOOT_BY_RARITY, RAID_TIME, RARITY_COLORS, RARITY_NAMES, SEARCH_TIME, SHOTGUN_CLOSE_BONUS, SHOTGUN_CLOSE_RANGE, SHOTGUN_FAR_FALLOFF, SHOTGUN_FAR_RANGE, SNIPER_CRIT_MULT, THROWABLE_IDS, THROWABLES, WEAPONS, armorById, characterArmor, fmtMoney, getCharacter, weaponCategory, weaponItem, weaponPassive,
+  LOADOUTS, findLoadout, LOOT, LOOT_BY_RARITY, RAID_TIME, RARITY_COLORS, RARITY_NAMES, SEARCH_TIME, SHOTGUN_CLOSE_BONUS, SHOTGUN_CLOSE_RANGE, SHOTGUN_FAR_FALLOFF, SHOTGUN_FAR_RANGE, SNIPER_CRIT_MULT, THROWABLE_IDS, THROWABLES, WEAPONS, armorById, characterArmor, characterMoveSpeed, characterWeaponBonus, fmtMoney, getCharacter, weaponCategory, weaponItem, weaponPassive,
   type BossSkillKind, type CharacterDef, type CharacterId, type CharacterUpgrades, type EnemyDef, type EnemyType, type ItemDef, type Loadout, type ThrowableId, type WeaponDef,
 } from './data';
 import { buildTrainingMap, getRaidMap, F_BULLET, F_MOVE, F_SIGHT, F_VEHICLE_BANK, type GameMap, type RaidMapId, type Solid } from './map';
@@ -51,7 +52,7 @@ export interface Enemy {
   lines: BossLine[]; marks: BossMark[]; scanA: number; scanR: number;
   dead: boolean; kick: number; hurtT: number; chillT: number; suppressT: number; stunT: number;
 }
-export interface Bullet { x: number; y: number; ox: number; oy: number; vx: number; vy: number; dmg: number; life: number; from: 0 | 1; pierce: number; hitIds?: number[]; src: Enemy | null; w: number; crit: boolean; chill?: boolean; explosive?: boolean; blastR?: number; blastDmg?: number; antiArmor?: number; shotgun?: boolean; suppress?: boolean; combo?: string; z?: number; vz?: number; antiAir?: boolean; vehicle?: Vehicle }
+export interface Bullet { x: number; y: number; ox: number; oy: number; vx: number; vy: number; dmg: number; life: number; from: 0 | 1; pierce: number; hitIds?: number[]; src: Enemy | null; w: number; crit: boolean; chill?: boolean; explosive?: boolean; blastR?: number; blastDmg?: number; antiArmor?: number; shotgun?: boolean; closeDamage?: number; suppress?: boolean; combo?: string; z?: number; vz?: number; antiAir?: boolean; vehicle?: Vehicle }
 interface VehicleBomb { x: number; y: number; z: number; vx: number; vy: number; napalm?: { damage: number; duration: number } }
 export interface Particle { x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; max: number; size: number; color: string; type: number; rot: number; vr: number; drag: number; grow: number }
 export interface FText { x: number; y: number; text: string; color: string; life: number; max: number; size: number; vy: number }
@@ -490,12 +491,9 @@ export class Game {
     const d = CONTAINER_DEFS[type];
     const out: ItemDef[] = [];
     if (d.special === 'weapon') {
-      const opts: [string, number][] = [
-        ['smg', 20], ['mp9', 14], ['shotgun', 15], ['rifle', 16], ['ak', 13],
-        ['lmg', 7], ['sniper', 5], ['dmr', 4.5],
-        ['m4legend', 2], ['awmlegend', 1.5], ['minigun', 1.5],
-      ];
-      out.push(weaponItem(opts[pickIndex(opts.map((o) => o[1]))][0]));
+      const bonus = getRaidMap(this.mapId).weaponCacheBonus ?? [];
+      const opts = WEAPON_CACHE_LOOT.map(([id, weight]) => [id, bonus.includes(id) ? weight * 2 : weight] as const);
+      out.push(weaponItem(opts[pickIndex(opts.map((option) => option[1]))][0]));
       const r = Math.random();
       if (r < 0.4) out.push(armorById(Math.random() < 0.65 ? 'armor1' : 'armor2')!);
       else if (r < 0.7) out.push(this.rollThrowable());
@@ -1262,7 +1260,7 @@ export class Game {
       p.vx = p.rollDx * sp; p.vy = p.rollDy * sp;
       if (Math.random() < 0.6) this.puff(p.x - p.rollDx * 10, p.y - p.rollDy * 10 + 6, 1, 'rgba(214,196,160,0.45)', 6, 30, 0.4);
     } else {
-      let speed = p.character.speed * p.speedMul;
+      let speed = characterMoveSpeed(p.character) * p.speedMul;
       if (p.healT > 0) speed *= 0.5;
       if (p.chillT > 0) speed *= 0.62;
       if (w.def.id === 'lmg') speed *= 0.9;
@@ -1428,7 +1426,8 @@ export class Game {
 
   private startReload(w: WeaponInst) {
     if (w.reloadT > 0 || w.ammo >= w.def.mag) return;
-    w.reloadT = w.def.reload;
+    const trait = this.player.character.trait;
+    w.reloadT = w.def.reload * (trait.type === 'reloadSpeed' ? 1 - trait.value : 1);
     this.sfx.play('reload');
   }
 
@@ -1535,6 +1534,7 @@ export class Game {
     w.ammo--;
     w.cd = 1 / d.rate;
     const passive = weaponPassive(d.id);
+    const bonus = characterWeaponBonus(p.character, d.id);
     const critMul = passive === 'sniper' ? SNIPER_CRIT_MULT : 1.8;
     const moving = Math.hypot(p.vx, p.vy) > 60;
     const spread = d.spread * (moving ? 1.3 : 1) + p.bloom;
@@ -1552,12 +1552,12 @@ export class Game {
       const crit = Math.random() < 0.1;
       this.bullets.push({
         x: p.x, y: p.y, ox: p.x, oy: p.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
-        dmg: d.dmg * (crit ? critMul : 1), life: d.range / sp, from: 0, pierce: d.pierce,
+        dmg: d.dmg * bonus.damage * (crit ? critMul : 1), life: d.range / sp, from: 0, pierce: d.pierce,
         src: null, w: EXPLOSIVE_WEAPONS.has(d.id) ? 5 : d.pellets > 1 ? 1.7 : d.id === 'sniper' ? 3.4 : 2.3, crit,
         chill: CHILL_WEAPONS.has(d.id), explosive: EXPLOSIVE_WEAPONS.has(d.id),
-        blastR: d.blast?.radius, blastDmg: d.blast ? d.blast.dmg * (crit ? critMul : 1) : undefined,
+        blastR: d.blast ? d.blast.radius * bonus.blastRadius : undefined, blastDmg: d.blast ? d.blast.dmg * (crit ? critMul : 1) : undefined,
         antiArmor: d.antiArmor,
-        shotgun: passive === 'shotgun', suppress: passive === 'mg', combo: d.combo,
+        shotgun: passive === 'shotgun', closeDamage: bonus.closeDamage, suppress: passive === 'mg', combo: d.combo,
       });
     }
     this.stats.shots++;
@@ -2796,7 +2796,7 @@ export class Game {
           let hitDmg = b.dmg;
           if (b.shotgun) {
             const travel = Math.hypot(hx - b.ox, hy - b.oy);
-            if (travel <= SHOTGUN_CLOSE_RANGE) hitDmg *= SHOTGUN_CLOSE_BONUS;
+            if (travel <= SHOTGUN_CLOSE_RANGE) hitDmg *= SHOTGUN_CLOSE_BONUS * (b.closeDamage ?? 1);
             else if (travel >= SHOTGUN_FAR_RANGE) hitDmg *= SHOTGUN_FAR_FALLOFF;
           }
           this.damageEnemy(te, hitDmg, nx, ny, b.crit, hx, hy, false, b.from === 0 ? b.antiArmor ?? 0 : 0);
@@ -3102,7 +3102,9 @@ export class Game {
       if (d < radius + p.r && this.grid.los(x, y, p.x, p.y, F_SIGHT)) {
         const f = 1 - Math.max(0, d - p.r) / radius;
         const nd = d || 1;
-        this.damagePlayer(dmg * 0.55 * (0.3 + 0.7 * f), x, y);
+        const trait = p.character.trait;
+        const resistance = trait.type === 'explosionResistance' ? 1 - trait.value : 1;
+        this.damagePlayer(dmg * 0.55 * (0.3 + 0.7 * f) * resistance, x, y);
         p.kvx += (dx / nd) * 420 * f; p.kvy += (dy / nd) * 420 * f;
       }
     }

@@ -317,6 +317,9 @@ export default function Armory({ save, onAction, onClose, mode }: {
                                   ? ` · 护甲 ${characterArmor(character, armorValue(def.armor ?? 0, aMods))}`
                                   : ` · ${weaponCategory(def.weapon ?? '')} · ${weaponTrait(def.weapon ?? '')}`}
                               </span>
+                              {slot === 'weapon' && character.specialty.categories.includes(weaponCategory(def.weapon ?? '')) && (
+                                <span className="block truncate text-xs text-[#f5b82e]">武器专精</span>
+                              )}
                               {slot === 'weapon' && weaponPassiveLabel(def.weapon ?? '') && (
                                 <span className="block truncate text-[11px] font-bold text-[#a8e6b0]">先天 · {weaponPassiveLabel(def.weapon ?? '')}</span>
                               )}

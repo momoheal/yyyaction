@@ -3,6 +3,7 @@
 // 源建模代码为原样移植，使用宽松类型（ts-nocheck）以保留原有几何细节。
 // @ts-nocheck
 import * as THREE from 'three';
+import { WEAPONS } from './data';
 
 export interface GunModel {
   group: THREE.Group;
@@ -504,7 +505,7 @@ const GUN_COLORS: Record<string, string> = {
 /* ===== 游戏额外三把：基于同源零件改造，保持同一美术语言 ===== */
 function buildAA12(w) {
   const r = buildShotgun({ ...w, color: '#2d5a52' });
-  const g = r.group;
+  const g = r.g;
   const steel = '#3f4a45', drumDark = '#1f2a27';
   CY(g, 0.34, 0.34, 0.3, steel, 0.16, -0.34, 0, { axis: 'z', seg: 14 });       // 大弹鼓
   CY(g, 0.14, 0.14, 0.34, drumDark, 0.16, -0.34, 0, { axis: 'z', seg: 12 });
@@ -514,7 +515,7 @@ function buildAA12(w) {
 }
 function buildHK416(w) {
   const r = buildM4({ ...w, color: '#37424e' }, false);
-  const g = r.group;
+  const g = r.g;
   B(g, 1.3, 0.08, 0.15, '#20272f', 0.05, 0.33, 0, { ey: 0.7 });               // 加高平顶导轨
   B(g, 0.22, 0.2, 0.22, '#1a1f24', 0.3, 0.47, 0, { ey: 0.9 });
   CY(g, 0.05, 0.05, 0.05, '#ff6a4a', 0.3, 0.49, 0.12,
@@ -524,7 +525,7 @@ function buildHK416(w) {
 }
 function buildBarrett(w) {
   const r = buildAWM({ ...w, color: '#5a5f45' }, false);
-  const g = r.group;
+  const g = r.g;
   CY(g, 0.085, 0.085, 2.1, '#4b5140', 1.62, 0.12, 0, { seg: 10, ex: 0.8 });  // 加粗重型枪管
   muzzleBrake(g, 2.85, 0.12, 0.105, '#24271f');
   B(g, 0.42, 0.12, 0.3, '#3e4436', -0.85, 0.32, 0, { ey: 0.7 });             // 重型顶部提把
@@ -535,9 +536,61 @@ BUILDERS.aa12 = function (w) { return buildAA12(w); };
 BUILDERS.hk416 = function (w) { return buildHK416(w); };
 BUILDERS.barrett = function (w) { return buildBarrett(w); };
 
+// Reuse the established low-poly parts, with distinct silhouettes for each family.
+BUILDERS.m1911 = (w) => {
+  const model = buildPistol(w);
+  B(model.g, 1.28, 0.11, 0.21, shade(w.color, 1.4), 0.17, 0.21, 0, { ey: 0.9 });
+  B(model.g, 0.21, 0.45, 0.25, '#754a30', -0.58, -0.46, 0, { rz: -0.32 });
+  return model;
+};
+BUILDERS.revolver = (w) => {
+  const g = new THREE.Group(), steel = shade(w.color, 1.4);
+  B(g, 0.85, 0.28, 0.24, w.color, -0.25, 0.12, 0, {});
+  CY(g, 0.24, 0.24, 0.45, steel, 0.01, 0.04, 0, { seg: 10 });
+  CY(g, 0.09, 0.09, 0.92, steel, 0.65, 0.15, 0, { seg: 10 });
+  grip(g, -0.49, -0.08, '#7c5434', 0.55);
+  triggerGuard(g, 0.01, -0.22, w.color);
+  return { g, muzzle: muzzleRef(g, 1.12, 0.15) };
+};
+BUILDERS.s12k = (w) => {
+  const model = buildAK(w);
+  B(model.g, 0.44, 0.68, 0.25, '#323d35', 0.03, -0.36, 0, { rz: -0.1 });
+  B(model.g, 0.88, 0.31, 0.28, w.color, 0.94, 0.11, 0, {});
+  return model;
+};
+BUILDERS.mini14 = (w) => {
+  const model = buildSVD(w);
+  B(model.g, 1.25, 0.29, 0.29, '#9b7750', -0.8, -0.12, 0, {});
+  B(model.g, 0.52, 0.12, 0.21, '#2f3334', 0.52, 0.38, 0, {});
+  return model;
+};
+BUILDERS.sr25 = (w) => {
+  const model = buildM4(w, false);
+  CY(model.g, 0.115, 0.115, 0.86, '#263235', 0.05, 0.44, 0, { seg: 10 });
+  B(model.g, 0.68, 0.1, 0.32, '#5a635f', 1.2, -0.11, 0, {});
+  return model;
+};
+function buildGrenadeLauncher(color: string, rotary: boolean) {
+  const g = new THREE.Group(), dark = shade(color, 0.6);
+  B(g, 0.86, 0.32, 0.31, rotary ? dark : '#856145', -0.92, 0.02, 0, { rz: 0.15 });
+  B(g, 0.66, 0.32, 0.34, color, -0.21, 0.12, 0, {});
+  CY(g, 0.15, 0.15, rotary ? 0.86 : 1.36, color, rotary ? 0.93 : 0.61, 0.16, 0, { seg: 12 });
+  CY(g, 0.18, 0.18, 0.16, dark, 1.36, 0.16, 0, { seg: 12 });
+  if (rotary) {
+    CY(g, 0.38, 0.38, 0.58, dark, 0.32, -0.08, 0, { seg: 12 });
+    CY(g, 0.28, 0.28, 0.62, color, 0.32, -0.08, 0, { seg: 12 });
+  }
+  grip(g, -0.32, -0.1, dark, 0.49);
+  triggerGuard(g, -0.01, -0.16, dark);
+  B(g, 0.16, 0.26, 0.11, dark, 0.7, 0.32, 0, {});
+  return { g, muzzle: muzzleRef(g, 1.45, 0.16) };
+}
+BUILDERS.m79 = (w) => buildGrenadeLauncher(w.color, false);
+BUILDERS.m32 = (w) => buildGrenadeLauncher(w.color, true);
+
 /** 统一入口：按武器 id 构建一把可独立放入场景的枪。 */
 export function buildGunModel(id: string, colorOverride?: string): GunModel {
-  const def = { color: colorOverride || GUN_COLORS[id] || GUN_COLORS.rifle };
+  const def = { color: colorOverride || GUN_COLORS[id] || WEAPONS[id]?.color || GUN_COLORS.rifle };
   const build = BUILDERS[id] || BUILDERS.rifle;
   const built = build(def);
   // 展厅原函数返回 { g, muzzle, spin }；统一为对外接口 { group, ... }。

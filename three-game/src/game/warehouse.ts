@@ -1,6 +1,6 @@
 import {
   ITEM_BANDAGE, ITEM_MEDKIT, LOADOUTS, THROWABLE_IDS, THROWABLE_ITEMS, THROWABLES, WEAPONS,
-  armorById, weaponItem, type ItemDef, type Loadout, type ThrowableId, type WeaponDef,
+  armorById, weaponCategory, weaponItem, type ItemDef, type Loadout, type ThrowableId, type WeaponDef,
 } from './data';
 
 /** Weapon mods are now role-specific: a choke only fits a shotgun, blast tuning only fits a launcher. */
@@ -201,12 +201,11 @@ export const ARMOR_TUNE_TAGS: Record<ArmorTuneType, string> = {
 
 const weaponId = (id: string) => id.startsWith('w_') ? id.slice(2) : id;
 
-/** Gun families used to hand out role-specific tuning options. */
-const PISTOL_IDS = new Set(['pistol']);
-const SMG_IDS = new Set(['smg', 'mp9', 'frostmp9']);
-const SHOTGUN_IDS = new Set(['shotgun', 'aa12']);
-const SNIPER_IDS = new Set(['sniper', 'awmlegend', 'barrett', 'dmr']);
-const MG_IDS = new Set(['lmg', 'minigun', 'ironbreaker']);
+export const WEAPON_CACHE_LOOT: readonly (readonly [string, number])[] = [
+  ['smg', 20], ['mp9', 14], ['shotgun', 15], ['rifle', 16], ['ak', 13],
+  ['lmg', 7], ['sniper', 5], ['dmr', 4.5], ['m4legend', 2], ['awmlegend', 1.5], ['minigun', 1.5],
+  ['m1911', 8], ['revolver', 6], ['s12k', 7], ['mini14', 5], ['sr25', 3.5], ['m79', 3], ['m32', 1.5],
+];
 
 /**
  * Each family gets a short list with a clear identity instead of the old
@@ -216,14 +215,14 @@ const MG_IDS = new Set(['lmg', 'minigun', 'ironbreaker']);
 export function tunesForWeapon(id: string): TuneType[] {
   const w = WEAPONS[weaponId(id)];
   if (!w) return [];
-  const wid = weaponId(id);
+  const category = weaponCategory(weaponId(id));
   const common: TuneType[] = ['damage', 'mag', 'quick'];
   if (w.blast) return [...common, 'blast', 'heavy', 'cluster'];
-  if (PISTOL_IDS.has(wid)) return [...common, 'trigger'];
-  if (SHOTGUN_IDS.has(wid)) return [...common, 'choke', 'auto', 'drum'];
-  if (SNIPER_IDS.has(wid)) return [...common, 'scope', 'match', 'bolt', 'pierce'];
-  if (MG_IDS.has(wid)) return [...common, 'belt', 'stable', 'pierce', 'overload'];
-  if (SMG_IDS.has(wid)) return [...common, 'rapid', 'stable', 'drum', 'overload'];
+  if (category === '手枪') return [...common, 'trigger'];
+  if (category === '霰弹枪') return [...common, 'choke', 'auto', 'drum'];
+  if (category === '狙击枪' || category === '精确射手') return [...common, 'scope', 'match', 'bolt', 'pierce'];
+  if (category === '机枪') return [...common, 'belt', 'stable', 'pierce', 'overload'];
+  if (category === '冲锋枪') return [...common, 'rapid', 'stable', 'drum', 'overload'];
   return [...common, 'scope', 'rapid', 'pierce', 'overload'];
 }
 
