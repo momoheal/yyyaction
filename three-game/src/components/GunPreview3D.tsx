@@ -11,8 +11,11 @@ interface PreviewState {
   camera: THREE.PerspectiveCamera;
   pedestal: THREE.Group;
   model: GunModel | null;
+  /** 本组件生命周期内构建过的模型，按武器 id 缓存复用，避免拖动预算时反复建/销毁几何体。 */
+  models: Map<string, GunModel>;
   frame: number;
   observer?: ResizeObserver;
+  contextLost: boolean;
 }
 
 function disposeGroup(group: THREE.Object3D) {
@@ -35,9 +38,9 @@ export default function GunPreview3D({ weaponId, className }: { weaponId: string
     } catch {
       return; // WebGL 不可用时保留底层 SVG 回退
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFShadowMap;
+    // 预览与游戏大场景共用 GPU：关阴影、限 DPR、精简灯光，降低真机显存压力。
+    renderer.setPixelRatio(1);
+    renderer.shadowMap.enabled = false;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.12;
     renderer.domElement.style.cssText = 'display:block;width:100%;height:100%;touch-action:none;cursor:grab;';
@@ -73,46 +76,45 @@ export default function GunPreview3D({ weaponId, className }: { weaponId: string
 
     const key = new THREE.DirectionalLight(0xfff1dd, 2.6);
     key.position.set(5, 8, 4);
-    key.castShadow = true;
-    key.shadow.mapSize.set(1024, 1024);
-    key.shadow.camera.left = -6; key.shadow.camera.right = 6;
-    key.shadow.camera.top = 6; key.shadow.camera.bottom = -6;
-    key.shadow.camera.far = 30;
-    key.shadow.bias = -0.0004;
     scene.add(key);
     const rim = new THREE.DirectionalLight(0xffc37a, 1.1);
     rim.position.set(-6, 3.5, -5); scene.add(rim);
-    const fill = new THREE.DirectionalLight(0xbcd0ff, 0.5);
-    fill.position.set(-4, 2, 6); scene.add(fill);
-    scene.add(new THREE.HemisphereLight(0x8d97a5, 0x1a1c17, 0.55));
-    const spot = new THREE.SpotLight(0xffe6bb, 30, 30, Math.PI / 5.2, 0.55, 1.6);
-    spot.position.set(0, 9, 1.5);
-    spot.target.position.set(0, 1, 0);
-    scene.add(spot); scene.add(spot.target);
+    scene.add(new THREE.HemisphereLight(0x8d97a5, 0x1a1c17, 0.75));
 
     const floor = new THREE.Mesh(
       new THREE.CircleGeometry(16, 48),
       new THREE.MeshStandardMaterial({ color: 0x191c1f, roughness: 0.95, metalness: 0 }),
     );
     floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
     scene.add(floor);
 
     const pedestal = new THREE.Group();
     const pedTop = new THREE.Mesh(new THREE.CylinderGeometry(1.9, 2.05, 0.32, 28),
       new THREE.MeshStandardMaterial({ color: 0x232528, roughness: 0.72, metalness: 0.35, flatShading: true }));
-    pedTop.position.y = 0.72; pedTop.castShadow = true; pedTop.receiveShadow = true;
+    pedTop.position.y = 0.72;
     const pedBase = new THREE.Mesh(new THREE.CylinderGeometry(2.15, 2.35, 0.58, 28),
       new THREE.MeshStandardMaterial({ color: 0x222428, roughness: 0.7, metalness: 0.4, flatShading: true }));
-    pedBase.position.y = 0.29; pedBase.castShadow = true; pedBase.receiveShadow = true;
+    pedBase.position.y = 0.29;
     const pedRing = new THREE.Mesh(new THREE.TorusGeometry(2.02, 0.035, 8, 48),
       new THREE.MeshStandardMaterial({ color: 0xe2a63d, roughness: 0.35, metalness: 0.8, emissive: 0x59390a }));
     pedRing.rotation.x = Math.PI / 2; pedRing.position.y = 0.885;
     pedestal.add(pedTop, pedBase, pedRing);
     scene.add(pedestal);
 
-    const st: PreviewState = { renderer, scene, camera, pedestal, model: null, frame: 0 };
+    const st: PreviewState = { renderer, scene, camera, pedestal, model: null, models: new Map(), frame: 0, contextLost: false };
     state.current = st;
+
+    // 移动端显存紧张时可能丢失上下文；阻止默认行为并标记，恢复后继续渲染。
+    // 丢失期间隐藏画布，让底层 SVG 图标顶上，避免出现黑块。
+    renderer.domElement.addEventListener('webglcontextlost', (event) => {
+      event.preventDefault();
+      st.contextLost = true;
+      renderer.domElement.style.opacity = '0';
+    });
+    renderer.domElement.addEventListener('webglcontextrestored', () => {
+      st.contextLost = false;
+      renderer.domElement.style.opacity = '1';
+    });
 
     const resize = () => {
       const w = Math.max(1, el.clientWidth), h = Math.max(1, el.clientHeight);
@@ -127,6 +129,7 @@ export default function GunPreview3D({ weaponId, className }: { weaponId: string
     const clock = new THREE.Clock();
     const tick = () => {
       st.frame = requestAnimationFrame(tick);
+      if (st.contextLost) return;
       const dt = Math.min(clock.getDelta(), 0.05);
       if (st.model) {
         const group = st.model.group;
@@ -148,7 +151,11 @@ export default function GunPreview3D({ weaponId, className }: { weaponId: string
       renderer.domElement.removeEventListener('pointermove', onMove);
       renderer.domElement.removeEventListener('pointerup', onUp);
       renderer.domElement.removeEventListener('pointercancel', onUp);
-      if (st.model) { scene.remove(st.model.group); disposeGroup(st.model.group); }
+      for (const model of st.models.values()) {
+        scene.remove(model.group);
+        disposeGroup(model.group);
+      }
+      st.models.clear();
       disposeGroup(pedestal);
       floor.geometry.dispose();
       (floor.material as THREE.Material).dispose();
@@ -161,16 +168,31 @@ export default function GunPreview3D({ weaponId, className }: { weaponId: string
   useEffect(() => {
     const st = state.current;
     if (!st) return;
-    if (st.model) {
-      st.scene.remove(st.model.group);
-      disposeGroup(st.model.group);
-      st.model = null;
-    }
     const id = hasGunModel(weaponId) ? weaponId : 'rifle';
-    const model = buildGunModel(id);
-    model.group.position.y = 1.25;
-    st.scene.add(model.group);
-    st.model = model;
+    // 复用已构建的模型：只切换可见性，不销毁重建，避免拖动预算时反复分配显存。
+    if (st.model && st.model === st.models.get(id)) {
+      st.model.group.visible = true;
+    } else {
+      if (st.model) st.model.group.visible = false;
+      let model = st.models.get(id);
+      if (!model) {
+        model = buildGunModel(id);
+        model.group.position.y = 1.25;
+        st.models.set(id, model);
+        st.scene.add(model.group);
+        // 最多缓存 6 把：拖过很多预算档位时不无限占用显存。
+        if (st.models.size > 6) {
+          const oldest = st.models.keys().next().value as string | undefined;
+          if (oldest && oldest !== id) {
+            const stale = st.models.get(oldest);
+            if (stale) { st.scene.remove(stale.group); disposeGroup(stale.group); }
+            st.models.delete(oldest);
+          }
+        }
+      }
+      model.group.visible = true;
+      st.model = model;
+    }
 
     const len = WEAPONS[id]?.len ?? 25;
     const pr = THREE.MathUtils.clamp(len * 0.105 * 0.55, 0.62, 1.35);

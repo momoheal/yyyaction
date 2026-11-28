@@ -201,6 +201,13 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
   const weaponId = (equippedWeapon && gearDef(equippedWeapon.id)?.weapon) || sel.primary || 'pistol';
   const weapon = WEAPONS[weaponId];
   const previewWeapon = equippedWeapon ? gunWithMods(weaponId, gearMods(equippedWeapon)) ?? weapon : weapon;
+  // 拖动预算时武器会快速切换：3D 预览延迟 180ms 再换模，避免连续重建几何体导致掉帧/黑屏。
+  const [previewWeaponId, setPreviewWeaponId] = useState(weaponId);
+  useEffect(() => {
+    if (previewWeaponId === weaponId) return;
+    const timer = window.setTimeout(() => setPreviewWeaponId(weaponId), 180);
+    return () => window.clearTimeout(timer);
+  }, [weaponId, previewWeaponId]);
   const startPreparation = (isTraining: boolean) => {
     setTraining(isTraining);
     setStep('character');
@@ -279,7 +286,7 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
                       <h3>{weapon.name}</h3>
                       <div className="kit-weapon-stage">
                         <img className="kit-weapon-fallback" alt="" src={weaponIconDataUrl(weapon.id)} draggable={false} />
-                        <GunPreview3D weaponId={weapon.id} className="kit-weapon-3d" />
+                        <GunPreview3D weaponId={previewWeaponId} className="kit-weapon-3d" />
                       </div>
                       <dl className="kit-stats">
                         <div><dt>单发伤害</dt><dd>{previewWeapon.dmg}</dd></div>
