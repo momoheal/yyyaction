@@ -16,6 +16,7 @@ import {
 import LobbyDialog from './LobbyDialog';
 import { cn } from '../utils/cn';
 import GearIcon from './GearIcon';
+import GunPreview3D from './GunPreview3D';
 import { supplyIcon } from '../game/supply-icons';
 
 export type WarehouseAction =
@@ -71,6 +72,7 @@ export default function Armory({ save, onAction, onClose, mode }: {
   const [category, setCategory] = useState('全部');
   const [shopFilter, setShopFilter] = useState('全部');
   const [sort, setSort] = useState<SortBy>('value');
+  const [previewWeapon, setPreviewWeapon] = useState<string | null>(null);
   const editing = mode === 'loadout';
   const body = useRef<HTMLDivElement>(null);
   const { items, selected } = save.warehouse;
@@ -211,7 +213,8 @@ export default function Armory({ save, onAction, onClose, mode }: {
                 const owned = items.reduce((count, item) => count + (item.id === def.id ? item.count : 0), 0);
                 return (
                   <li key={def.id} className="armory-shop-row">
-                    <span className="flex min-w-0 items-center gap-2">
+                    <button type="button" className="flex min-w-0 items-center gap-2 text-start" aria-label={`3D 预览 ${def.name}`}
+                      disabled={!wid} onClick={() => wid && setPreviewWeapon(previewWeapon === wid ? null : wid)}>
                       <GearIcon id={def.id} className="size-10 shrink-0" />
                       <span>
                         <span className="block text-sm font-bold" style={{ color: RARITY_COLORS[def.rarity] }}>{def.name}</span>
@@ -219,7 +222,8 @@ export default function Armory({ save, onAction, onClose, mode }: {
                           {RARITY_NAMES[def.rarity]} · {w ? `伤 ${w.dmg} · ${Math.round(w.rate * 60)}RPM · 弹匣 ${w.mag}` : `护甲 ${def.armor}`} · 在库 {owned}
                         </span>
                       </span>
-                    </span>
+                      {wid && <span className="armory-preview-hint">3D ↗</span>}
+                    </button>
                     <div className="armory-shop-purchase">
                       <strong className="font-num">¥{fmtMoney(def.value)}</strong>
                       <button type="button" aria-label={`购买 ${def.name} ¥${fmtMoney(def.value)}`} className="armory-primary" disabled={save.stash < def.value} onClick={() => onAction({ type: 'buy', id: def.id })}>{save.stash < def.value ? '余额不足' : '购买'}</button>
@@ -378,6 +382,19 @@ export default function Armory({ save, onAction, onClose, mode }: {
           </div>
         )}
       </div>
+      {previewWeapon && (
+        <div className="armory-3d-overlay" role="dialog" aria-label={`${WEAPONS[previewWeapon]?.name ?? '武器'} 3D 预览`}
+          onClick={() => setPreviewWeapon(null)}>
+          <div className="armory-3d-panel" onClick={(event) => event.stopPropagation()}>
+            <div className="armory-3d-head">
+              <strong>{WEAPONS[previewWeapon]?.name ?? '武器'}</strong>
+              <button type="button" aria-label="关闭 3D 预览" onClick={() => setPreviewWeapon(null)}>✕</button>
+            </div>
+            <GunPreview3D weaponId={previewWeapon} className="armory-3d-stage" />
+            <p className="armory-3d-tip">拖动旋转查看 · 点击空白处关闭</p>
+          </div>
+        </div>
+      )}
     </LobbyDialog>
   );
 }

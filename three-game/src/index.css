@@ -1115,3 +1115,33 @@ canvas {
   border: 0;
 }
 .armory-body[data-empty="true"]:not(:has(.armory-loadout)) { grid-template-rows: 1fr; }
+
+/* ===== 武器 3D 预览 ===== */
+.kit-weapon-stage { position: relative; overflow: hidden; }
+.kit-weapon-fallback { opacity: .14; }
+.kit-weapon-3d { position: absolute; inset: 0; z-index: 1; }
+.armory-preview-hint {
+  margin-inline-start: auto; flex: 0 0 auto; font-size: 10px; font-weight: 800;
+  color: #9fe6ff; border: 1px solid #9fe6ff66; border-radius: 4px; padding: 1px 4px;
+}
+.armory-3d-overlay {
+  position: fixed; inset: 0; z-index: 60; display: grid; place-items: center;
+  background: rgba(4, 8, 11, .78); padding: 12px;
+}
+.armory-3d-panel {
+  inline-size: min(440px, 94vw); block-size: min(72vh, 460px);
+  display: flex; flex-direction: column;
+  background: #101820; border: 1px solid #9fe6ff44; border-radius: 10px; overflow: hidden;
+  box-shadow: 0 18px 60px #000b;
+}
+.armory-3d-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; border-bottom: 1px solid #ffffff1c;
+  color: #ffe183; font-size: 15px; font-weight: 800;
+}
+.armory-3d-head button {
+  min-width: 32px; min-height: 32px; color: #fff; font-size: 14px; border-radius: 6px;
+  background: #ffffff14; border: 1px solid #ffffff26;
+}
+.armory-3d-stage { flex: 1; min-height: 0; }
+.armory-3d-tip { margin: 0; padding: 5px 12px; text-align: center; color: #ffffff80; font-size: 11px; }

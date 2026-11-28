@@ -10,6 +10,7 @@ import Armory, { type WarehouseAction } from './Armory';
 import LevelPicker from './LevelPicker';
 import LobbyDialog from './LobbyDialog';
 import GearIcon from './GearIcon';
+import GunPreview3D from './GunPreview3D';
 import { weaponIconDataUrl } from '../game/gear-icons';
 import { getLocale, setLocale, useLocale } from '../i18n';
 import privacyPolicy from '../../../docs/release/taptap-privacy/index.html?raw';
@@ -277,7 +278,8 @@ export function StartScreen({ save, kit: sel, mapId, onMap, onWarehouse, onUseWa
                     <div className="kit-inspection" aria-live="polite">
                       <h3>{weapon.name}</h3>
                       <div className="kit-weapon-stage">
-                        <img alt="" src={weaponIconDataUrl(weapon.id)} draggable={false} />
+                        <img className="kit-weapon-fallback" alt="" src={weaponIconDataUrl(weapon.id)} draggable={false} />
+                        <GunPreview3D weaponId={weapon.id} className="kit-weapon-3d" />
                       </div>
                       <dl className="kit-stats">
                         <div><dt>单发伤害</dt><dd>{previewWeapon.dmg}</dd></div>

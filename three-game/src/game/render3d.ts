@@ -4,6 +4,7 @@ import { FEATHER_COLORS, P_DUST, P_FIRE, P_MUZZLE, P_RING, P_SMOKE, P_SPARK, TAU
 import type { Floor, RaidMapId, SceneryProp, Solid } from './map';
 import type { Enemy } from './game';
 import { createTerrain } from './terrain3d';
+import { gunGeometry, gunMaterial } from './gun-instances';
 import { isMainBattleTank, VEHICLES, type MainBattleTankKind, type Vehicle, type VehicleFragment, type VehicleKind } from './vehicles';
 
 const tilt = Math.SQRT1_2;
@@ -370,6 +371,9 @@ export class WorldRenderer3D {
   private glowMaterial = new THREE.MeshBasicMaterial({transparent:true, blending:THREE.AdditiveBlending, depthWrite:false, toneMapped:false});
   private glowOpacities = new Map<number,THREE.MeshBasicMaterial>();
   private colors = new Map<string,THREE.Color>();
+  /** 每种武器一个 InstancedMesh：合并枪模几何，按武器 id 批渲染。 */
+  private gunBatches = new Map<string,{mesh:THREE.InstancedMesh;used:number}>();
+  private gunMat = gunMaterial();
   private actorAlpha = 1;
   private transform = new THREE.Object3D();
   private fragmentRotation = new THREE.Quaternion();
@@ -455,6 +459,29 @@ export class WorldRenderer3D {
       linear=new THREE.Color(css); this.colors.set(color,linear);
     }
     batch.mesh.setColorAt(batch.used++,linear);
+  }
+
+  /** 手持枪械：按武器 id 批渲染合并后的低多边形枪模。 */
+  private stampGun(id: string, gx: number, gy: number, height: number, angle: number, size: number) {
+    let batch = this.gunBatches.get(id);
+    if (!batch || batch.used >= batch.mesh.instanceMatrix.count) {
+      const mesh = new THREE.InstancedMesh(gunGeometry(id),this.gunMat,batch ? batch.used * 2 : 8);
+      mesh.frustumCulled = false;
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      if (batch) {
+        (mesh.instanceMatrix.array as Float32Array).set(batch.mesh.instanceMatrix.array);
+        this.scene.remove(batch.mesh); batch.mesh.dispose();
+      }
+      batch = { mesh, used: batch?.used ?? 0 };
+      this.gunBatches.set(id, batch); this.scene.add(mesh);
+    }
+    this.transform.position.set(gx, height, gy);
+    // 模型局部 +X 为枪口；游戏世界 x/y 为地面，z 为高度。scale 按角色半径换算“米”。
+    this.transform.scale.setScalar(size);
+    this.transform.rotation.set(0, -angle, 0);
+    this.transform.updateMatrix();
+    batch.mesh.setMatrixAt(batch.used, this.transform.matrix);
+    batch.used++;
   }
 
   /** Emissive additive stamp — fire, sparks, telegraph discs and glow rings. */
@@ -2015,7 +2042,7 @@ export class WorldRenderer3D {
     }
   }
 
-  private bird(x:number,y:number,r:number,angle:number,body:string,gear:string,armed:boolean,walk:number,boss:boolean,chicken:boolean,flash:boolean,roll:boolean,bossType?:Enemy['type'],hero?:string) {
+  private bird(x:number,y:number,r:number,angle:number,body:string,gear:string,armed:boolean,walk:number,boss:boolean,chicken:boolean,flash:boolean,roll:boolean,bossType?:Enemy['type'],hero?:string,weaponId?:string) {
     const ca=Math.cos(angle),sa=Math.sin(angle),bob=Math.sin(walk)*r*.075;
     const part=(shape:Shape,dx:number,dy:number,z:number,w:number,h:number,d:number,col:string,extraAngle=0) => {
       this.stamp(shape,x+r*(dx*ca-dy*sa),y+r*(dx*sa+dy*ca),Math.max(.2,(z+bob/r)*r)*(roll ? .65 : 1),w*r,h*r*(roll ? .72 : 1),d*r,col,angle+extraAngle);
@@ -2290,9 +2317,20 @@ export class WorldRenderer3D {
       }
     }
     if(armed) {
-      part('block',.68,.56,.86,1.22,.3,.26,'#414b47');
-      part('block',1.35,.56,.87,.47,.14,.15,'#2e3739');
-      if(flash)part('crown',1.74,.56,.88,.7,.6,.55,'#ffdc66');
+      if (weaponId) {
+        // 手持枪口相对角色：略偏前、偏右侧，抬到翅膀高度。
+        const gdx=.62, gdy=.5, gz=.92;
+        const gx=x+r*(gdx*ca-gdy*sa), gy=y+r*(gdx*sa+gdy*ca);
+        const height=Math.max(.2,(gz+bob/r)*r)*.92;
+        const size=r*.5; // 模型“米”→世界单位：枪模全长约 3 米，映射为约 1.5 倍角色半径
+        this.stampGun(weaponId,gx,gy,height,angle,size);
+        if (flash) this.stampGlow('round', x+r*(1.55*ca-.5*sa), y+r*(1.55*sa+.5*ca),
+          height+.4*r, .5*r,.5*r,.5*r,'#ffdc66',angle,.9);
+      } else {
+        part('block',.68,.56,.86,1.22,.3,.26,'#414b47');
+        part('block',1.35,.56,.87,.47,.14,.15,'#2e3739');
+        if(flash)part('crown',1.74,.56,.88,.7,.6,.55,'#ffdc66');
+      }
     }
   }
 
@@ -2522,6 +2560,7 @@ export class WorldRenderer3D {
     Object.assign(this.camera,{left:-hw,right:hw,top:hh,bottom:-hh});
     this.camera.position.set(center.x,2600,center.y+2600); this.camera.lookAt(center.x,0,center.y); this.camera.updateProjectionMatrix();
     for (const batch of this.batches.values()) batch.used = 0;
+    for (const batch of this.gunBatches.values()) batch.used = 0;
     // Glow instances are rebuilt each frame, just like opaque scenery and actors.
     // Keeping the last frame's count leaves old lights behind when a boss moves.
     for (const batch of this.glowBatches.values()) batch.used = 0;
@@ -2809,7 +2848,7 @@ export class WorldRenderer3D {
     if(g.mode==='raid' && !p.dead && !g.activeVehicle) {
       // 恢复三名角色的原版配色：小黄亮黄、铁头灰绿重甲、快羽淡蓝。
       const colors = p.character.id==='scout'?['#addee0','#496e73']:p.character.id==='tank'?['#c1c4ae','#58604b']:['#ffd453','#626f4e'];
-      this.bird(p.x,p.y,p.r,p.aim,colors[0],colors[1],!!p.weapons[p.cur],p.walk,false,false,p.flash>0,p.rollT>0,undefined,p.character.id);
+      this.bird(p.x,p.y,p.r,p.aim,colors[0],colors[1],!!p.weapons[p.cur],p.walk,false,false,p.flash>0,p.rollT>0,undefined,p.character.id,p.weapons[p.cur]?.def.id);
       this.stamp('ring',p.x,p.y,1,p.r*2.45,5,p.r*2.45,'#fce999');
     }
     for(const e of g.enemies) {
@@ -2821,7 +2860,7 @@ export class WorldRenderer3D {
       if(e.dead || (g.mode==='raid' && e.visA<.03) || !visible(e.x,e.y,420))continue;
       const colors=FEATHER_COLORS[e.type];
       this.actorAlpha=g.mode==='raid'?e.visA:1;
-      this.bird(e.x,e.y,e.r,e.aim,colors[0],colors[1],!!e.weapon,e.walk,!!e.def.boss,e.type==='chicken',e.flash>0,false,e.type);
+      this.bird(e.x,e.y,e.r,e.aim,colors[0],colors[1],!!e.weapon,e.walk,!!e.def.boss,e.type==='chicken',e.flash>0,false,e.type,undefined,e.weapon?.id);
       this.actorAlpha=1;
       const range = phase?.range;
       if(e.special==='chargeWind') {
@@ -2883,6 +2922,9 @@ export class WorldRenderer3D {
         this.stamp('round',q.x,q.y,q.z+2,sparkSize,sparkSize,sparkSize,q.color,q.rot,fade*.8);
       } else this.stamp('crown',q.x,q.y,q.z+1,size,size*.7,size,q.color,q.rot);
     }
+    for(const b of this.gunBatches.values()){
+      b.mesh.count=b.used; b.mesh.instanceMatrix.needsUpdate=true;
+    }
     for(const b of this.batches.values()){
       b.mesh.count=b.used; b.mesh.instanceMatrix.needsUpdate=true;
       if(b.mesh.instanceColor)b.mesh.instanceColor.needsUpdate=true;
@@ -2897,7 +2939,9 @@ export class WorldRenderer3D {
   dispose() {
     this.removeTerrain();
     for(const b of this.batches.values())b.mesh.dispose();
+    for(const b of this.gunBatches.values())b.mesh.dispose();
     for(const b of this.glowBatches.values())b.mesh.dispose();
+    this.gunMat.dispose();
     for(const shape of Object.values(this.shapes))shape.dispose();
     for(const material of this.translucent.values())material.dispose();
     for(const material of this.glowOpacities.values())material.dispose();
